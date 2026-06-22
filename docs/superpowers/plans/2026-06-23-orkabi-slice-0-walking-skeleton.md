@@ -6,7 +6,7 @@
 
 **Architecture:** A single ASP.NET Core 8 Razor Pages app (modular monolith, modules added in later slices). EF Core 9 + Npgsql against Neon Postgres, migrations applied on boot. ASP.NET Core Identity (int keys) for users/hashing + cookie auth + Google OAuth. Cross-cutting bases (audit interceptor, archival query filter, Israel-TZ constant, RTL design system) are established here so every later slice inherits them.
 
-**Tech Stack:** .NET 8 (LTS), ASP.NET Core Razor Pages, EF Core 9, Npgsql, ASP.NET Core Identity, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, `Testcontainers.PostgreSql`, Docker, Render (host), Neon (Postgres).
+**Tech Stack:** .NET 8 (LTS), ASP.NET Core Razor Pages, EF Core 9, Npgsql (prod), `Microsoft.EntityFrameworkCore.Sqlite` (inner-loop tests), ASP.NET Core Identity, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, Docker, Render (host), Neon (Postgres). **No Docker is required for the test inner loop** — Postgres fidelity is delegated to the real-Neon deploy gate (Task 11).
 
 ## Global Constraints
 
@@ -56,7 +56,7 @@ src/Orkabi.Web/
    └─ fonts/ (Assistant, Heebo woff2)
 tests/Orkabi.Web.Tests/
 ├─ Orkabi.Web.Tests.csproj
-├─ Infrastructure/PostgresFixture.cs  # Testcontainers Postgres
+├─ Infrastructure/SqliteFixture.cs    # file-per-fixture SQLite (no Docker)
 ├─ Infrastructure/OrkabiAppFactory.cs # WebApplicationFactory w/ test DB
 ├─ HealthTests.cs, AuthTests.cs, ArchivalFilterTests.cs, AuditInterceptorTests.cs, RtlLayoutTests.cs
 ```
@@ -210,25 +210,28 @@ git commit -m "feat: add /health endpoint and integration test harness"
 
 ---
 
-### Task 3: EF Core + Neon + AppDbContext + migrate-on-boot (with Testcontainers)
+### Task 3: EF Core + AppDbContext + dual-provider (Npgsql prod / SQLite tests) + migrate-on-boot
 
 **Files:**
 - Create: `src/Orkabi.Web/Data/AppDbContext.cs`, `src/Orkabi.Web/Data/AppDbContextFactory.cs`
 - Modify: `src/Orkabi.Web/Program.cs`, `src/Orkabi.Web/appsettings.json`, `src/Orkabi.Web/Orkabi.Web.csproj`
-- Create: `tests/Orkabi.Web.Tests/Infrastructure/PostgresFixture.cs`; modify `OrkabiAppFactory.cs`; create `tests/Orkabi.Web.Tests/DbConnectivityTests.cs`
+- Create: `tests/Orkabi.Web.Tests/Infrastructure/SqliteFixture.cs`; modify `OrkabiAppFactory.cs`; create `tests/Orkabi.Web.Tests/DbConnectivityTests.cs`
 
 **Interfaces:**
 - Consumes: web app + factory.
-- Produces: `AppDbContext` (initially empty `IdentityDbContext` set in Task 6 — here just `DbContext`), a Neon connection wired via `ConnectionStrings:Default`, migrations applied on boot, and a `PostgresFixture` that boots a throwaway Postgres for tests. `OrkabiAppFactory` now accepts a connection string and overrides the registered DbContext to point at the test container.
+- Produces: `AppDbContext` (initially plain `DbContext`; becomes `IdentityDbContext` in Task 6), a runtime provider chosen by config key `Database:Provider` (`Sqlite` → `UseSqlite`, else `UseNpgsql`), the Npgsql migration set applied on boot (skipped under `Testing`), and a `SqliteFixture` that gives each test class a fresh file-backed SQLite DB. `OrkabiAppFactory` accepts a connection string, forces the SQLite provider + `Testing` env, and exposes `Prepared()` which builds the schema with **`EnsureCreated()`** (no migration files in the inner loop).
 
-> **Prerequisite:** Docker Desktop running (Testcontainers needs it).
+> **No Docker required.** The inner loop runs on SQLite (a single managed dependency). The Npgsql migration files run ONLY at the real-Neon deploy (Task 11), which is the sole Postgres-fidelity gate — the SQLite inner loop deliberately does not exercise PG-specific SQL, the Neon pooler, or `timestamptz`/`DateOnly` semantics.
 
 - [ ] **Step 1: Add packages**
 
 ```bash
 dotnet add src/Orkabi.Web package Npgsql.EntityFrameworkCore.PostgreSQL
+dotnet add src/Orkabi.Web package Microsoft.EntityFrameworkCore.Sqlite
 dotnet add src/Orkabi.Web package Microsoft.EntityFrameworkCore.Design
-dotnet add tests/Orkabi.Web.Tests package Testcontainers.PostgreSql
+# tests reference Microsoft.Data.Sqlite transitively via the Web project's Sqlite provider;
+# add it explicitly to the test project only if the fixture needs SqliteConnection directly:
+dotnet add tests/Orkabi.Web.Tests package Microsoft.Data.Sqlite
 ```
 
 - [ ] **Step 2: Create `AppDbContext`** (Identity base added in Task 6)

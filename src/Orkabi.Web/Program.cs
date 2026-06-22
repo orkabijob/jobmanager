@@ -22,4 +22,8 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
+app.MapGet("/health", () => Results.Json(new { status = "ok" }));
+
 app.Run();
+
+public partial class Program { }
