@@ -18,6 +18,14 @@ public class AuditSaveChangesInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, ct);
     }
 
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        var ctx = eventData.Context;
+        if (ctx is not null) Stamp(ctx);
+        return base.SavingChanges(eventData, result);
+    }
+
     private void Stamp(DbContext ctx)
     {
         var now = DateTime.UtcNow;
