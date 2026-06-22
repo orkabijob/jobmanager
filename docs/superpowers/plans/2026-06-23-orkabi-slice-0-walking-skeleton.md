@@ -20,7 +20,7 @@ _Copied verbatim from the spec. Every task implicitly includes these._
 - **Roles (exactly 4, fixed):** `Admin`, `CustomerService`, `Logistics`, `Instructor`. Authorize via role policies; **no** grant/ABAC engine. Role string representation is standardized everywhere (the `enum.ToString()` value == the Identity role name == any future `Action_Item.AssignedToRole`).
 - **Auth:** ASP.NET Core Identity + cookie (`HttpOnly`, `SameSite=Lax`, `Secure`) + Google OAuth. Cookie's `OnRedirectToLogin` returns **401 JSON for `/api/*`** instead of a 302. Anti-forgery enforced on cookie-authed API endpoints.
 - **Brand:** primary color **Blue Jay `#2B547E`**. Fonts: self-hosted **Assistant** (UI) + **Heebo** (tabular numerals), both OFL, subset to Hebrew+Latin.
-- **Migrations** applied at boot via `MigrateAsync()` (never `EnsureCreated`).
+- **Migrations (prod)** applied at boot via `MigrateAsync()` against Postgres (never `EnsureCreated` in prod). **Inner-loop tests** run on SQLite and build the schema from the model via `EnsureCreated()` (no migration files) — the Npgsql migration set is exercised only at the real-Neon deploy gate (Task 11). Single Npgsql migration set; no per-provider migration maintenance.
 
 ---
 
@@ -270,21 +270,30 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 }
 ```
 
-- [ ] **Step 4: Register DbContext (pooled runtime) + migrate-on-boot (DIRECT endpoint)** in `Program.cs`.
+- [ ] **Step 4: Register DbContext (provider switch) + migrate-on-boot (Npgsql, DIRECT endpoint)** in `Program.cs`.
 
-**Two connection strings** (the A3 blocker fix): `Default` = Neon **pooled** endpoint for runtime queries, which is PgBouncer in transaction mode and therefore **requires `Max Auto Prepare=0`**; `Migrations` = Neon **direct** (non-pooled) endpoint used ONLY for boot migration and `dotnet ef`.
+**Provider switch:** runtime provider is chosen by config key `Database:Provider`. Prod leaves it unset (`Npgsql`); the test factory sets it to `Sqlite`. **Two Postgres connection strings** (the A3 blocker fix, prod only): `Default` = Neon **pooled** endpoint for runtime queries, which is PgBouncer in transaction mode and therefore **requires `Max Auto Prepare=0`**; `Migrations` = Neon **direct** (non-pooled) endpoint used ONLY for boot migration and `dotnet ef`.
 
 Register the runtime context (after `builder` is created):
 
 ```csharp
+var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+{
+    var cs = builder.Configuration.GetConnectionString("Default");
+    if (dbProvider == "Sqlite")
+        o.UseSqlite(cs);          // inner-loop tests; schema built via EnsureCreated() in the factory
+    else
+        o.UseNpgsql(cs);          // prod: Neon pooled endpoint
+    // NOTE (Task 4): the audit interceptor is added here once it exists — keep this single
+    // registration as the one place the provider AND interceptors are wired.
+});
 ```
 
-Migrate on boot from a SEPARATE context built on the direct `Migrations` string, and SKIP it under the `Testing` environment (the test harness owns migration — Step 7):
+Migrate on boot from a SEPARATE Npgsql context built on the direct `Migrations` string, and SKIP it under the `Testing` environment (the test harness owns schema creation via `EnsureCreated()` — Step 7). Boot-migration is **Npgsql-only**; SQLite tests never run the migration files:
 
 ```csharp
-if (!app.Environment.IsEnvironment("Testing"))
+if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 {
     var migrateCs = app.Configuration.GetConnectionString("Migrations")
                     ?? app.Configuration.GetConnectionString("Default");
@@ -304,37 +313,49 @@ Real values (set as `ConnectionStrings__Default` / `ConnectionStrings__Migration
 - `Default` (pooled): `Host=<proj>-pooler.<region>.aws.neon.tech;Database=orkabi;Username=...;Password=...;SSL Mode=Require;Pooling=true;Maximum Pool Size=20;Max Auto Prepare=0`
 - `Migrations` (direct): `Host=<proj>.<region>.aws.neon.tech;Database=orkabi;Username=...;Password=...;SSL Mode=Require`
 
-- [ ] **Step 5: Create the initial migration**
+- [ ] **Step 5: Create the initial migration (Npgsql/prod set — the ONLY migration set)**
+
+The design-time factory (Step 3) is Npgsql, so this generates Postgres-targeted migrations. These run at prod boot and at the real-Neon deploy gate (Task 11). SQLite tests do **not** use them — they build the schema with `EnsureCreated()`.
 
 ```bash
 dotnet ef migrations add InitialCreate --project src/Orkabi.Web --startup-project src/Orkabi.Web
 ```
 
-Expected: a `Migrations/` folder with `InitialCreate` (empty model for now).
+Expected: a `Migrations/` folder with `InitialCreate` (empty model for now). **Single migration set, zero test-migration maintenance.**
 
-- [ ] **Step 6: Create `PostgresFixture`** (Testcontainers, shared per test collection)
+- [ ] **Step 6: Create `SqliteFixture`** (one fresh file-backed SQLite DB per test class — no Docker, full isolation)
 
 ```csharp
-using Testcontainers.PostgreSql;
+using Microsoft.Data.Sqlite;
 
 namespace Orkabi.Web.Tests.Infrastructure;
 
-public class PostgresFixture : IAsyncLifetime
+/// <summary>
+/// Gives each test class its own pristine SQLite database. File-backed (NOT :memory:) so the
+/// schema survives across the several connections WebApplicationFactory + a test open and close;
+/// an in-memory DB is destroyed when its last connection closes, which would drop the schema
+/// mid-test. A unique temp file per fixture also isolates classes from each other's rows.
+/// </summary>
+public sealed class SqliteFixture : IDisposable
 {
-    private readonly PostgreSqlContainer _container =
-        new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    private readonly string _path =
+        Path.Combine(Path.GetTempPath(), $"orkabi_{Guid.NewGuid():N}.db");
 
-    public string ConnectionString => _container.GetConnectionString();
+    // Foreign Keys=True turns on FK enforcement (off by default in SQLite) so the inner loop
+    // actually exercises relational constraints.
+    public string ConnectionString => $"Data Source={_path};Foreign Keys=True";
 
-    public Task InitializeAsync() => _container.StartAsync();
-    public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+    public void Dispose()
+    {
+        SqliteConnection.ClearAllPools();   // release file handles before delete
+        if (File.Exists(_path)) File.Delete(_path);
+    }
 }
-
-[CollectionDefinition("postgres")]
-public class PostgresCollection : ICollectionFixture<PostgresFixture> { }
 ```
 
-- [ ] **Step 7: Make `OrkabiAppFactory` use the test container**
+> No `[CollectionDefinition]` — each DB test class takes `IClassFixture<SqliteFixture>`, getting its own DB. xUnit may run classes in parallel safely because the files are disjoint.
+
+- [ ] **Step 7: Make `OrkabiAppFactory` use SQLite + own schema creation via `EnsureCreated()`**
 
 ```csharp
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -356,28 +377,34 @@ public class OrkabiAppFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Testing env => Program skips its boot-migrate; the factory owns migration (A1 fix).
+        // Testing env => Program skips its Npgsql boot-migrate; the factory owns schema (A1 fix).
         builder.UseEnvironment("Testing");
+        // Force the SQLite provider + the test DB connection string for the whole app.
+        builder.UseSetting("Database:Provider", "Sqlite");
+        builder.UseSetting("ConnectionStrings:Default", ConnectionString);
         builder.ConfigureAppConfiguration(cfg => cfg.AddInMemoryCollection(_config));
-        builder.ConfigureServices(services =>
-        {
-            var d = services.Single(s => s.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            services.Remove(d);
-            // NOTE (Task 4): once the audit interceptor exists, this swap re-adds it.
-            services.AddDbContext<AppDbContext>(o => o.UseNpgsql(ConnectionString));
-        });
+        // No DbContext re-registration needed: Program's provider switch already reads
+        // Database:Provider + ConnectionStrings:Default (set above), and the audit interceptor
+        // (Task 4) is wired in that same single registration.
     }
 
-    /// <summary>Apply migrations to the test container. Idempotent; call once at the start of a DB test.</summary>
-    public void Migrate()
+    /// <summary>
+    /// Build the schema for the test's SQLite DB from the EF model via EnsureCreated()
+    /// (no migration files — those are Npgsql-only and run at the Neon deploy gate, Task 11).
+    /// Idempotent; call once at the start of a DB test. Task 6 extends this to also seed roles.
+    /// </summary>
+    public OrkabiAppFactory Prepared()
     {
         using var scope = Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+        scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+        return this;
     }
 }
 ```
 
-- [ ] **Step 8: Write the connectivity test** — `DbConnectivityTests.cs`
+- [ ] **Step 8: Write the schema round-trip test** — `DbConnectivityTests.cs`
+
+Proves the schema actually built (insert + read a `Probe`) rather than asserting on migration state — `EnsureCreated()` leaves no migration history, so `GetPendingMigrationsAsync` is not meaningful here. (The `Probe` entity arrives in Task 4; until then this test inserts nothing and just asserts `CanConnect`.)
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -387,35 +414,32 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class DbConnectivityTests
+public class DbConnectivityTests : IClassFixture<Orkabi.Web.Tests.Infrastructure.SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public DbConnectivityTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public DbConnectivityTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
-    public async Task App_starts_and_applies_migrations_against_real_postgres()
+    public async Task App_builds_schema_and_connects_on_sqlite()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();   // the factory owns migration under the Testing environment
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.True(await db.Database.CanConnectAsync());
-        Assert.Empty(await db.Database.GetPendingMigrationsAsync());  // all applied
     }
 }
 ```
 
 - [ ] **Step 9: Run the test**
 
-Run: `dotnet test --filter App_starts_and_applies_migrations_against_real_postgres`
-Expected: PASS (container boots, app applies the migration, connects).
+Run: `dotnet test --filter App_builds_schema_and_connects_on_sqlite`
+Expected: PASS (SQLite file created, schema built via `EnsureCreated()`, connects — no Docker).
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add -A
-git commit -m "feat: wire EF Core + Neon, migrate-on-boot, Testcontainers harness"
+git commit -m "feat: wire EF Core, dual-provider (Npgsql prod / SQLite tests), EnsureCreated harness"
 ```
 
 ---
@@ -522,20 +546,20 @@ builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
 ```
 
-Change the DbContext registration to add the interceptor:
+Change the **single** provider-switch DbContext registration (from Task 3 Step 4) to add the interceptor in both provider branches. This is the one place the provider AND interceptors are wired — the test factory does NOT re-register the context, so the interceptor flows into tests automatically:
 
 ```csharp
+var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
 builder.Services.AddDbContext<AppDbContext>((sp, o) =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Default"))
-     .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+{
+    var cs = builder.Configuration.GetConnectionString("Default");
+    if (dbProvider == "Sqlite") o.UseSqlite(cs);
+    else                        o.UseNpgsql(cs);
+    o.AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
+});
 ```
 
-Also update `OrkabiAppFactory`'s DbContext swap (from Task 3) to include the interceptor — otherwise audit stamping won't run through the test host:
-
-```csharp
-services.AddDbContext<AppDbContext>((sp, o) => o.UseNpgsql(ConnectionString)
-    .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
-```
+No change to `OrkabiAppFactory` is needed for the interceptor: because Program owns the single registration and the factory only sets `Database:Provider=Sqlite` + the connection string, audit stamping runs through the test host automatically.
 
 - [ ] **Step 5: Add a test-only `Probe` entity** to `AppDbContext` guarded for tests — add to `AppDbContext`:
 
@@ -545,7 +569,7 @@ public DbSet<Probe> Probes => Set<Probe>();
 public class Probe : Orkabi.Web.Shared.BaseEntity { public string Name { get; set; } = ""; }
 ```
 
-Create migration:
+Create migration (Npgsql/prod set; SQLite tests pick the new `Probe` table up via `EnsureCreated()`):
 
 ```bash
 dotnet ef migrations add AddProbe --project src/Orkabi.Web --startup-project src/Orkabi.Web
@@ -560,21 +584,19 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class AuditInterceptorTests
+public class AuditInterceptorTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public AuditInterceptorTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public AuditInterceptorTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Adding_entity_stamps_created_and_updated_timestamps()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // unique name keeps this row distinct from other tests sharing the container (A2)
+        // unique name keeps this row distinct (harmless; file-per-fixture also isolates)
         var probe = new Probe { Name = $"audit-{Guid.NewGuid():N}" };
         db.Probes.Add(probe);
         await db.SaveChangesAsync();
@@ -644,7 +666,7 @@ protected override void OnModelCreating(ModelBuilder b)
 }
 ```
 
-Create migration:
+Create migration (Npgsql/prod set; SQLite tests pick up the `Status` column via `EnsureCreated()`):
 
 ```bash
 dotnet ef migrations add AddProbeStatus --project src/Orkabi.Web --startup-project src/Orkabi.Web
@@ -661,21 +683,19 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class ArchivalFilterTests
+public class ArchivalFilterTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public ArchivalFilterTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public ArchivalFilterTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Archived_rows_are_hidden_by_default_and_visible_with_IgnoreQueryFilters()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var tag = $"arch-{Guid.NewGuid():N}";   // isolate this test's rows in the shared container (A2)
+        var tag = $"arch-{Guid.NewGuid():N}";   // tag-scoped relative counts (kept; file-per-fixture also isolates)
         db.Probes.Add(new Probe { Name = tag, Status = EntityStatus.Active });
         db.Probes.Add(new Probe { Name = tag, Status = EntityStatus.Archived });
         await db.SaveChangesAsync();
@@ -755,7 +775,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 }
 ```
 
-Create migration:
+Create migration (Npgsql/prod set; adds the `AspNet*` tables — SQLite tests build them via `EnsureCreated()`):
 
 ```bash
 dotnet ef migrations add AddIdentity --project src/Orkabi.Web --startup-project src/Orkabi.Web
@@ -833,15 +853,16 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 ```
 
-Because boot-seeding is skipped under `Testing`, **update `OrkabiAppFactory.Migrate()` (from Task 3) to also seed roles** so role-dependent tests work:
+Because boot-seeding is skipped under `Testing`, **extend `OrkabiAppFactory.Prepared()` (from Task 3) to also seed roles** so role-dependent tests work — `EnsureCreated()` builds the schema, then seed:
 
 ```csharp
-public void Migrate()
+public OrkabiAppFactory Prepared()
 {
     using var scope = Services.CreateScope();
     var sp = scope.ServiceProvider;
-    sp.GetRequiredService<AppDbContext>().Database.Migrate();
+    sp.GetRequiredService<AppDbContext>().Database.EnsureCreated();
     DataSeeder.SeedRolesAsync(sp).GetAwaiter().GetResult();
+    return this;
 }
 ```
 
@@ -855,17 +876,15 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class AuthTests
+public class AuthTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public AuthTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public AuthTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Four_roles_are_seeded_and_user_can_be_created_with_a_role()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();   // migrates AND seeds the 4 roles
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();   // builds schema AND seeds the 4 roles
         using var scope = factory.Services.CreateScope();
         var roleMgr = scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
         var userMgr = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -882,7 +901,7 @@ public class AuthTests
 }
 ```
 
-> `factory.Migrate()` both migrates and seeds the 4 roles (boot-seeding is skipped under `Testing` — see Step 5).
+> `factory.Prepared()` builds the schema (`EnsureCreated()`) AND seeds the 4 roles (boot-seeding is skipped under `Testing` — see Step 5).
 
 - [ ] **Step 7: Run — verify pass**
 
@@ -916,17 +935,15 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class ApiSeamTests
+public class ApiSeamTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public ApiSeamTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public ApiSeamTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Anonymous_api_call_returns_401_not_a_login_redirect()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         var client = factory.CreateClient(new() { AllowAutoRedirect = false });
 
         var resp = await client.GetAsync("/api/ping");
@@ -1046,17 +1063,15 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class LoginFlowTests
+public class LoginFlowTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public LoginFlowTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public LoginFlowTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Valid_login_sets_auth_cookie()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using (var scope = factory.Services.CreateScope())
         {
             var um = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -1281,17 +1296,15 @@ using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class RoleRoutingTests
+public class RoleRoutingTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public RoleRoutingTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public RoleRoutingTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Instructor_is_routed_to_their_dashboard_and_denied_admin()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
-        factory.Migrate();
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using (var s = factory.Services.CreateScope())
         {
             var um = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -1447,16 +1460,15 @@ public static class IsraelClock
 using Orkabi.Web.Tests.Infrastructure;
 namespace Orkabi.Web.Tests;
 
-[Collection("postgres")]
-public class RtlLayoutTests
+public class RtlLayoutTests : IClassFixture<SqliteFixture>
 {
-    private readonly PostgresFixture _pg;
-    public RtlLayoutTests(PostgresFixture pg) => _pg = pg;
+    private readonly SqliteFixture _sqlite;
+    public RtlLayoutTests(SqliteFixture sqlite) => _sqlite = sqlite;
 
     [Fact]
     public async Task Login_page_renders_rtl_hebrew_shell()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _pg.ConnectionString };
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         var html = await factory.CreateClient().GetStringAsync("/Account/Login");
         Assert.Contains("dir=\"rtl\"", html);
         Assert.Contains("lang=\"he\"", html);
@@ -1589,7 +1601,7 @@ Call it right after `SeedRolesAsync` in the boot block (also skipped under Testi
 
 > First request after idle hits a ~30-60s cold start (Render free spin-up + Neon resume). Expected — not a failure. Document in `docs/DEPLOY.md`.
 
-- **Acceptance — real-Neon boot migration (the seam Testcontainers structurally cannot catch):** Render boot logs must show migrations applied against Neon with **no `prepared statement "_pN" already exists` / `does not exist` errors**. If they appear, either the runtime string is missing `Max Auto Prepare=0` or migration ran on the pooler instead of the direct endpoint.
+- **Acceptance — real-Neon boot migration (MANDATORY; this is now the SOLE Postgres-fidelity gate — the SQLite inner loop structurally cannot exercise the Npgsql migration files, PG-specific SQL, the Neon pooler, or `timestamptz`/`DateOnly`):** Render boot logs must show the Npgsql migrations applied against Neon with **no `prepared statement "_pN" already exists` / `does not exist` errors**. If they appear, either the runtime string is missing `Max Auto Prepare=0` or migration ran on the pooler instead of the direct endpoint. **Do not mark Slice 0 complete until this check passes** — no earlier task runs the migration files.
 - Visit `https://orkabi.onrender.com/health` → `{"status":"ok"}`.
 - Visit `/Account/Login` → RTL Hebrew glass card with **real Hebrew letterforms** (not boxes).
 - Log in as the seeded admin → lands on `/Dashboard/Admin`.
@@ -1607,13 +1619,15 @@ git commit -m "docs: deployment guide (Render + Neon + Google OAuth)"
 
 ## Self-Review (incorporating Architect + FullStack reviews)
 
-**Spec coverage (Slice 0 scope):** auth (Identity + Google + cookie + 401-for-api) ✅ Tasks 6, 6A, 7, 8; 4 roles + policies ✅ Tasks 6, 9; archival global filter + `is_active`-vs-`Archived` invariant ✅ Task 5; audit fields ✅ Task 4; Israel-TZ constant ✅ Task 10 Step 4b (`IsraelClock` stub); RTL + Apple-glass base + real Hebrew fonts ✅ Task 10; Neon (split pooled/direct) + migrate-on-boot ✅ Tasks 3, 11; `/api/*` 401-JSON seam proven ✅ Task 6A; deployed walking skeleton ✅ Task 11; test harness (xUnit + WebApplicationFactory + factory-owned Testcontainers migration) ✅ Tasks 2-3.
+**Spec coverage (Slice 0 scope):** auth (Identity + Google + cookie + 401-for-api) ✅ Tasks 6, 6A, 7, 8; 4 roles + policies ✅ Tasks 6, 9; archival global filter + `is_active`-vs-`Archived` invariant ✅ Task 5; audit fields ✅ Task 4; Israel-TZ constant ✅ Task 10 Step 4b (`IsraelClock` stub); RTL + Apple-glass base + real Hebrew fonts ✅ Task 10; Neon (split pooled/direct) + migrate-on-boot ✅ Tasks 3, 11; `/api/*` 401-JSON seam proven ✅ Task 6A; deployed walking skeleton ✅ Task 11; test harness (xUnit + WebApplicationFactory + file-per-test SQLite, schema via factory-owned `EnsureCreated()`, no Docker) ✅ Tasks 2-3; real-Neon migration-apply as the sole Postgres gate ✅ Task 11.
 
-**Blockers fixed (FullStack):** A1 — test harness owns migration; `Program` boot-migrate guarded out of `Testing` (Task 3). A2 — archival/audit tests isolated by a unique per-test tag (Tasks 4-5). A3 — migrations on Neon's **direct** endpoint, `Max Auto Prepare=0` on the pooled runtime string (Tasks 3, 11). B2 — cookie `SecurePolicy` env-branched (Task 6). Plus should-fixes: `/api` 401 proven (6A), env-var admin seed + `.dockerignore` + real-Neon acceptance check (11), real fonts (10), Google scheme/redirect/no-role notes (8).
+**Blockers fixed (FullStack):** A1 — test harness owns schema creation (`EnsureCreated()`); `Program` boot-migrate guarded out of `Testing` (Task 3). A2 — file-per-test SQLite DB fully isolates classes; archival/audit tests also keep a unique per-test tag (Tasks 3-5). A3 — migrations on Neon's **direct** endpoint, `Max Auto Prepare=0` on the pooled runtime string (Tasks 3, 11). B2 — cookie `SecurePolicy` env-branched (Task 6). Plus should-fixes: `/api` 401 proven (6A), env-var admin seed + `.dockerignore` + real-Neon acceptance check (11), real fonts (10), Google scheme/redirect/no-role notes (8).
+
+**Docker-free test strategy (FullStack decision):** the inner loop runs on **SQLite (file-per-test) via the provider switch**, schema built with `EnsureCreated()` — fast, offline, no Docker, no accounts. It genuinely exercises Identity int-keys, the audit interceptor, the archival `HasQueryFilter` + `IgnoreQueryFilters`, int-enum round-trip, and FK/NOT NULL/unique on a real relational engine. It deliberately does NOT cover PG-specific SQL, the Neon pooler (A3), or `timestamptz`/`DateOnly` — **all delegated to the mandatory real-Neon deploy gate (Task 11)**. Single Npgsql migration set; zero test-migration maintenance.
 
 **Placeholder scan:** every code step has real code; commands have expected output. No TBD/TODO.
 
-**Type consistency:** `AppUser`/`AppRole`/`AppRoles.*` consistent across Tasks 6-9; `OrkabiAppFactory.ConnectionString`/`WithConfig`/`Migrate()` consistent across Tasks 3-9; `AppDbContext` evolves DbContext→IdentityDbContext in Task 6 (noted in its interface block).
+**Type consistency:** `AppUser`/`AppRole`/`AppRoles.*` consistent across Tasks 6-9; `OrkabiAppFactory.ConnectionString`/`WithConfig`/`Prepared()` consistent across Tasks 3-10 (`Prepared()` = `EnsureCreated()` from Task 3, extended to also seed roles in Task 6); `SqliteFixture` replaces `PostgresFixture` (each DB test class takes `IClassFixture<SqliteFixture>`); `AppDbContext` evolves DbContext→IdentityDbContext in Task 6 (noted in its interface block); the runtime DbContext registration is a single provider switch on `Database:Provider` that also carries the audit interceptor.
 
 **Tracked for cleanup (must not ship):** the `Probe` test entity + its migrations are scaffolding — **remove them at the start of Slice 1**, replaced by the first real aggregate root that opts into the archival filter.
 
