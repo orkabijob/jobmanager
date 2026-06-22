@@ -13,7 +13,7 @@ public class DbConnectivityTests : IClassFixture<Orkabi.Web.Tests.Infrastructure
     [Fact]
     public async Task App_builds_schema_and_connects_on_sqlite()
     {
-        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.True(await db.Database.CanConnectAsync());
