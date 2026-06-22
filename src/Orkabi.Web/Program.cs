@@ -1,21 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
+using Orkabi.Web.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+
 var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
-builder.Services.AddDbContext<AppDbContext>(o =>
+builder.Services.AddDbContext<AppDbContext>((sp, o) =>
 {
     var cs = builder.Configuration.GetConnectionString("Default");
     if (dbProvider == "Sqlite")
         o.UseSqlite(cs);          // inner-loop tests; schema built via EnsureCreated() in the factory
     else
         o.UseNpgsql(cs);          // prod: Neon pooled endpoint
-    // NOTE (Task 4): the audit interceptor is added here once it exists — keep this single
-    // registration as the one place the provider AND interceptors are wired.
+    o.AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
 });
 
 var app = builder.Build();
