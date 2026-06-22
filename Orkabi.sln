@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{88367266-F880-4B9A-8670-D541C54FEFD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orkabi.Web", "src\Orkabi.Web\Orkabi.Web.csproj", "{6FABBCE4-2B74-4466-A3CB-64831718DCA8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D8940AAF-4C50-44E3-9E27-7F5CBC2F3C31}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orkabi.Web.Tests", "tests\Orkabi.Web.Tests\Orkabi.Web.Tests.csproj", "{8AC819A4-6A51-483B-8C22-47A7D64F51E4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6FABBCE4-2B74-4466-A3CB-64831718DCA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FABBCE4-2B74-4466-A3CB-64831718DCA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FABBCE4-2B74-4466-A3CB-64831718DCA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FABBCE4-2B74-4466-A3CB-64831718DCA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8AC819A4-6A51-483B-8C22-47A7D64F51E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8AC819A4-6A51-483B-8C22-47A7D64F51E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8AC819A4-6A51-483B-8C22-47A7D64F51E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8AC819A4-6A51-483B-8C22-47A7D64F51E4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6FABBCE4-2B74-4466-A3CB-64831718DCA8} = {88367266-F880-4B9A-8670-D541C54FEFD8}
+		{8AC819A4-6A51-483B-8C22-47A7D64F51E4} = {D8940AAF-4C50-44E3-9E27-7F5CBC2F3C31}
+	EndGlobalSection
+EndGlobal
