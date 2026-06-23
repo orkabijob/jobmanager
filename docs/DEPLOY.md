@@ -39,6 +39,7 @@
    - `https://<your-app-name>.onrender.com/signin-google` (production)
    - `https://localhost:<port>/signin-google` (local development, optional)
 4. Copy the **Client ID** and **Client Secret**.
+5. Google sign-in requires a verified email (`email_verified=true`); unverified accounts are redirected to the login page. This is validated by an actual Google sign-in at the post-deploy check (the OAuth callback cannot be exercised in the offline test suite).
 
 ---
 

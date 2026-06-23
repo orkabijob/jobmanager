@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -34,6 +35,12 @@ public class ExternalLoginModel : PageModel
 
         var email = info.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
         if (string.IsNullOrEmpty(email)) return RedirectToPage("/Account/Login");
+
+        // Security (final-review I-1): only provision/auto-link from a Google-VERIFIED email —
+        // blocks OAuth identity-merge account takeover.
+        var emailVerified = info.Principal.FindFirstValue("email_verified");
+        if (!string.Equals(emailVerified, "true", StringComparison.OrdinalIgnoreCase))
+            return RedirectToPage("/Account/Login");
 
         var user = await _users.FindByEmailAsync(email)
                    ?? new AppUser { UserName = email, Email = email };

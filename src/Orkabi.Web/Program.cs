@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,8 @@ if (!string.IsNullOrWhiteSpace(googleId) && !string.IsNullOrWhiteSpace(googleSec
         o.ClientId = googleId;
         o.ClientSecret = googleSecret;
         // CallbackPath defaults to /signin-google (registered in Google Cloud) — do not override.
+        // Security (final-review I-1): surface the email_verified flag so the callback can gate provisioning.
+        o.ClaimActions.MapJsonKey("email_verified", "email_verified");
     });
 }
 

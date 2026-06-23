@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Orkabi.Web.Modules.Identity;
 
 namespace Orkabi.Web.Data;
@@ -25,7 +26,14 @@ public static class DataSeeder
         if (await users.FindByEmailAsync(email) is not null) return;
 
         var admin = new AppUser { UserName = email, Email = email, EmailConfirmed = true };
-        if ((await users.CreateAsync(admin, pwd)).Succeeded)
-            await users.AddToRoleAsync(admin, AppRoles.Admin);
+        var result = await users.CreateAsync(admin, pwd);
+        if (!result.Succeeded)
+        {
+            sp.GetService<ILoggerFactory>()?.CreateLogger("DataSeeder")
+              .LogWarning("Admin seed failed for {Email}: {Errors}", email,
+                          string.Join("; ", result.Errors.Select(e => e.Description)));
+            return;
+        }
+        await users.AddToRoleAsync(admin, AppRoles.Admin);
     }
 }
