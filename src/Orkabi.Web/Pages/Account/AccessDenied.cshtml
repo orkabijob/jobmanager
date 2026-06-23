@@ -1,8 +1,24 @@
 @page
 @model Orkabi.Web.Pages.Account.AccessDeniedModel
 @{ ViewData["Title"] = "אין הרשאה"; }
-<div class="glass glass--panel auth-card glass--enter">
-    <h1>אין הרשאה</h1>
-    <p>אין לך הרשאה לצפות בעמוד זה — ייתכן שטרם שויך לך תפקיד.</p>
-    <a href="/">חזרה לדף הבית</a>
+
+<div class="auth-stage">
+
+  <div class="auth-wordmark" aria-label="עורקבי">
+    <span class="auth-wordmark__he">עורקבי</span>
+    <span class="auth-wordmark__sub">Orkabi</span>
+  </div>
+
+  <div class="glass glass--panel auth-card glass--enter" style="text-align:center;">
+    <div>
+      <h1 class="auth-card__heading" style="font-size:var(--t-display);">אין הרשאה</h1>
+      <p class="auth-card__sub" style="margin-block-start:var(--sp-3);">
+        אין לך הרשאה לצפות בעמוד זה — ייתכן שטרם שויך לך תפקיד.
+      </p>
+    </div>
+    <div class="auth-card__actions">
+      <a href="/" class="btn-primary">חזרה לדף הבית</a>
+    </div>
+  </div>
+
 </div>

@@ -4,4 +4,157 @@
     ViewData["Title"] = "לוח בקרה — מנהל";
 }
 
-<h1>לוח בקרה — מנהל</h1>
+<!-- Dashboard shell -->
+<div class="dash-shell">
+
+  <!-- Sticky glass topbar -->
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">לוח בקרה — מנהל</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, מנהל</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <!-- Bento content area -->
+  <main class="dash-body">
+    <div class="bento">
+
+      <!-- [1] Metric tile — total clients, top-start -->
+      <div class="glass glass--tile bento__tile bento__metric">
+        <div class="tile-head">
+          <span class="tile-head__label">לקוחות פעילים</span>
+        </div>
+        <div>
+          <div class="metric-value num">847</div>
+          <div style="display:flex;align-items:center;gap:var(--sp-2);margin-block-start:var(--sp-2);">
+            <span class="metric-delta">+12 החודש</span>
+          </div>
+          <p class="metric-sublabel">סך הלקוחות הרשומים במערכת</p>
+        </div>
+      </div>
+
+      <!-- [2] Focal / Command center tile — center, spans all rows -->
+      <div class="glass glass--tile bento__tile bento__focal focal-tile">
+        <div class="tile-head">
+          <span class="tile-head__label">מרכז פעילות</span>
+          <a href="#" class="tile-head__action">הצג הכל</a>
+        </div>
+        <div class="focal-tile__empty">
+          <div class="focal-tile__icon" aria-hidden="true">⌘</div>
+          <p class="focal-tile__hint">
+            כאן יוצגו פעולות מהירות, סטטוס מפגשים פעילים ונתוני ליבה בזמן אמת.
+          </p>
+          <a href="#" class="btn-ghost">הוספת פעולה</a>
+        </div>
+      </div>
+
+      <!-- [3] Open tasks tile — start column, row 2 -->
+      <div class="glass glass--tile bento__tile bento__feed" style="--lg-tile-shadow: var(--lg-shadow);">
+        <div class="tile-head">
+          <span class="tile-head__label">משימות פתוחות</span>
+          <a href="#" class="tile-head__action">הוספה</a>
+        </div>
+        <ul class="task-list" role="list">
+          <li class="task-item">
+            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
+            <span class="task-item__text">עדכון תוכנית לימודים — מחזור ב׳</span>
+            <span class="task-item__badge">דחוף</span>
+          </li>
+          <li class="task-item">
+            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
+            <span class="task-item__text">אישור בקשות חופשה — מדריכים</span>
+            <span class="task-item__badge task-item__badge--ok">רגיל</span>
+          </li>
+          <li class="task-item">
+            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
+            <span class="task-item__text">בדיקת דוח גבייה חודשי</span>
+            <span class="task-item__badge">דחוף</span>
+          </li>
+          <li class="task-item">
+            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
+            <span class="task-item__text">עדכון פרטי קשר — לקוחות חדשים</span>
+            <span class="task-item__badge task-item__badge--ok">רגיל</span>
+          </li>
+          <li class="task-item">
+            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
+            <span class="task-item__text">הכנת דוח נוכחות — שבוע שעבר</span>
+            <span class="task-item__badge task-item__badge--ok">רגיל</span>
+          </li>
+        </ul>
+        <button type="button" class="btn-ghost" style="margin-block-start:auto;align-self:flex-start;">
+          + משימה חדשה
+        </button>
+      </div>
+
+      <!-- [4] Alerts / feed tile — end column, row 1-2 -->
+      <div class="glass glass--tile bento__tile bento__tasks">
+        <div class="tile-head">
+          <span class="tile-head__label">התראות</span>
+          <a href="#" class="tile-head__action">כל ההתראות</a>
+        </div>
+        <ul class="feed-list" role="list">
+          <li class="feed-item">
+            <span class="feed-dot feed-dot--alert" aria-hidden="true"></span>
+            <div class="feed-item__content">
+              <p class="feed-item__text">לקוח חדש נרשם: דוד כהן</p>
+              <bdi class="feed-item__time num">09:14</bdi>
+            </div>
+          </li>
+          <li class="feed-item">
+            <span class="feed-dot feed-dot--warn" aria-hidden="true"></span>
+            <div class="feed-item__content">
+              <p class="feed-item__text">תשלום ממתין — ישראל ישראלי</p>
+              <bdi class="feed-item__time num">08:52</bdi>
+            </div>
+          </li>
+          <li class="feed-item">
+            <span class="feed-dot" aria-hidden="true"></span>
+            <div class="feed-item__content">
+              <p class="feed-item__text">מפגש הסתיים — קבוצה א׳</p>
+              <bdi class="feed-item__time num">08:30</bdi>
+            </div>
+          </li>
+          <li class="feed-item">
+            <span class="feed-dot feed-dot--ok" aria-hidden="true"></span>
+            <div class="feed-item__content">
+              <p class="feed-item__text">גבייה אושרה — שרה לוי</p>
+              <bdi class="feed-item__time num">07:45</bdi>
+            </div>
+          </li>
+          <li class="feed-item">
+            <span class="feed-dot feed-dot--alert" aria-hidden="true"></span>
+            <div class="feed-item__content">
+              <p class="feed-item__text">מדריך ביקש חופשה — 27.06</p>
+              <bdi class="feed-item__time num">אתמול</bdi>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- [5] Quick stats — end column, row 3 -->
+      <div class="glass glass--tile bento__tile bento__alerts">
+        <div class="tile-head">
+          <span class="tile-head__label">סטטוס מהיר</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">מפגשים היום</span>
+            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--brand);">6</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">לקוחות נוכחים</span>
+            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--ok);">34</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">תשלומים פתוחים</span>
+            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--warn);">3</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /bento -->
+  </main>
+
+</div><!-- /dash-shell -->

@@ -1,6 +1,7 @@
 /* ============================================================
    Orkabi tokens.css — Liquid Glass system (canonical)
    Brand: Blue Jay #2B547E · UI: Assistant · Numerals: Heebo
+   Elevated: deeper glass, tighter type rhythm, premium motion
    ============================================================ */
 :root {
   /* ---- Brand ---- */
@@ -9,79 +10,131 @@
   --brand-tint:       #3E6FA0;   /* hovers, mesh, lighter accents */
   --brand-deep:       #1E3D5C;   /* pressed, hero gradient floor */
   --brand-ink:        #16263A;   /* default text on light */
+  --brand-ink-muted:  #4A6580;   /* secondary text, labels */
+  --brand-ink-faint:  rgba(22, 38, 58, .45);  /* placeholders, dividers */
 
   /* ---- Liquid Glass: backdrop-filter stacks (3 tiers = Apple Regular/Clear/inline) ---- */
-  --lg-blur-nav:      saturate(180%) brightness(1.06) blur(20px);
-  --lg-blur-panel:    saturate(160%) brightness(1.03) blur(14px);
-  --lg-blur-inline:   saturate(140%) blur(8px);
+  --lg-blur-nav:      saturate(200%) brightness(1.08) blur(24px);
+  --lg-blur-panel:    saturate(180%) brightness(1.04) blur(18px);
+  --lg-blur-inline:   saturate(150%) blur(10px);
 
-  /* ---- Material fills (translucent). NEVER put body text on --lg-fill; use --lg-fill-strong. ---- */
-  --lg-fill:          rgba(255, 255, 255, .55);   /* Regular */
-  --lg-fill-strong:   rgba(255, 255, 255, .72);   /* under dense text (legibility contract) */
-  --lg-fill-clear:    rgba(255, 255, 255, .38);   /* Clear — REQUIRES a scrim behind text */
-  --lg-fill-tint:     rgba(var(--brand-rgb), .06);/* brand-tinted glass (lesson-model chip) */
-  --lg-fill-solid:    rgba(255, 255, 255, .92);   /* Identity / no-backdrop-filter fallback */
+  /* ---- Material fills. NEVER put body text on --lg-fill; use --lg-fill-strong. ---- */
+  --lg-fill:          rgba(255, 255, 255, .58);   /* Regular */
+  --lg-fill-strong:   rgba(255, 255, 255, .76);   /* under dense text (legibility contract) */
+  --lg-fill-clear:    rgba(255, 255, 255, .40);   /* Clear — REQUIRES a scrim behind text */
+  --lg-fill-tint:     rgba(var(--brand-rgb), .07);/* brand-tinted glass */
+  --lg-fill-solid:    rgba(255, 255, 255, .94);   /* Identity / no-backdrop-filter fallback */
+  --lg-fill-deep:     rgba(255, 255, 255, .84);   /* input fields — deep legibility */
 
-  /* ---- Hairline edges (the "light rim"). Two-part: visible border + inset highlight in shadow. */
-  --lg-hairline:      1px solid rgba(255, 255, 255, .55);
+  /* ---- Hairline edges — two-part: visible border + inset highlight ---- */
+  --lg-hairline:      1px solid rgba(255, 255, 255, .62);
+  --lg-hairline-strong: 1px solid rgba(255, 255, 255, .80);
   --lg-hairline-rgb:  255, 255, 255;
 
-  /* ---- Shadow stacks: contact + ambient + inset bevel (the Figma double-inner-shadow, in CSS) */
+  /* ---- Shadow stacks: contact + ambient + inset bevel ---- */
   --lg-shadow:
-     0 1px 1px  rgba(var(--brand-rgb), .04),
-     0 8px 24px -8px rgba(var(--brand-rgb), .18),
-     inset 0 1px 0 rgba(255,255,255,.55),
-     inset 0 -1px 0 rgba(var(--brand-rgb),.05);
-  --lg-shadow-lifted:
-     0 2px 4px  rgba(var(--brand-rgb), .06),
-     0 16px 48px -12px rgba(var(--brand-rgb), .28),
-     inset 0 1px 0 rgba(255,255,255,.65),
+     0 1px 1px   rgba(var(--brand-rgb), .05),
+     0 4px 12px  -4px rgba(var(--brand-rgb), .10),
+     0 12px 32px -8px rgba(var(--brand-rgb), .16),
+     inset 0 1px 0 rgba(255,255,255,.62),
      inset 0 -1px 0 rgba(var(--brand-rgb),.06);
-  --lg-shadow-hero:                 /* solid Blue-Jay monolith glow */
-     0 1px 0   rgba(255,255,255,.18) inset,
-     0 20px 60px -16px rgba(var(--brand-rgb), .50);
+  --lg-shadow-lifted:
+     0 2px 4px   rgba(var(--brand-rgb), .06),
+     0 8px 24px  -6px rgba(var(--brand-rgb), .18),
+     0 20px 56px -12px rgba(var(--brand-rgb), .24),
+     inset 0 1px 0 rgba(255,255,255,.72),
+     inset 0 -1px 0 rgba(var(--brand-rgb),.07);
+  --lg-shadow-hero:   /* solid Blue-Jay monolith glow */
+     0 1px 0   rgba(255,255,255,.20) inset,
+     0 4px 0   rgba(var(--brand-rgb), .10) inset,
+     0 24px 72px -16px rgba(var(--brand-rgb), .55);
+  --lg-shadow-tile:   /* bento tile — slightly lifted, crisp */
+     0 1px 2px   rgba(var(--brand-rgb), .04),
+     0 6px 20px  -6px rgba(var(--brand-rgb), .14),
+     inset 0 1px 0 rgba(255,255,255,.68);
 
-  /* ---- Specular glint default position (JS may animate on pointer/scroll) ---- */
-  --lg-glint-x: 30%;
+  /* ---- Specular glint (JS animates --lg-glint-x on pointer/scroll) ---- */
+  --lg-glint-x: 28%;
+  --lg-glint-intensity: .58;
 
-  /* ---- Radii (continuous-rounded, concentric-capable). Bigger than ShiftManager's flat 8px. */
-  --radius-chip:   12px;
-  --radius-card:   20px;
-  --radius-panel:  28px;
-  --radius-hero:   32px;
-  --radius-sheet:  28px;   /* top corners of the attendance bottom-sheet */
+  /* ---- Radii (continuous-rounded, concentric ladder: 32→24→16→pill) ---- */
+  --radius-chip:   14px;   /* badges, tags, small pills */
+  --radius-card:   22px;   /* glass cards */
+  --radius-panel:  30px;   /* panels, auth card */
+  --radius-hero:   34px;   /* hero tile, hero button */
+  --radius-sheet:  30px;   /* top corners of bottom-sheet */
   --radius-pill:   9999px;
-  --pad-concentric: 8px;   /* default inset → child radius = parent − this (see §6) */
+  --pad-concentric: 8px;   /* child radius = parent − this */
 
-  /* ---- Mesh backdrop base (the glass needs something colorful to refract) ---- */
-  --bg-base: #EEF3F8;      /* cool off-white */
+  /* ---- Mesh backdrop base ---- */
+  --bg-base: #EAF0F7;      /* cool blue-white with more saturation */
 
-  /* ---- Type ---- */
+  /* ---- Type scale ---- */
   --font-ui:  'Assistant', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-num: 'Heebo', 'Assistant', ui-monospace, monospace; /* tabular numerals */
-  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  --font-num: 'Heebo', 'Assistant', ui-monospace, monospace;
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold: 600;
+  --fw-bold:    700;
+  --fw-extrabold: 800;
 
-  /* Instructor (mobile-first, base 17px) */
-  --t-hero-cta: 28px; --t-display: 24px; --t-title: 20px;
-  --t-body: 17px;     --t-label: 15px;   --t-meta: 13px;
-  /* Admin (dense, base 15px) */
-  --t-metric: 40px;   --t-admin-display: 22px; --t-admin-title: 17px;
-  --t-admin-body: 15px; --t-admin-label: 13px; --t-admin-meta: 12px;
-  --lh-tight: 1.15; --lh-snug: 1.3; --lh-normal: 1.5;
+  /* Display / Auth hero */
+  --t-wordmark:  36px;   /* brand wordmark in auth hero */
+  --t-hero-cta:  30px;
+  --t-display:   26px;
+  --t-title:     21px;
+  --t-body:      17px;
+  --t-label:     15px;
+  --t-meta:      13px;
+  --t-micro:     11px;
 
-  /* ---- Spacing (block/inline neutral; logical props consume these) ---- */
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
-  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+  /* Admin / dense */
+  --t-metric:       44px;
+  --t-metric-label: 13px;
+  --t-admin-display: 22px;
+  --t-admin-title:   18px;
+  --t-admin-body:    15px;
+  --t-admin-label:   13px;
+  --t-admin-meta:    12px;
 
-  /* ---- Motion (springs; see §8) ---- */
-  --ease-glass:  cubic-bezier(0.32, 0.72, 0, 1);     /* sheets, cards */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* confirm overshoot */
-  --dur-fast: 180ms; --dur-mid: 280ms; --dur-slow: 420ms;
+  /* Line heights */
+  --lh-tight:  1.12;
+  --lh-snug:   1.28;
+  --lh-normal: 1.52;
+  --lh-relaxed: 1.68;
 
-  /* ---- Semantic (attendance, tasks) ---- */
-  --ok:     #2E7D5B; --ok-soft:  rgba(46,125,91,.16);
-  --absent: #B23A48; --absent-soft: rgba(178,58,72,.14);
-  --warn:   #C8861B;
+  /* Letter spacing */
+  --ls-tight:  -0.02em;
+  --ls-normal:  0;
+  --ls-wide:    0.04em;
+  --ls-widest:  0.08em;   /* caps labels, section headers */
+
+  /* ---- Spacing (logical-property-ready) ---- */
+  --sp-1: 4px;  --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px;  --sp-7: 28px;  --sp-8: 32px;
+  --sp-10: 40px; --sp-12: 48px; --sp-14: 56px; --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ---- Motion (springs + eases) ---- */
+  --ease-glass:    cubic-bezier(0.32, 0.72, 0, 1);     /* sheets, cards */
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);  /* confirm overshoot */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);      /* entrance, glint */
+  --dur-instant: 80ms;
+  --dur-fast:   180ms;
+  --dur-mid:    300ms;
+  --dur-slow:   440ms;
+  --dur-glide:  600ms;
+
+  /* ---- Semantic (attendance, tasks, alerts) ---- */
+  --ok:     #2E7D5B; --ok-soft:     rgba(46,125,91,.14);
+  --absent: #B23A48; --absent-soft: rgba(178,58,72,.12);
+  --warn:   #C8861B; --warn-soft:   rgba(200,134,27,.12);
+  --info:   rgba(var(--brand-rgb), .12);
+
+  /* ---- Dashboard bento grid config ---- */
+  --bento-gap: var(--sp-5);
+  --bento-padding: var(--sp-6);
 }
 
 /* ============================================================
@@ -89,61 +142,84 @@
    ============================================================ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --brand-ink: #E8EEF5;
-    --bg-base:   #0E1722;
-    --lg-fill:        rgba(28, 42, 60, .55);
-    --lg-fill-strong: rgba(28, 42, 60, .74);
-    --lg-fill-clear:  rgba(28, 42, 60, .40);
-    --lg-fill-solid:  rgba(22, 34, 50, .92);
-    --lg-hairline:    1px solid rgba(255,255,255,.16);
+    --brand-ink:       #E8EEF5;
+    --brand-ink-muted: #8FA8C2;
+    --brand-ink-faint: rgba(232,238,245,.38);
+    --bg-base:         #0C1520;
+    --lg-fill:         rgba(22, 38, 58, .58);
+    --lg-fill-strong:  rgba(22, 38, 58, .76);
+    --lg-fill-clear:   rgba(22, 38, 58, .42);
+    --lg-fill-deep:    rgba(22, 38, 58, .84);
+    --lg-fill-solid:   rgba(16, 28, 44, .94);
+    --lg-hairline:     1px solid rgba(255,255,255,.14);
+    --lg-hairline-strong: 1px solid rgba(255,255,255,.22);
     --lg-shadow:
-       0 1px 1px rgba(0,0,0,.30),
-       0 8px 24px -8px rgba(0,0,0,.55),
+       0 1px 1px rgba(0,0,0,.35),
+       0 4px 12px -4px rgba(0,0,0,.40),
+       0 12px 32px -8px rgba(0,0,0,.50),
        inset 0 1px 0 rgba(255,255,255,.10);
     --lg-shadow-lifted:
-       0 2px 4px rgba(0,0,0,.35),
-       0 16px 48px -12px rgba(0,0,0,.65),
+       0 2px 4px rgba(0,0,0,.40),
+       0 8px 24px -6px rgba(0,0,0,.55),
+       0 20px 56px -12px rgba(0,0,0,.60),
        inset 0 1px 0 rgba(255,255,255,.12);
   }
 }
 
 /* ============================================================
-   Accessibility — honor system settings, like Apple does
+   Accessibility — honor system settings
    ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --lg-fill: var(--lg-fill-solid);
+    --lg-fill:       var(--lg-fill-solid);
     --lg-fill-strong: var(--lg-fill-solid);
-    --lg-fill-clear: var(--lg-fill-solid);
-    --lg-blur-nav: none; --lg-blur-panel: none; --lg-blur-inline: none;
+    --lg-fill-clear:  var(--lg-fill-solid);
+    --lg-fill-deep:   var(--lg-fill-solid);
+    --lg-blur-nav:    none;
+    --lg-blur-panel:  none;
+    --lg-blur-inline: none;
   }
-  .glass--lensed { filter: none; }              /* drop refraction */
-  .glass::before { display: none; }             /* drop glint */
+  .glass--lensed { filter: none; }
+  .glass::before { display: none; }
 }
+
 @media (prefers-contrast: more) {
   :root {
-    --lg-fill: var(--lg-fill-solid);
+    --lg-fill:        var(--lg-fill-solid);
     --lg-fill-strong: var(--lg-fill-solid);
-    --lg-hairline: 1px solid rgba(var(--brand-rgb), .55);
+    --lg-hairline:    1px solid rgba(var(--brand-rgb), .60);
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important; scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
-  .glass--lensed { filter: none; }              /* no motion-reactive lens */
+  .glass--lensed { filter: none; }
 }
 
 /* ============================================================
-   Mesh backdrop (§3.1) — blue family only; supersedes placeholder
+   Mesh backdrop — blue family only; JS may add a .mesh-animated
+   class to enable scroll-responsive gradient drift
    ============================================================ */
-body { background-color: var(--bg-base); color: var(--brand-ink); font-family: var(--font-ui); }
+body {
+  background-color: var(--bg-base);
+  color: var(--brand-ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(42% 52% at 18% 20%, rgba(var(--brand-rgb), .26), transparent 70%),
-    radial-gradient(46% 56% at 84% 16%, rgba(120,160,210,.22), transparent 70%),
-    radial-gradient(52% 60% at 76% 88%, rgba(var(--brand-rgb), .20), transparent 75%),
-    radial-gradient(40% 50% at 8% 92%, rgba(150,180,220,.16), transparent 70%);
+    radial-gradient(50% 60% at 15% 18%, rgba(var(--brand-rgb), .28), transparent 68%),
+    radial-gradient(44% 52% at 88% 14%, rgba(100,148,200,.22), transparent 68%),
+    radial-gradient(56% 64% at 80% 90%, rgba(var(--brand-rgb), .20), transparent 72%),
+    radial-gradient(38% 48% at 6%  88%, rgba(140,172,215,.18), transparent 68%),
+    radial-gradient(30% 40% at 50% 50%, rgba(var(--brand-rgb), .06), transparent 70%);
 }

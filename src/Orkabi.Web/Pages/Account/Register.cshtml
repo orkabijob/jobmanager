@@ -1,10 +1,53 @@
 @page
 @model Orkabi.Web.Pages.Account.RegisterModel
 @{ ViewData["Title"] = "הרשמה"; }
-<form method="post" class="glass glass--panel auth-card glass--enter">
-    <h1>הרשמה לעורקבי</h1>
-    @if (Model.Error is not null) { <p class="error">@Model.Error</p> }
-    <label>אימייל<input type="email" asp-for="Email" dir="ltr" required /></label>
-    <label>סיסמה<input type="password" asp-for="Password" required /></label>
-    <button type="submit" class="btn-primary">הרשמה</button>
-</form>
+
+<div class="auth-stage">
+
+  <!-- Brand wordmark above card -->
+  <div class="auth-wordmark" aria-label="עורקבי">
+    <span class="auth-wordmark__he">עורקבי</span>
+    <span class="auth-wordmark__sub">Orkabi</span>
+  </div>
+
+  <!-- Glass auth card -->
+  <form method="post" class="glass glass--panel glass--lifted auth-card glass--enter" novalidate>
+
+    <div>
+      <h1 class="auth-card__heading">יצירת חשבון</h1>
+      <p class="auth-card__sub">הירשמו כדי להתחיל להשתמש במערכת</p>
+    </div>
+
+    @if (Model.Error is not null)
+    {
+      <div class="auth-error" role="alert">
+        <span>@Model.Error</span>
+      </div>
+    }
+
+    <div class="auth-card__fields">
+      <div class="auth-field">
+        <label class="auth-field__label" for="Email">כתובת אימייל</label>
+        <input type="email" id="Email" asp-for="Email" dir="ltr"
+               autocomplete="email" inputmode="email" required
+               placeholder="you@example.com" />
+      </div>
+      <div class="auth-field">
+        <label class="auth-field__label" for="Password">סיסמה</label>
+        <input type="password" id="Password" asp-for="Password"
+               autocomplete="new-password" required
+               placeholder="••••••••" />
+      </div>
+    </div>
+
+    <div class="auth-card__actions">
+      <button type="submit" class="btn-primary">יצירת חשבון</button>
+    </div>
+
+    <p class="auth-footer">
+      כבר יש לכם חשבון? <a href="/Account/Login">כניסה למערכת</a>
+    </p>
+
+  </form>
+
+</div>
