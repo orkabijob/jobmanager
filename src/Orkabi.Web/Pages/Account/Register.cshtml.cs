@@ -8,12 +8,10 @@ namespace Orkabi.Web.Pages.Account;
 public class RegisterModel : PageModel
 {
     private readonly UserManager<AppUser> _userManager;
-    private readonly SignInManager<AppUser> _signIn;
 
-    public RegisterModel(UserManager<AppUser> userManager, SignInManager<AppUser> signIn)
+    public RegisterModel(UserManager<AppUser> userManager)
     {
         _userManager = userManager;
-        _signIn = signIn;
     }
 
     [BindProperty] public string Email { get; set; } = "";
@@ -28,8 +26,10 @@ public class RegisterModel : PageModel
         var result = await _userManager.CreateAsync(user, Password);
         if (result.Succeeded)
         {
-            await _signIn.SignInAsync(user, isPersistent: false);
-            return LocalRedirect("/");
+            // Do NOT auto-sign-in: a freshly registered user has no role yet and would
+            // immediately hit AccessDenied via the role router. Send them to Login; an
+            // Admin assigns a role before they can reach a dashboard.
+            return RedirectToPage("/Account/Login");
         }
         Error = string.Join(" ", result.Errors.Select(e => e.Description));
         return Page();
