@@ -120,6 +120,35 @@ body { margin: 0; line-height: var(--lh-normal); }
   gap: var(--sp-4);
 }
 
+/* auth heading + frosted-glass form fields (everything glass) */
+.auth-card h1 { margin: 0 0 var(--sp-2); font-size: var(--t-display);
+  font-weight: var(--fw-bold); text-align: center; }
+.auth-card label { display: flex; flex-direction: column; gap: var(--sp-2);
+  font-size: var(--t-label); font-weight: var(--fw-medium); }
+.auth-card input {
+  inline-size: 100%;
+  background: var(--lg-fill-strong);
+  -webkit-backdrop-filter: var(--lg-blur-inline);
+          backdrop-filter: var(--lg-blur-inline);
+  border: 1px solid rgba(var(--brand-rgb), .16);
+  border-radius: var(--radius-chip);
+  padding-block: var(--sp-3); padding-inline: var(--sp-4);
+  font: inherit; color: var(--brand-ink);
+  transition: border-color var(--dur-fast) var(--ease-glass),
+              box-shadow var(--dur-fast) var(--ease-glass);
+}
+.auth-card input::placeholder { color: rgba(var(--brand-rgb), .45); }
+.auth-card input:focus { outline: none;
+  border-color: rgba(var(--brand-rgb), .55);
+  box-shadow: 0 0 0 3px rgba(var(--brand-rgb), .14); }
+.auth-card .btn-primary, .auth-card .btn-google {
+  inline-size: 100%; justify-content: center; text-align: center;
+  margin-block-start: var(--sp-2); }
+.auth-card .error { color: var(--absent); font-size: var(--t-label);
+  text-align: center; margin: 0; }
+.auth-card a:not(.btn-google) { color: var(--brand); text-align: center;
+  font-size: var(--t-label); }
+
 /* concentric geometry helper */
 .concentric { padding: var(--pad-concentric); }
 .concentric > .glass { border-radius: calc(var(--radius-panel) - var(--pad-concentric)); }

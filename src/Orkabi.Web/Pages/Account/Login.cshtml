@@ -1,8 +1,8 @@
 @page
 @model Orkabi.Web.Pages.Account.LoginModel
 @{ ViewData["Title"] = "כניסה"; }
-<form method="post" class="glass--panel auth-card">
-    <h1>כניסה לאורקבי</h1>
+<form method="post" class="glass glass--panel auth-card glass--enter">
+    <h1>כניסה לעורקבי</h1>
     @if (Model.Error is not null) { <p class="error">@Model.Error</p> }
     <label>אימייל<input type="email" asp-for="Email" dir="ltr" required /></label>
     <label>סיסמה<input type="password" asp-for="Password" required /></label>
