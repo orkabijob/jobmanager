@@ -29,7 +29,12 @@ builder.Services.AddDbContext<AppDbContext>((sp, o) =>
 builder.Services
     .AddIdentity<AppUser, AppRole>(o =>
     {
+        // Internal staff tool — keep it simple: 8+ chars, no complexity requirements.
         o.Password.RequiredLength = 8;
+        o.Password.RequireNonAlphanumeric = false;
+        o.Password.RequireUppercase = false;
+        o.Password.RequireLowercase = false;
+        o.Password.RequireDigit = false;
         o.User.RequireUniqueEmail = true;
         o.SignIn.RequireConfirmedAccount = false;
     })
