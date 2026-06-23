@@ -14,5 +14,6 @@ public class RtlLayoutTests : IClassFixture<SqliteFixture>
         Assert.Contains("dir=\"rtl\"", html);
         Assert.Contains("lang=\"he\"", html);
         Assert.Contains("tokens.css", html);
+        Assert.Contains("base.css", html);
     }
 }

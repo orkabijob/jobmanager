@@ -4,7 +4,10 @@
    all logical properties automatically.
    ============================================================ */
 
-/* ---- Variable fonts (Hebrew+Latin subset, already self-hosted) ---- */
+/* ---- Variable fonts (Hebrew+Latin subset, already self-hosted) ----
+   NOTE: deliberate variable-font choice — ONE woff2 per family covers all
+   weights via the wght axis. This SUPERSEDES the design doc §4 per-weight
+   snippet (assistant-400.woff2 etc.), which is stale and not on disk. */
 @font-face {
   font-family: 'Assistant';
   src: url('/fonts/assistant-var.woff2') format('woff2');
