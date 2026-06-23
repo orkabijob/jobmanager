@@ -14,14 +14,23 @@ public class LoginModel : PageModel
     [BindProperty] public string Email { get; set; } = "";
     [BindProperty] public string Password { get; set; } = "";
     public string? Error { get; set; }
+    public bool GoogleEnabled { get; private set; }
 
-    public void OnGet() { }
+    public async Task OnGetAsync() => await SetGoogleAsync();
 
     public async Task<IActionResult> OnPostAsync()
     {
+        await SetGoogleAsync();
         var result = await _signIn.PasswordSignInAsync(Email, Password, isPersistent: true, lockoutOnFailure: false);
         if (result.Succeeded) return LocalRedirect("/");
         Error = "אימייל או סיסמה שגויים";
         return Page();
+    }
+
+    // Only show the Google button when the provider is actually configured (avoids a 500 on click).
+    private async Task SetGoogleAsync()
+    {
+        var schemes = await _signIn.GetExternalAuthenticationSchemesAsync();
+        GoogleEnabled = schemes.Any(s => s.Name == "Google");
     }
 }
