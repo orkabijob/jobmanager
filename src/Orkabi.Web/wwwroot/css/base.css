@@ -1,0 +1,138 @@
+/* ============================================================
+   Orkabi base.css — component utilities, logical-property-native
+   RTL: no [dir="rtl"] override file; dir="rtl" on <html> flips
+   all logical properties automatically.
+   ============================================================ */
+
+/* ---- Variable fonts (Hebrew+Latin subset, already self-hosted) ---- */
+@font-face {
+  font-family: 'Assistant';
+  src: url('/fonts/assistant-var.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Heebo';
+  src: url('/fonts/heebo-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; line-height: var(--lh-normal); }
+
+/* numerals: tabular + LTR isolation handled at markup level via <bdi> */
+.num { font-family: var(--font-num); font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums; }
+
+/* --- glass tiers (Apple Regular / Clear / nav) --- */
+.glass {
+  background: var(--lg-fill);
+  -webkit-backdrop-filter: var(--lg-blur-panel);
+          backdrop-filter: var(--lg-blur-panel);
+  border: var(--lg-hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--lg-shadow);
+  isolation: isolate;
+  position: relative;
+}
+
+/* Specular highlight — static by default; JS can animate --lg-glint-x. */
+.glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 1;
+  background: radial-gradient(
+    120% 80% at var(--lg-glint-x, 30%) 0%,
+    rgba(255,255,255,.55), rgba(255,255,255,.06) 38%, transparent 62%);
+  mix-blend-mode: plus-lighter;
+  opacity: .9;
+}
+.glass > * { position: relative; z-index: 2; }  /* content above the glint */
+
+.glass--strong { background: var(--lg-fill-strong); }     /* under dense text */
+.glass--clear  { background: var(--lg-fill-clear); }      /* MUST wrap text in .glass-scrim */
+.glass--nav  {
+  -webkit-backdrop-filter: var(--lg-blur-nav);
+          backdrop-filter: var(--lg-blur-nav);
+  background: var(--lg-fill);
+}
+.glass--panel {
+  border-radius: var(--radius-panel);
+  padding-block: var(--sp-6);
+  padding-inline: var(--sp-6);
+}
+
+/* scrim: legibility insurance for Clear glass (legibility contract) */
+.glass-scrim {
+  background: linear-gradient(rgba(255,255,255,.0), rgba(255,255,255,.0)),
+              radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.35), transparent 70%);
+}
+
+/* solid Blue-Jay hero monolith — the deliberate opaque anchor among glass */
+.hero-solid {
+  background: linear-gradient(160deg, var(--brand-tint), var(--brand) 55%, var(--brand-deep));
+  color: #fff;
+  border-radius: var(--radius-hero);
+  box-shadow: var(--lg-shadow-hero);
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* primary pill button — logical-property-native */
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding-block: var(--sp-3);
+  padding-inline: var(--sp-6);
+  font-weight: var(--fw-semibold);
+  transition: transform var(--dur-fast) var(--ease-glass);
+}
+.btn-primary:active { transform: scale(.97); }
+
+/* Google OAuth button — logical-property-native */
+.btn-google {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: #fff;
+  color: var(--brand-ink);
+  border: 1px solid rgba(var(--brand-rgb), .22);
+  border-radius: var(--radius-pill);
+  padding-block: var(--sp-3);
+  padding-inline: var(--sp-6);
+  font-weight: var(--fw-medium);
+  transition: background var(--dur-fast) var(--ease-glass);
+}
+.btn-google:hover { background: rgba(var(--brand-rgb), .04); }
+
+/* auth card — logical-property-native */
+.auth-card {
+  max-inline-size: 380px;
+  margin-inline: auto;
+  margin-block-start: 12vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* concentric geometry helper */
+.concentric { padding: var(--pad-concentric); }
+.concentric > .glass { border-radius: calc(var(--radius-panel) - var(--pad-concentric)); }
+
+/* materialize reveal (gated behind reduced-motion) */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes lg-materialize {
+    from { opacity: 0; transform: scale(.96);
+           -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
+    to   { opacity: 1; transform: scale(1);
+           -webkit-backdrop-filter: var(--lg-blur-panel); backdrop-filter: var(--lg-blur-panel); }
+  }
+  .glass--enter { animation: lg-materialize var(--dur-slow) var(--ease-glass) both; }
+}
+
+/* Universal fallback — @supports not backdrop-filter */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .glass--clear, .glass--nav { background: var(--lg-fill-solid); }
+}

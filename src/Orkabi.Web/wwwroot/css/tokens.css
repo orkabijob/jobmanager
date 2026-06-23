@@ -1,0 +1,149 @@
+/* ============================================================
+   Orkabi tokens.css — Liquid Glass system (canonical)
+   Brand: Blue Jay #2B547E · UI: Assistant · Numerals: Heebo
+   ============================================================ */
+:root {
+  /* ---- Brand ---- */
+  --brand:            #2B547E;
+  --brand-rgb:        43, 84, 126;
+  --brand-tint:       #3E6FA0;   /* hovers, mesh, lighter accents */
+  --brand-deep:       #1E3D5C;   /* pressed, hero gradient floor */
+  --brand-ink:        #16263A;   /* default text on light */
+
+  /* ---- Liquid Glass: backdrop-filter stacks (3 tiers = Apple Regular/Clear/inline) ---- */
+  --lg-blur-nav:      saturate(180%) brightness(1.06) blur(20px);
+  --lg-blur-panel:    saturate(160%) brightness(1.03) blur(14px);
+  --lg-blur-inline:   saturate(140%) blur(8px);
+
+  /* ---- Material fills (translucent). NEVER put body text on --lg-fill; use --lg-fill-strong. ---- */
+  --lg-fill:          rgba(255, 255, 255, .55);   /* Regular */
+  --lg-fill-strong:   rgba(255, 255, 255, .72);   /* under dense text (legibility contract) */
+  --lg-fill-clear:    rgba(255, 255, 255, .38);   /* Clear — REQUIRES a scrim behind text */
+  --lg-fill-tint:     rgba(var(--brand-rgb), .06);/* brand-tinted glass (lesson-model chip) */
+  --lg-fill-solid:    rgba(255, 255, 255, .92);   /* Identity / no-backdrop-filter fallback */
+
+  /* ---- Hairline edges (the "light rim"). Two-part: visible border + inset highlight in shadow. */
+  --lg-hairline:      1px solid rgba(255, 255, 255, .55);
+  --lg-hairline-rgb:  255, 255, 255;
+
+  /* ---- Shadow stacks: contact + ambient + inset bevel (the Figma double-inner-shadow, in CSS) */
+  --lg-shadow:
+     0 1px 1px  rgba(var(--brand-rgb), .04),
+     0 8px 24px -8px rgba(var(--brand-rgb), .18),
+     inset 0 1px 0 rgba(255,255,255,.55),
+     inset 0 -1px 0 rgba(var(--brand-rgb),.05);
+  --lg-shadow-lifted:
+     0 2px 4px  rgba(var(--brand-rgb), .06),
+     0 16px 48px -12px rgba(var(--brand-rgb), .28),
+     inset 0 1px 0 rgba(255,255,255,.65),
+     inset 0 -1px 0 rgba(var(--brand-rgb),.06);
+  --lg-shadow-hero:                 /* solid Blue-Jay monolith glow */
+     0 1px 0   rgba(255,255,255,.18) inset,
+     0 20px 60px -16px rgba(var(--brand-rgb), .50);
+
+  /* ---- Specular glint default position (JS may animate on pointer/scroll) ---- */
+  --lg-glint-x: 30%;
+
+  /* ---- Radii (continuous-rounded, concentric-capable). Bigger than ShiftManager's flat 8px. */
+  --radius-chip:   12px;
+  --radius-card:   20px;
+  --radius-panel:  28px;
+  --radius-hero:   32px;
+  --radius-sheet:  28px;   /* top corners of the attendance bottom-sheet */
+  --radius-pill:   9999px;
+  --pad-concentric: 8px;   /* default inset → child radius = parent − this (see §6) */
+
+  /* ---- Mesh backdrop base (the glass needs something colorful to refract) ---- */
+  --bg-base: #EEF3F8;      /* cool off-white */
+
+  /* ---- Type ---- */
+  --font-ui:  'Assistant', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: 'Heebo', 'Assistant', ui-monospace, monospace; /* tabular numerals */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+
+  /* Instructor (mobile-first, base 17px) */
+  --t-hero-cta: 28px; --t-display: 24px; --t-title: 20px;
+  --t-body: 17px;     --t-label: 15px;   --t-meta: 13px;
+  /* Admin (dense, base 15px) */
+  --t-metric: 40px;   --t-admin-display: 22px; --t-admin-title: 17px;
+  --t-admin-body: 15px; --t-admin-label: 13px; --t-admin-meta: 12px;
+  --lh-tight: 1.15; --lh-snug: 1.3; --lh-normal: 1.5;
+
+  /* ---- Spacing (block/inline neutral; logical props consume these) ---- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+  /* ---- Motion (springs; see §8) ---- */
+  --ease-glass:  cubic-bezier(0.32, 0.72, 0, 1);     /* sheets, cards */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* confirm overshoot */
+  --dur-fast: 180ms; --dur-mid: 280ms; --dur-slow: 420ms;
+
+  /* ---- Semantic (attendance, tasks) ---- */
+  --ok:     #2E7D5B; --ok-soft:  rgba(46,125,91,.16);
+  --absent: #B23A48; --absent-soft: rgba(178,58,72,.14);
+  --warn:   #C8861B;
+}
+
+/* ============================================================
+   Dark environment — same material, smoked instead of frosted
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --brand-ink: #E8EEF5;
+    --bg-base:   #0E1722;
+    --lg-fill:        rgba(28, 42, 60, .55);
+    --lg-fill-strong: rgba(28, 42, 60, .74);
+    --lg-fill-clear:  rgba(28, 42, 60, .40);
+    --lg-fill-solid:  rgba(22, 34, 50, .92);
+    --lg-hairline:    1px solid rgba(255,255,255,.16);
+    --lg-shadow:
+       0 1px 1px rgba(0,0,0,.30),
+       0 8px 24px -8px rgba(0,0,0,.55),
+       inset 0 1px 0 rgba(255,255,255,.10);
+    --lg-shadow-lifted:
+       0 2px 4px rgba(0,0,0,.35),
+       0 16px 48px -12px rgba(0,0,0,.65),
+       inset 0 1px 0 rgba(255,255,255,.12);
+  }
+}
+
+/* ============================================================
+   Accessibility — honor system settings, like Apple does
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --lg-fill: var(--lg-fill-solid);
+    --lg-fill-strong: var(--lg-fill-solid);
+    --lg-fill-clear: var(--lg-fill-solid);
+    --lg-blur-nav: none; --lg-blur-panel: none; --lg-blur-inline: none;
+  }
+  .glass--lensed { filter: none; }              /* drop refraction */
+  .glass::before { display: none; }             /* drop glint */
+}
+@media (prefers-contrast: more) {
+  :root {
+    --lg-fill: var(--lg-fill-solid);
+    --lg-fill-strong: var(--lg-fill-solid);
+    --lg-hairline: 1px solid rgba(var(--brand-rgb), .55);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+  .glass--lensed { filter: none; }              /* no motion-reactive lens */
+}
+
+/* ============================================================
+   Mesh backdrop (§3.1) — blue family only; supersedes placeholder
+   ============================================================ */
+body { background-color: var(--bg-base); color: var(--brand-ink); font-family: var(--font-ui); }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(42% 52% at 18% 20%, rgba(var(--brand-rgb), .26), transparent 70%),
+    radial-gradient(46% 56% at 84% 16%, rgba(120,160,210,.22), transparent 70%),
+    radial-gradient(52% 60% at 76% 88%, rgba(var(--brand-rgb), .20), transparent 75%),
+    radial-gradient(40% 50% at 8% 92%, rgba(150,180,220,.16), transparent 70%);
+}

@@ -81,6 +81,17 @@ builder.Services.ConfigureApplicationCookie(o =>
 
 var app = builder.Build();
 
+// Fix culture to he-IL — all threads and request pipelines speak Hebrew/Israel.
+var he = new System.Globalization.CultureInfo("he-IL");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = he;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = he;
+var locOptions = new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("he-IL"),
+    SupportedCultures = new[] { he },
+    SupportedUICultures = new[] { he }
+};
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -92,6 +103,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+app.UseRequestLocalization(locOptions);
 app.UseRouting();
 
 app.UseAuthentication();
