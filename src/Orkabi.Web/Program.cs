@@ -41,12 +41,15 @@ builder.Services
 // In tests, UseSetting injects the value before Build() so the eager read sees it.
 // When ClientId is absent (CI without secrets, local dev), Google is simply not registered.
 var googleId = builder.Configuration["Authentication:Google:ClientId"];
-if (!string.IsNullOrWhiteSpace(googleId))
+var googleSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+// Require BOTH id and secret — registering AddGoogle with one missing throws a confusing
+// InvalidOperationException at startup (OAuthPostConfigureOptions validates both).
+if (!string.IsNullOrWhiteSpace(googleId) && !string.IsNullOrWhiteSpace(googleSecret))
 {
     builder.Services.AddAuthentication().AddGoogle(o =>
     {
-        o.ClientId = googleId!;
-        o.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+        o.ClientId = googleId;
+        o.ClientSecret = googleSecret;
         // CallbackPath defaults to /signin-google (registered in Google Cloud) — do not override.
     });
 }
