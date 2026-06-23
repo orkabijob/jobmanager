@@ -1,0 +1,10 @@
+@page
+@model Orkabi.Web.Pages.Account.RegisterModel
+@{ ViewData["Title"] = "הרשמה"; }
+<form method="post" class="glass-panel auth-card">
+    <h1>הרשמה לאורקבי</h1>
+    @if (Model.Error is not null) { <p class="error">@Model.Error</p> }
+    <label>אימייל<input type="email" asp-for="Email" dir="ltr" required /></label>
+    <label>סיסמה<input type="password" asp-for="Password" required /></label>
+    <button type="submit" class="btn-primary">הרשמה</button>
+</form>
