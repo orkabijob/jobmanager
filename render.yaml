@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: orkabi
+    runtime: docker
+    plan: free
+    dockerfilePath: ./src/Orkabi.Web/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: ConnectionStrings__Migrations
+        sync: false
+      - key: Authentication__Google__ClientId
+        sync: false
+      - key: Authentication__Google__ClientSecret
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false

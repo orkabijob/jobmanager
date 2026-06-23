@@ -125,6 +125,7 @@ if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 
     using var scope = app.Services.CreateScope();
     await DataSeeder.SeedRolesAsync(scope.ServiceProvider);
+    await DataSeeder.SeedAdminAsync(scope.ServiceProvider, app.Configuration);
 }
 
 app.Run();
