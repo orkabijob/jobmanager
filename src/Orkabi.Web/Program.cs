@@ -82,6 +82,8 @@ app.MapRazorPages();
 
 app.MapGet("/health", () => Results.Json(new { status = "ok" }));
 
+app.MapGet("/api/ping", () => Results.Json(new { pong = true })).RequireAuthorization();
+
 if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 {
     var migrateCs = app.Configuration.GetConnectionString("Migrations")
