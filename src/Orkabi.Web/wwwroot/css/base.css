@@ -60,7 +60,10 @@ body { margin: 0; line-height: var(--lh-normal); }
   mix-blend-mode: plus-lighter;
   opacity: .92;
 }
+/* All direct glass children sit above glint (::before z:1) — immune to blend */
 .glass > * { position: relative; z-index: 2; }
+/* Exception: .glass__lens is the backdrop refraction layer — must stay below */
+.glass > .glass__lens { position: absolute; z-index: 0; }
 
 .glass--strong  { background: var(--lg-fill-strong); }
 .glass--clear   { background: var(--lg-fill-clear); }
@@ -87,31 +90,65 @@ body { margin: 0; line-height: var(--lh-normal); }
 
 /* ============================================================
    Liquid Glass — lensed / refraction upgrade (§2.3)
-   Applied to 1–2 hero surfaces only (metric tile, focal tile).
-   The SVG #lg-refraction filter is loaded in _Layout.
-   Desktop-only; dropped under reduced-motion/transparency.
+
+   HARD RULE: filter: url(#lg-refraction) MUST NEVER be placed
+   on an element that contains text. SVG displacement maps warp
+   ALL descendants — there is no CSS way to exclude child nodes.
+
+   Architecture: the refraction filter lives on a dedicated
+   .glass__lens child — an absolutely-positioned background layer
+   with zero content — stacked BELOW the text (z-index: 0).
+   The parent tile keeps position:relative + isolation:isolate
+   but has NO filter property. Text children sit at z-index: 2
+   (enforced by .glass > * below) — fully immune.
+
+   Markup pattern (required):
+     <div class="glass glass--tile glass--lensed ...">
+       <div class="glass__lens" aria-hidden="true"></div>
+       ... text content ...
+     </div>
+
+   The SVG #lg-refraction filter is in _Layout.
+   Desktop-only; dropped on mobile and under reduced settings.
    ============================================================ */
 .glass--lensed {
-  filter: url(#lg-refraction);
-  /* Boosted specular for lensed surfaces — overrides glint-intensity var */
-  --lg-glint-intensity: .72;
+  /* NO filter here — filter goes on .glass__lens child only */
+  --lg-glint-intensity: .72;   /* boost specular on hero surfaces */
 }
 
-/* Edge-ring ::after — the lensing "rim brightening" effect.
-   A concentric inner glow ring that simulates how real glass curves
-   concentrate light at the perimeter. Separate from ::before (the flat glint). */
+/* The refraction lens — background-only layer, never holds text */
+.glass__lens {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;             /* below glint (z:1) and content (z:2) */
+  filter: url(#lg-refraction);
+}
+
+/* Edge-ring ::after on the tile — rim brightening above lens, below text */
 .glass--lensed::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit;
-  pointer-events: none; z-index: 1;
+  pointer-events: none;
+  z-index: 1;             /* above lens (z:0), below content (z:2) */
   box-shadow:
     inset 0  0   0 1.5px rgba(255,255,255,.55),  /* inner rim — bright edge */
     inset 0  2px 8px    rgba(255,255,255,.28),   /* top inner glow */
     inset 0 -2px 6px    rgba(var(--brand-rgb),.08); /* bottom inner shadow */
 }
 
-/* On mobile or when SVG refraction is too heavy: drop lensing, keep the ring */
+/* Mobile: drop the SVG filter (GPU cost); the rim glow stays */
 @media (max-width: 767px) {
-  .glass--lensed { filter: none; }
+  .glass__lens { filter: none; }
+}
+
+/* Reduced-transparency and reduced-motion already gated in tokens.css */
+@media (prefers-reduced-transparency: reduce) {
+  .glass__lens { filter: none; }
+  .glass--lensed::after { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass__lens { filter: none; }
 }
 
 /* Reduced-transparency and reduced-motion already gated in tokens.css */
@@ -260,15 +297,17 @@ body { margin: 0; line-height: var(--lh-normal); }
   font-weight: var(--fw-extrabold);
   letter-spacing: var(--ls-tight);
   line-height: var(--lh-tight);
-  color: var(--brand);
+  /* White on the photo backdrop — crisp contrast against the brand-tinted scrim */
+  color: #fff;
+  text-shadow: 0 1px 12px rgba(var(--brand-rgb), .55);
   text-align: center;
 }
 .auth-wordmark__sub {
   font-size: var(--t-meta);
-  font-weight: var(--fw-medium);
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--ls-widest);
   text-transform: uppercase;
-  color: var(--brand-ink-muted);
+  color: rgba(255,255,255,.70);
   text-align: center;
 }
 
@@ -321,16 +360,20 @@ body { margin: 0; line-height: var(--lh-normal); }
   padding-inline-start: var(--sp-1);
 }
 
-/* Frosted input — crisp dual-hairline glass edge treatment */
+/* ── Recessed-well input (3rd design) ──────────────────────────────────────
+   Approach: fields are carved INTO the glass card — no outer border, just a
+   deep concave inner shadow giving a pressed/channelled impression. The label
+   sits above; the well itself appears to sink below the card surface.
+   Completely different from the two previous bordered-box approaches.
+   ─────────────────────────────────────────────────────────────────────────── */
 .auth-field input,
 .auth-card input {
   inline-size: 100%;
-  background: var(--lg-fill-deep);
-  -webkit-backdrop-filter: var(--lg-blur-inline);
-          backdrop-filter: var(--lg-blur-inline);
-  /* Outer visible border: brand-tinted, clearly readable */
-  border: 1.5px solid rgba(var(--brand-rgb), .32);
-  border-block-start-color: rgba(255, 255, 255, .70); /* top edge lighter — light hits from above */
+  /* Slightly cooler, more translucent than the card — looks carved from the same
+     material but recessed a layer deeper. No backdrop-filter here (the card's own
+     blur already gives the refraction; a second layer inside would double-blur). */
+  background: rgba(var(--brand-rgb), .07);
+  border: none;                              /* NO outer border */
   border-radius: var(--radius-chip);
   padding-block: var(--sp-4);
   padding-inline: var(--sp-5);
@@ -339,13 +382,16 @@ body { margin: 0; line-height: var(--lh-normal); }
   font-weight: var(--fw-regular);
   color: var(--brand-ink);
   outline: none;
-  /* Inner hairline bevel: top-white (light source) + bottom-brand-shadow */
+  /* The well illusion: deep top-dark → bottom-light inner shadow stack.
+     Upper shadow = the "depth" of the recess (dark from above).
+     Lower shadow = bounce light at the base (bright rim from below).
+     Together they read as a concave channel pressed into frosted glass. */
   box-shadow:
-    inset 0  1px 0   rgba(255,255,255,.80),   /* top bevel — bright edge */
-    inset 0 -1px 0   rgba(var(--brand-rgb),.10), /* bottom inner shadow */
-    inset 0  1px 4px rgba(var(--brand-rgb),.05); /* subtle depth */
+    inset 0  2px  6px  rgba(var(--brand-rgb), .18),  /* top recess shadow */
+    inset 0  4px 14px  rgba(var(--brand-rgb), .10),  /* mid depth */
+    inset 0 -1px  0    rgba(255,255,255,.55),         /* bottom bounce-light rim */
+    inset 0  1px  0    rgba(var(--brand-rgb), .20);   /* top pressed-edge */
   transition:
-    border-color  var(--dur-fast) var(--ease-glass),
     box-shadow    var(--dur-fast) var(--ease-glass),
     background    var(--dur-fast) var(--ease-glass);
 }
@@ -353,17 +399,20 @@ body { margin: 0; line-height: var(--lh-normal); }
 .auth-card input::placeholder {
   color: var(--brand-ink-faint);
 }
+/* Focus: well glows from within — brand light blooms up from the base of the channel */
 .auth-field input:focus,
 .auth-card input:focus {
-  background: var(--lg-fill-solid);
-  border-color: rgba(var(--brand-rgb), .55);
-  border-block-start-color: rgba(255,255,255,.80);
+  background: rgba(var(--brand-rgb), .05);
   box-shadow:
-    inset 0  1px 0   rgba(255,255,255,.85),
-    inset 0 -1px 0   rgba(var(--brand-rgb),.12),
-    inset 0  1px 4px rgba(var(--brand-rgb),.06),
-    0 0 0 3px rgba(var(--brand-rgb), .14),
-    0 0 0 1px rgba(var(--brand-rgb), .30);
+    inset 0  2px  6px  rgba(var(--brand-rgb), .14),
+    inset 0  4px 14px  rgba(var(--brand-rgb), .08),
+    inset 0 -1px  0    rgba(255,255,255,.60),
+    inset 0  1px  0    rgba(var(--brand-rgb), .16),
+    /* The bloom: a soft brand glow rises from the bottom of the well */
+    inset 0 -3px 12px  rgba(var(--brand-rgb), .22),
+    /* Outer crisp focus ring on the card surface */
+    0 0 0 2px rgba(var(--brand-rgb), .28),
+    0 0 0 4px rgba(var(--brand-rgb), .10);
 }
 
 /* Actions area */

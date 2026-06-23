@@ -21,8 +21,10 @@
   <main class="dash-body">
     <div class="bento">
 
-      <!-- [1] Metric tile — total clients, top-start. glass--lensed = SVG refraction + boosted glint -->
+      <!-- [1] Metric tile — total clients, top-start.
+           glass--lensed: refraction lives on .glass__lens (backdrop only — text is immune). -->
       <div class="glass glass--tile glass--lensed bento__tile bento__metric" data-glint>
+        <div class="glass__lens" aria-hidden="true"></div>
         <div class="tile-head">
           <span class="tile-head__label">לקוחות פעילים</span>
         </div>
@@ -35,8 +37,10 @@
         </div>
       </div>
 
-      <!-- [2] Focal / Command center tile — center, spans all rows. glass--lensed on the hero surface -->
+      <!-- [2] Focal / Command center tile — center, spans all rows.
+           glass--lensed: refraction lives on .glass__lens (backdrop only — text is immune). -->
       <div class="glass glass--tile glass--lensed bento__tile bento__focal focal-tile" data-glint>
+        <div class="glass__lens" aria-hidden="true"></div>
         <div class="tile-head">
           <span class="tile-head__label">מרכז פעילות</span>
           <a href="#" class="tile-head__action">הצג הכל</a>

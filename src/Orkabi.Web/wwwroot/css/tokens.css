@@ -13,18 +13,21 @@
   --brand-ink-muted:  #4A6580;   /* secondary text, labels */
   --brand-ink-faint:  rgba(22, 38, 58, .45);  /* placeholders, dividers */
 
-  /* ---- Liquid Glass: backdrop-filter stacks (3 tiers = Apple Regular/Clear/inline) ---- */
-  --lg-blur-nav:      saturate(200%) brightness(1.08) blur(24px);
-  --lg-blur-panel:    saturate(180%) brightness(1.04) blur(18px);
-  --lg-blur-inline:   saturate(150%) blur(10px);
+  /* ---- Liquid Glass: backdrop-filter stacks (3 tiers = Apple Regular/Clear/inline).
+         saturate() is critical over a real photo — it punches the colour bleed through
+         the frosted material so you see teal/blue tones in the glass.             ---- */
+  --lg-blur-nav:      saturate(220%) brightness(1.10) blur(26px);
+  --lg-blur-panel:    saturate(200%) brightness(1.05) blur(20px);
+  --lg-blur-inline:   saturate(160%) blur(12px);
 
-  /* ---- Material fills. NEVER put body text on --lg-fill; use --lg-fill-strong. ---- */
-  --lg-fill:          rgba(255, 255, 255, .58);   /* Regular */
-  --lg-fill-strong:   rgba(255, 255, 255, .76);   /* under dense text (legibility contract) */
-  --lg-fill-clear:    rgba(255, 255, 255, .40);   /* Clear — REQUIRES a scrim behind text */
-  --lg-fill-tint:     rgba(var(--brand-rgb), .07);/* brand-tinted glass */
-  --lg-fill-solid:    rgba(255, 255, 255, .94);   /* Identity / no-backdrop-filter fallback */
-  --lg-fill-deep:     rgba(255, 255, 255, .84);   /* input fields — deep legibility */
+  /* ---- Material fills. Photo backdrop = more opacity needed vs. plain mesh.
+         NEVER put body text on --lg-fill; use --lg-fill-strong.          ---- */
+  --lg-fill:          rgba(255, 255, 255, .62);   /* Regular — bumped .58→.62 for photo */
+  --lg-fill-strong:   rgba(255, 255, 255, .80);   /* under dense text — bumped .76→.80 */
+  --lg-fill-clear:    rgba(255, 255, 255, .44);   /* Clear — bumped .40→.44 */
+  --lg-fill-tint:     rgba(var(--brand-rgb), .08);/* brand-tinted glass */
+  --lg-fill-solid:    rgba(255, 255, 255, .95);   /* Identity / no-backdrop-filter fallback */
+  --lg-fill-deep:     rgba(255, 255, 255, .88);   /* input well — high legibility on photo */
 
   /* ---- Hairline edges — two-part: visible border + inset highlight ---- */
   --lg-hairline:      1px solid rgba(255, 255, 255, .62);
@@ -39,11 +42,12 @@
      inset 0 1px 0 rgba(255,255,255,.62),
      inset 0 -1px 0 rgba(var(--brand-rgb),.06);
   --lg-shadow-lifted:
-     0 2px 4px   rgba(var(--brand-rgb), .06),
-     0 8px 24px  -6px rgba(var(--brand-rgb), .18),
-     0 20px 56px -12px rgba(var(--brand-rgb), .24),
-     inset 0 1px 0 rgba(255,255,255,.72),
-     inset 0 -1px 0 rgba(var(--brand-rgb),.07);
+     /* Elevated over photo — deeper ambient pull-down, crisper contact */
+     0 2px 4px   rgba(var(--brand-rgb), .08),
+     0 8px 24px  -6px rgba(var(--brand-rgb), .22),
+     0 24px 64px -12px rgba(var(--brand-rgb), .32),
+     inset 0 1px 0 rgba(255,255,255,.80),
+     inset 0 -1px 0 rgba(var(--brand-rgb),.08);
   --lg-shadow-hero:   /* solid Blue-Jay monolith glow */
      0 1px 0   rgba(255,255,255,.20) inset,
      0 4px 0   rgba(var(--brand-rgb), .10) inset,
@@ -206,11 +210,16 @@
 }
 
 /* ============================================================
-   Mesh backdrop — blue family only; JS may add a .mesh-animated
-   class to enable scroll-responsive gradient drift
+   Photo backdrop — water-over-granite image IS the glass refractor.
+   Mesh gradient replaced; body::before is now the legibility scrim.
    ============================================================ */
 body {
+  /* Photo: fixed on desktop so glass slides over a stationary image */
   background-color: var(--bg-base);
+  background-image: url('/img/bg-liquid.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: var(--brand-ink);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
@@ -218,13 +227,27 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Mobile: fixed attachment janks on iOS/Android — switch to scroll */
+@media (max-width: 767px) {
+  body { background-attachment: scroll; }
+}
+
+/* Legibility scrim over the photo.
+   Dual-gradient: lifts mid-brightness toward a medium brand-tinted value
+   so both bright-rock and dark-water areas sit at a comfortable mid-tone.
+   The glass cards refract the PHOTO through backdrop-filter — this scrim
+   is deliberately subtle (~40%) so the water texture is still visible and
+   the glass effect is meaningful. NOT fully opaque.                      */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  /* Reduced intensity — bg-base is already deeper, so lighter orbs prevent over-darkening */
   background:
-    radial-gradient(50% 60% at 15% 18%, rgba(var(--brand-rgb), .18), transparent 68%),
-    radial-gradient(44% 52% at 88% 14%, rgba(100,148,200,.14), transparent 68%),
-    radial-gradient(56% 64% at 80% 90%, rgba(var(--brand-rgb), .14), transparent 72%),
-    radial-gradient(38% 48% at 6%  88%, rgba(140,172,215,.10), transparent 68%),
-    radial-gradient(30% 40% at 50% 50%, rgba(var(--brand-rgb), .04), transparent 70%);
+    /* Center-weighted gentle brand tint — the photo's blues resonate with the brand */
+    linear-gradient(
+      180deg,
+      rgba(var(--brand-rgb), .28) 0%,
+      rgba(var(--brand-rgb), .18) 40%,
+      rgba(var(--brand-rgb), .22) 100%
+    ),
+    /* Radial vignette to pull down very bright highlights (the white rock) */
+    radial-gradient(ellipse 120% 80% at 50% 50%, transparent 40%, rgba(22,38,58,.35) 100%);
 }
