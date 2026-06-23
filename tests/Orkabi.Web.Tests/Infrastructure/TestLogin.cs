@@ -14,6 +14,7 @@ public static class TestLogin
         });
 
         var getResp = await client.GetAsync("/Account/Login");
+        getResp.EnsureSuccessStatusCode();   // surface a broken login page clearly, not as a token-parse error
         var html = await getResp.Content.ReadAsStringAsync();
         var token = AntiForgery.Extract(html);
 
@@ -24,7 +25,13 @@ public static class TestLogin
             ["__RequestVerificationToken"] = token
         });
 
-        await client.PostAsync("/Account/Login", form);
+        var postResp = await client.PostAsync("/Account/Login", form);
+        // A successful login is a 302 to "/". Fail loudly here so callers don't see cryptic
+        // null-Location/auth errors downstream when credentials or anti-forgery are wrong.
+        if (postResp.StatusCode != System.Net.HttpStatusCode.Redirect)
+            throw new InvalidOperationException(
+                $"Login POST to /Account/Login returned {(int)postResp.StatusCode} {postResp.StatusCode}; " +
+                "expected 302. Check credentials or anti-forgery extraction.");
 
         return client;
     }
