@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.Identity;
 
 namespace Orkabi.Web.Tests.Infrastructure;
 
@@ -32,12 +33,15 @@ public class OrkabiAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Build the schema for the test's SQLite DB from the EF model via EnsureCreated()
     /// (no migration files — those are Npgsql-only and run at the Neon deploy gate, Task 11).
-    /// Idempotent; call once at the start of a DB test. Task 6 extends this to also seed roles.
+    /// Idempotent; call once at the start of a DB test. Also seeds the 4 roles (boot-seeding
+    /// is skipped under Testing, so the factory must seed them for role-dependent tests).
     /// </summary>
     public OrkabiAppFactory Prepared()
     {
         using var scope = Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+        var sp = scope.ServiceProvider;
+        sp.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+        DataSeeder.SeedRolesAsync(sp).GetAwaiter().GetResult();
         return this;
     }
 }

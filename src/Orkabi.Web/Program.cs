@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +25,40 @@ builder.Services.AddDbContext<AppDbContext>((sp, o) =>
     o.AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
 });
 
+builder.Services
+    .AddIdentity<AppUser, AppRole>(o =>
+    {
+        o.Password.RequiredLength = 8;
+        o.User.RequireUniqueEmail = true;
+        o.SignIn.RequireConfirmedAccount = false;
+    })
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(o =>
+{
+    o.Cookie.Name = "orkabi.auth";
+    o.Cookie.HttpOnly = true;
+    o.Cookie.SameSite = SameSiteMode.Lax;
+    // Always in Production; SameAsRequest in Dev/Testing so HTTP test/dev login round-trips
+    o.Cookie.SecurePolicy = builder.Environment.IsProduction()
+        ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+    o.ExpireTimeSpan = TimeSpan.FromDays(7);
+    o.SlidingExpiration = true;
+    o.LoginPath = "/Account/Login";
+    o.AccessDeniedPath = "/Account/AccessDenied";
+    o.Events.OnRedirectToLogin = ctx =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api"))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+        ctx.Response.Redirect(ctx.RedirectUri);
+        return Task.CompletedTask;
+    };
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -37,19 +74,23 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
 
 app.MapGet("/health", () => Results.Json(new { status = "ok" }));
 
-if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
+if (!app.Environment.IsEnvironment("Testing"))
 {
     var migrateCs = app.Configuration.GetConnectionString("Migrations")
                     ?? app.Configuration.GetConnectionString("Default");
     var opts = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(migrateCs).Options;
-    await using var migrateDb = new AppDbContext(opts);
-    await migrateDb.Database.MigrateAsync();
+    await using (var migrateDb = new AppDbContext(opts))
+        await migrateDb.Database.MigrateAsync();
+
+    using var scope = app.Services.CreateScope();
+    await DataSeeder.SeedRolesAsync(scope.ServiceProvider);
 }
 
 app.Run();

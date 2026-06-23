@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
