@@ -51,6 +51,7 @@ builder.Services.ConfigureApplicationCookie(o =>
     {
         if (ctx.Request.Path.StartsWithSegments("/api"))
         {
+            ctx.Response.Headers.Remove("Location");   // a 401 must not carry a redirect Location
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
         }
@@ -81,7 +82,7 @@ app.MapRazorPages();
 
 app.MapGet("/health", () => Results.Json(new { status = "ok" }));
 
-if (!app.Environment.IsEnvironment("Testing"))
+if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 {
     var migrateCs = app.Configuration.GetConnectionString("Migrations")
                     ?? app.Configuration.GetConnectionString("Default");
