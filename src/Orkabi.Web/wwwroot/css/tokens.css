@@ -48,14 +48,18 @@
      0 1px 0   rgba(255,255,255,.20) inset,
      0 4px 0   rgba(var(--brand-rgb), .10) inset,
      0 24px 72px -16px rgba(var(--brand-rgb), .55);
-  --lg-shadow-tile:   /* bento tile — slightly lifted, crisp */
-     0 1px 2px   rgba(var(--brand-rgb), .04),
-     0 6px 20px  -6px rgba(var(--brand-rgb), .14),
-     inset 0 1px 0 rgba(255,255,255,.68);
+  --lg-shadow-tile:   /* bento tile — dimensional, floating glass */
+     0 1px 2px   rgba(var(--brand-rgb), .05),
+     0 4px 12px  -4px rgba(var(--brand-rgb), .12),
+     0 14px 40px -8px rgba(var(--brand-rgb), .20),
+     inset 0  1px 0   rgba(255,255,255,.78),   /* top bevel — light hitting surface */
+     inset 0 -1px 0   rgba(var(--brand-rgb),.07), /* bottom inner shadow */
+     inset 1px 0  0   rgba(255,255,255,.30),   /* inline-start rim */
+     inset -1px 0 0   rgba(var(--brand-rgb),.04); /* inline-end rim */
 
   /* ---- Specular glint (JS animates --lg-glint-x on pointer/scroll) ---- */
   --lg-glint-x: 28%;
-  --lg-glint-intensity: .58;
+  --lg-glint-intensity: .65;   /* elevated from .58 — more liquid presence */
 
   /* ---- Radii (continuous-rounded, concentric ladder: 32→24→16→pill) ---- */
   --radius-chip:   14px;   /* badges, tags, small pills */
@@ -67,7 +71,7 @@
   --pad-concentric: 8px;   /* child radius = parent − this */
 
   /* ---- Mesh backdrop base ---- */
-  --bg-base: #EAF0F7;      /* cool blue-white with more saturation */
+  --bg-base: #C8D9EA;      /* deeper cool blue-grey — less glare, glass pops more */
 
   /* ---- Type scale ---- */
   --font-ui:  'Assistant', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -216,10 +220,11 @@ body {
 
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  /* Reduced intensity — bg-base is already deeper, so lighter orbs prevent over-darkening */
   background:
-    radial-gradient(50% 60% at 15% 18%, rgba(var(--brand-rgb), .28), transparent 68%),
-    radial-gradient(44% 52% at 88% 14%, rgba(100,148,200,.22), transparent 68%),
-    radial-gradient(56% 64% at 80% 90%, rgba(var(--brand-rgb), .20), transparent 72%),
-    radial-gradient(38% 48% at 6%  88%, rgba(140,172,215,.18), transparent 68%),
-    radial-gradient(30% 40% at 50% 50%, rgba(var(--brand-rgb), .06), transparent 70%);
+    radial-gradient(50% 60% at 15% 18%, rgba(var(--brand-rgb), .18), transparent 68%),
+    radial-gradient(44% 52% at 88% 14%, rgba(100,148,200,.14), transparent 68%),
+    radial-gradient(56% 64% at 80% 90%, rgba(var(--brand-rgb), .14), transparent 72%),
+    radial-gradient(38% 48% at 6%  88%, rgba(140,172,215,.10), transparent 68%),
+    radial-gradient(30% 40% at 50% 50%, rgba(var(--brand-rgb), .04), transparent 70%);
 }
