@@ -32,11 +32,18 @@ public class ExternalLoginModel : PageModel
             info.LoginProvider, info.ProviderKey, isPersistent: true);
         if (signin.Succeeded) return LocalRedirect("/");
 
-        var email = info.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)!.Value;
+        var email = info.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return RedirectToPage("/Account/Login");
+
         var user = await _users.FindByEmailAsync(email)
                    ?? new AppUser { UserName = email, Email = email };
-        if (user.Id == 0) await _users.CreateAsync(user);
-        await _users.AddLoginAsync(user, info);
+        if (user.Id == 0)
+        {
+            var createResult = await _users.CreateAsync(user);
+            if (!createResult.Succeeded) return RedirectToPage("/Account/Login");
+        }
+        var addLoginResult = await _users.AddLoginAsync(user, info);
+        if (!addLoginResult.Succeeded) return RedirectToPage("/Account/Login");
         await _signIn.SignInAsync(user, isPersistent: true);
         // NOTE: a freshly-provisioned Google user has NO role yet → the Index router (Task 9)
         // sends them to AccessDenied ("ממתין לשיוך תפקיד" / awaiting role assignment) until an

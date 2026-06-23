@@ -35,31 +35,21 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// Google OAuth: scheme and handler registered only when ClientId is configured.
-// AddAuthentication() with NO args must NOT change Identity's default schemes — the app
-// cookie stays the default. Google is opt-in via its /signin-google callback only.
-// IConfigureOptions<AuthenticationOptions> defers the guard to resolve time so that
-// WebApplicationFactory's ConfigureAppConfiguration overrides (applied before Build()) are visible.
-builder.Services.AddAuthentication();
-builder.Services.AddSingleton<
-    Microsoft.Extensions.Options.IConfigureOptions<Microsoft.AspNetCore.Authentication.AuthenticationOptions>>(sp =>
+// Google OAuth: registered only when ClientId is present at startup.
+// In prod, the env var is set before the process starts so AddGoogle() runs and wires
+// the full handler chain (OAuthPostConfigureOptions, EnsureSignInScheme, etc.).
+// In tests, UseSetting injects the value before Build() so the eager read sees it.
+// When ClientId is absent (CI without secrets, local dev), Google is simply not registered.
+var googleId = builder.Configuration["Authentication:Google:ClientId"];
+if (!string.IsNullOrWhiteSpace(googleId))
 {
-    var cfg = sp.GetRequiredService<IConfiguration>();
-    return new Microsoft.Extensions.Options.ConfigureOptions<Microsoft.AspNetCore.Authentication.AuthenticationOptions>(opts =>
+    builder.Services.AddAuthentication().AddGoogle(o =>
     {
-        if (!string.IsNullOrWhiteSpace(cfg["Authentication:Google:ClientId"]))
-            opts.AddScheme<Microsoft.AspNetCore.Authentication.Google.GoogleHandler>(
-                Microsoft.AspNetCore.Authentication.Google.GoogleDefaults.AuthenticationScheme,
-                Microsoft.AspNetCore.Authentication.Google.GoogleDefaults.DisplayName);
+        o.ClientId = googleId!;
+        o.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+        // CallbackPath defaults to /signin-google (registered in Google Cloud) — do not override.
     });
-});
-builder.Services.AddOptions<Microsoft.AspNetCore.Authentication.Google.GoogleOptions>(
-    Microsoft.AspNetCore.Authentication.Google.GoogleDefaults.AuthenticationScheme)
-    .Configure<IConfiguration>((o, cfg) =>
-    {
-        o.ClientId = cfg["Authentication:Google:ClientId"] ?? "";
-        o.ClientSecret = cfg["Authentication:Google:ClientSecret"] ?? "";
-    });
+}
 
 builder.Services.ConfigureApplicationCookie(o =>
 {

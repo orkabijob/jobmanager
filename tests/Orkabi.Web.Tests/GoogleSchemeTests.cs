@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Tests.Infrastructure;
@@ -19,5 +20,36 @@ public class GoogleSchemeTests
         // the Identity app cookie remains the default challenge scheme, NOT Google (B1)
         var def = await schemes.GetDefaultChallengeSchemeAsync();
         Assert.Equal(Microsoft.AspNetCore.Identity.IdentityConstants.ApplicationScheme, def?.Name);
+    }
+
+    [Fact]
+    public async Task Google_challenge_redirects_to_accounts_google_com()
+    {
+        // Use a temp SQLite file so the DbContext can start up (challenge won't actually hit DB).
+        var dbPath = Path.Combine(Path.GetTempPath(), $"orkabi_google_{Guid.NewGuid():N}.db");
+        var cs = $"Data Source={dbPath}";
+        try
+        {
+            using var factory = new OrkabiAppFactory { ConnectionString = cs }
+                .WithConfig("Authentication:Google:ClientId", "test-id")
+                .WithConfig("Authentication:Google:ClientSecret", "test-secret");
+
+            // Prepared() creates the schema so the app can start fully (audit interceptor, etc.)
+            factory.Prepared();
+
+            var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+            var response = await client.GetAsync("/Account/ExternalLogin?provider=Google");
+
+            // The handler must build a Google OAuth redirect (302) — proves AddGoogle() wired
+            // StateDataFormat + Backchannel correctly. Fake creds are fine; the challenge only
+            // builds the URL, it does NOT call Google.
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            var location = response.Headers.Location?.ToString() ?? "";
+            Assert.StartsWith("https://accounts.google.com/", location);
+        }
+        finally
+        {
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+        }
     }
 }

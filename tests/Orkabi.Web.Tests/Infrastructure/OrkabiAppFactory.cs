@@ -24,7 +24,11 @@ public class OrkabiAppFactory : WebApplicationFactory<Program>
         // Force the SQLite provider + the test DB connection string for the whole app.
         builder.UseSetting("Database:Provider", "Sqlite");
         builder.UseSetting("ConnectionStrings:Default", ConnectionString);
-        builder.ConfigureAppConfiguration(cfg => cfg.AddInMemoryCollection(_config));
+        // Apply each config entry via UseSetting so it is visible to the eager
+        // builder.Configuration reads in Program.cs (e.g. Authentication:Google:ClientId).
+        // This matches how Database:Provider and ConnectionStrings:Default are injected above.
+        foreach (var kv in _config)
+            builder.UseSetting(kv.Key, kv.Value);
         // No DbContext re-registration needed: Program's provider switch already reads
         // Database:Provider + ConnectionStrings:Default (set above), and the audit interceptor
         // (Task 4) is wired in that same single registration.
