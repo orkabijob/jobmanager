@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orkabi.Web.Data;
@@ -11,9 +12,11 @@ using Orkabi.Web.Data;
 namespace Orkabi.Web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624065359_AddScheduling")]
+    partial class AddScheduling
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -394,9 +397,6 @@ namespace Orkabi.Web.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("SyllabusId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -406,8 +406,6 @@ namespace Orkabi.Web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcademicYearId");
-
-                    b.HasIndex("SyllabusId");
 
                     b.HasIndex("SchoolId", "AcademicYearId", "Name")
                         .IsUnique()
@@ -874,16 +872,9 @@ namespace Orkabi.Web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Orkabi.Web.Modules.Curriculum.Syllabus", "Syllabus")
-                        .WithMany("Classes")
-                        .HasForeignKey("SyllabusId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("AcademicYear");
 
                     b.Navigation("School");
-
-                    b.Navigation("Syllabus");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.People.Enrollment", b =>
@@ -1031,8 +1022,6 @@ namespace Orkabi.Web.Migrations
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.Syllabus", b =>
                 {
-                    b.Navigation("Classes");
-
                     b.Navigation("SyllabusModels");
                 });
 

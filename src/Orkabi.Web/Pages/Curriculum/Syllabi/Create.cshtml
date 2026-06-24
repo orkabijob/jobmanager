@@ -1,0 +1,82 @@
+@page
+@model Orkabi.Web.Pages.Curriculum.Syllabi.CreateModel
+@{
+    ViewData["Title"] = "סילבוס חדש";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">תכנית לימודים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תכנית לימודים">
+      <a class="subnav__item" href="/Curriculum">סקירה</a>
+      <a class="subnav__item is-active" href="/Curriculum/Syllabi">סילבוסים</a>
+      <a class="subnav__item" href="/Curriculum/Models">דגמים</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Curriculum/Syllabi">סילבוסים</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>סילבוס חדש</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">סילבוס חדש</h1>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם הסילבוס <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-grid--2col">
+          <div class="form-field">
+            <label class="form-field__label" for="StartDate">
+              תאריך התחלה <span class="req">*</span>
+            </label>
+            <input id="StartDate" asp-for="Input.StartDate" type="date" />
+            <p class="form-field__error" asp-validation-for="Input.StartDate"></p>
+          </div>
+
+          <div class="form-field">
+            <label class="form-field__label" for="EndDate">
+              תאריך סיום <span class="req">*</span>
+            </label>
+            <input id="EndDate" asp-for="Input.EndDate" type="date" />
+            <p class="form-field__error" asp-validation-for="Input.EndDate"></p>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label">סטטוס</label>
+          <div class="segment" role="radiogroup" aria-label="סטטוס סילבוס">
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.StatusValue" value="Active" />
+              <span>פעיל</span>
+            </label>
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.StatusValue" value="Archived" />
+              <span>בארכיון</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Curriculum/Syllabi">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת סילבוס</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

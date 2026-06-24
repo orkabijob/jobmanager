@@ -1,0 +1,29 @@
+@model Orkabi.Web.Pages.Attendance.LogModel.PacingVm
+@{
+    var pct = Model.HasModel && Model.Expected > 0
+        ? Math.Min(100, (int)Math.Round(100.0 * Model.Spent / Model.Expected))
+        : 0;
+}
+<div id="lesson-pacing" class="lesson-pacing">
+  @if (!Model.HasModel)
+  {
+    <span class="model-chip model-chip--warn">
+      <span class="model-chip__dot" aria-hidden="true"></span>
+      טרם שובץ דגם לשיעור
+    </span>
+  }
+  else
+  {
+    <span class="model-chip">
+      <span class="model-chip__dot" aria-hidden="true"></span>
+      @Model.ModelName
+    </span>
+    <p class="lesson-pacing__count@(Model.Over ? " lesson-pacing__count--over" : "")">
+      שיעור <bdi class="num">@Model.Spent</bdi> מתוך <bdi class="num">@Model.Expected</bdi>@(Model.Over ? " (חריגה)" : "")
+    </p>
+    <div class="pace-bar@(Model.Over ? " pace-bar--over" : "")" role="progressbar"
+         aria-valuenow="@Model.Spent" aria-valuemin="0" aria-valuemax="@Model.Expected">
+      <span class="pace-bar__fill" style="--pace: @pct%;"></span>
+    </div>
+  }
+</div>

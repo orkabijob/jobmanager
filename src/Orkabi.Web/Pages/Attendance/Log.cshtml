@@ -1,0 +1,42 @@
+@page "/Attendance/{shiftInstanceId:int}/Log"
+@model Orkabi.Web.Pages.Attendance.LogModel
+@{
+    ViewData["Title"] = "יומן שיעור";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">יומן שיעור</span>
+    <nav class="dash-topbar__user">
+      <a href="/Attendance/@Model.ShiftInstanceId" class="btn-ghost" style="font-size:var(--t-admin-meta);">נוכחות</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body today-stage">
+    @* Token: HTMX sends it via the meta header; this hidden input also covers no-JS posts. *@
+    @Html.AntiForgeryToken()
+    <article class="glass glass--tile lesson-card" style="--lg-tile-shadow: var(--lg-shadow);">
+      <p class="lesson-card__ctx">@Model.ContextLine</p>
+
+      <div class="section-label">דגם נוכחי</div>
+      <partial name="_LessonPacing" model="Model.Pacing" />
+
+      <div class="form-field">
+        <label class="form-field__label" for="Model">דגם השיעור</label>
+        <select id="Model" name="modelId" class="form-select"
+                hx-post="?handler=Pace" hx-target="#lesson-pacing"
+                hx-swap="outerHTML" hx-trigger="change">
+          <option value="" disabled selected="@(Model.SelectedModelId is null)">בחרו דגם…</option>
+          @foreach (var m in Model.Models)
+          {
+            <option value="@m.Id" selected="@(Model.SelectedModelId == m.Id)">@m.Name</option>
+          }
+        </select>
+      </div>
+
+      <partial name="_LessonStatus" model="Model.Status" />
+    </article>
+  </main>
+</div>

@@ -1,0 +1,102 @@
+@page
+@model Orkabi.Web.Pages.Curriculum.Syllabi.IndexModel
+@using Orkabi.Web.Shared
+@{
+    ViewData["Title"] = "סילבוסים";
+    var currentStatus = Model.Status ?? "Active";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">תכנית לימודים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תכנית לימודים">
+      <a class="subnav__item" href="/Curriculum">סקירה</a>
+      <a class="subnav__item is-active" href="/Curriculum/Syllabi">סילבוסים</a>
+      <a class="subnav__item" href="/Curriculum/Models">דגמים</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">סילבוסים</h1>
+      <a class="btn-primary" href="/Curriculum/Syllabi/Create">+ סילבוס חדש</a>
+    </header>
+
+    <form class="classes-filter-rail" method="get" role="search">
+      <div class="filter-group">
+        <span class="form-field__label">סטטוס</span>
+        <div class="status-pill-rail">
+          <button type="submit" name="status" value="Active"
+                  class="status-pill @(currentStatus == "Active" ? "status-pill--on" : "")">
+            פעילים
+          </button>
+          <button type="submit" name="status" value="Archived"
+                  class="status-pill @(currentStatus == "Archived" ? "status-pill--on" : "")">
+            בארכיון
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Syllabi.Any())
+      {
+        <div class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">📋</span>
+          <p class="empty-state__title">אין סילבוסים עדיין</p>
+          <p class="empty-state__hint">צרו סילבוס כדי להגדיר סדר דגמי הוראה לכיתות.</p>
+          <a class="btn-primary" href="/Curriculum/Syllabi/Create">+ סילבוס חדש</a>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">שם</th>
+              <th scope="col">תאריכים</th>
+              <th scope="col">דגמים</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var syl in Model.Syllabi)
+            {
+              var count = Model.ModelCounts.TryGetValue(syl.Id, out var c) ? c : 0;
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@syl.Name</td>
+                <td class="data-cell">
+                  <bdi class="num">@syl.StartDate.ToString("dd.MM.yy")–@syl.EndDate.ToString("dd.MM.yy")</bdi>
+                </td>
+                <td class="data-cell"><bdi class="num">@count</bdi></td>
+                <td class="data-cell">
+                  @if (syl.Status == EntityStatus.Active)
+                  {
+                    <span class="status-chip status-chip--active">פעיל</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--archived">בארכיון</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm btn-ghost--accent"
+                     href="/Curriculum/Syllabi/Edit/@syl.Id">דגמים</a>
+                  <a class="btn-ghost btn-ghost--sm"
+                     href="/Curriculum/Syllabi/Edit/@syl.Id">עריכה</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

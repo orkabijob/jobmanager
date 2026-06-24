@@ -1,8 +1,10 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 <!DOCTYPE html>
 <html dir="rtl" lang="he" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="htmx-csrf" content="@(Antiforgery.GetAndStoreTokens(ViewContext.HttpContext).RequestToken)" />
   <title>@ViewData["Title"] · עורקבי</title>
   <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
   <link rel="stylesheet" href="~/css/base.css" asp-append-version="true" />
@@ -23,5 +25,12 @@
   <main>@RenderBody()</main>
   <!-- Specular glint pointer tracking (§8 — reduced-motion + battery gated) -->
   <script src="~/js/glass-glint.js" defer asp-append-version="true"></script>
+  <script src="~/js/htmx.min.js" defer asp-append-version="true"></script>
+  <script>
+    document.body.addEventListener('htmx:configRequest', function (evt) {
+      evt.detail.headers['RequestVerificationToken'] =
+        document.querySelector('meta[name="htmx-csrf"]')?.content ?? '';
+    });
+  </script>
 </body>
 </html>

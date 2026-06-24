@@ -1,0 +1,63 @@
+@model Orkabi.Web.Modules.Scheduling.SubstitutionRequest
+@using Orkabi.Web.Modules.Scheduling
+@using Orkabi.Web.Shared
+
+<tr class="data-row sub-row" id="sub-row-@Model.Id">
+  <td class="data-cell data-cell--primary">
+    @Model.ShiftInstance.Template.Class.Name
+    <bdi class="num" style="font-size:var(--t-admin-meta); color:var(--brand-ink-muted);">
+      @Model.ShiftInstance.Template.StartTime.ToString("HH:mm")–@Model.ShiftInstance.Template.EndTime.ToString("HH:mm")
+    </bdi>
+  </td>
+  <td class="data-cell"><bdi class="num">@Model.ShiftInstance.Date.ToString("dd/MM/yyyy")</bdi></td>
+  <td class="data-cell">@(Model.RequestingInstructor.FullName ?? Model.RequestingInstructor.Email)</td>
+  <td class="data-cell">@(Model.SubstituteInstructor.FullName ?? Model.SubstituteInstructor.Email)</td>
+  <td class="data-cell">
+    @if (Model.Status == SubstitutionStatus.Pending)
+    {
+      <span class="status-chip status-chip--pending">ממתין</span>
+    }
+    else if (Model.Status == SubstitutionStatus.Approved)
+    {
+      <span class="status-chip status-chip--approved">אושר</span>
+    }
+    else
+    {
+      <span class="status-chip status-chip--rejected">נדחה</span>
+    }
+  </td>
+  <td class="data-cell data-cell--actions">
+    @if (Model.Status == SubstitutionStatus.Pending)
+    {
+      <button class="btn-primary btn-ghost--sm"
+              hx-post="/Scheduling/Substitutions?handler=Approve&id=@Model.Id"
+              hx-target="#sub-row-@Model.Id"
+              hx-swap="outerHTML">
+        אשר
+      </button>
+      <button class="btn-ghost btn-ghost--sm"
+              hx-post="/Scheduling/Substitutions?handler=Reject&id=@Model.Id"
+              hx-target="#sub-row-@Model.Id"
+              hx-swap="outerHTML">
+        דחה
+      </button>
+    }
+    else if (Model.Status == SubstitutionStatus.Approved)
+    {
+      var approverName = Model.ApprovedByUser?.FullName ?? "—";
+      var approvedLocal = Model.ApprovedAt.HasValue
+          ? TimeZoneInfo.ConvertTimeFromUtc(Model.ApprovedAt.Value, IsraelClock.IsraelTz)
+          : (DateTime?)null;
+      var approvedDate = approvedLocal.HasValue
+          ? approvedLocal.Value.ToString("dd.MM.yyyy")
+          : "—";
+      <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">
+        אושר ע״י @approverName · <bdi class="num">@approvedDate</bdi>
+      </span>
+    }
+    else
+    {
+      <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">נדחה</span>
+    }
+  </td>
+</tr>

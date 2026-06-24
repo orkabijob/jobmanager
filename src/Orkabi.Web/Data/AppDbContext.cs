@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
+using Curriculum = Orkabi.Web.Modules.Curriculum;
 using People = Orkabi.Web.Modules.People;
+using Scheduling = Orkabi.Web.Modules.Scheduling;
 
 namespace Orkabi.Web.Data;
 
@@ -15,6 +17,16 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<People.Class> Classes => Set<People.Class>();
     public DbSet<People.Client> Clients => Set<People.Client>();
     public DbSet<People.Enrollment> Enrollments => Set<People.Enrollment>();
+
+    public DbSet<Curriculum.Model> Models => Set<Curriculum.Model>();
+    public DbSet<Curriculum.Syllabus> Syllabi => Set<Curriculum.Syllabus>();
+    public DbSet<Curriculum.SyllabusModel> SyllabusModels => Set<Curriculum.SyllabusModel>();
+
+    public DbSet<Scheduling.ShiftTemplate> ShiftTemplates => Set<Scheduling.ShiftTemplate>();
+    public DbSet<Scheduling.ShiftInstance> ShiftInstances => Set<Scheduling.ShiftInstance>();
+    public DbSet<Scheduling.SubstitutionRequest> SubstitutionRequests => Set<Scheduling.SubstitutionRequest>();
+    public DbSet<Scheduling.LessonLog> LessonLogs => Set<Scheduling.LessonLog>();
+    public DbSet<Scheduling.Attendance> Attendances => Set<Scheduling.Attendance>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -34,6 +46,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasForeignKey(c => c.SchoolId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<People.Class>().HasOne(c => c.AcademicYear).WithMany(y => y.Classes)
             .HasForeignKey(c => c.AcademicYearId).OnDelete(DeleteBehavior.Restrict);
+        // SetNull is the ONE intentional exception to the Restrict convention:
+        // retiring/archiving a syllabus must not block existing classes.
+        b.Entity<People.Class>().HasOne(c => c.Syllabus).WithMany(s => s.Classes)
+            .HasForeignKey(c => c.SyllabusId).OnDelete(DeleteBehavior.SetNull);
 
         // One current academic year, enforced at the DB (partial unique index).
         b.Entity<People.AcademicYear>().HasIndex(y => y.IsCurrent).HasFilter("\"IsCurrent\" = true").IsUnique();
@@ -53,5 +69,95 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
         // One enrollment per (client, class) while not Dropped (Status 2 = Dropped → re-enroll allowed)
         b.Entity<People.Enrollment>().HasIndex(e => new { e.ClientId, e.ClassId })
             .HasFilter("\"Status\" <> 2").IsUnique();
+
+        // CURRICULUM — Syllabus is the aggregate root. Model and SyllabusModel get NO filter.
+        b.Entity<Curriculum.Syllabus>().HasQueryFilter(s => s.Status == EntityStatus.Active);
+        b.Entity<Curriculum.Syllabus>().Property(s => s.Status).HasConversion<int>();
+        b.Entity<Curriculum.Syllabus>().Property(s => s.Name).HasMaxLength(200).IsRequired();
+        b.Entity<Curriculum.Model>().Property(m => m.Name).HasMaxLength(200).IsRequired();
+        b.Entity<Curriculum.SyllabusModel>().HasKey(sm => new { sm.SyllabusId, sm.ModelId });
+        b.Entity<Curriculum.SyllabusModel>().HasOne(sm => sm.Syllabus).WithMany(s => s.SyllabusModels)
+            .HasForeignKey(sm => sm.SyllabusId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Curriculum.SyllabusModel>().HasOne(sm => sm.Model).WithMany(m => m.SyllabusModels)
+            .HasForeignKey(sm => sm.ModelId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Curriculum.SyllabusModel>().HasIndex(sm => new { sm.SyllabusId, sm.OrderIndex }).IsUnique();
+
+        // ── SCHEDULING ──────────────────────────────────────────────────────
+
+        // ShiftTemplate — archival aggregate root; gets the global query filter.
+        b.Entity<Scheduling.ShiftTemplate>().HasQueryFilter(t => t.Status == EntityStatus.Active);
+        b.Entity<Scheduling.ShiftTemplate>().Property(t => t.Status).HasConversion<int>();
+        b.Entity<Scheduling.ShiftTemplate>().Property(t => t.DayOfWeek).HasConversion<int>();
+        // TimeOnly → stored as TEXT "HH:mm:ss" (EF Core 9 SQLite; explicit converter is the root mapping).
+        b.Entity<Scheduling.ShiftTemplate>().Property(t => t.StartTime)
+            .HasConversion(v => v.ToString("HH:mm:ss"), v => TimeOnly.Parse(v));
+        b.Entity<Scheduling.ShiftTemplate>().Property(t => t.EndTime)
+            .HasConversion(v => v.ToString("HH:mm:ss"), v => TimeOnly.Parse(v));
+
+        // ShiftTemplate FKs (all Restrict)
+        b.Entity<Scheduling.ShiftTemplate>()
+            .HasOne(t => t.Class).WithMany()
+            .HasForeignKey(t => t.ClassId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.ShiftTemplate>()
+            .HasOne(t => t.DefaultInstructor).WithMany()
+            .HasForeignKey(t => t.DefaultInstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.ShiftTemplate>()
+            .HasOne(t => t.AcademicYear).WithMany()
+            .HasForeignKey(t => t.AcademicYearId).OnDelete(DeleteBehavior.Restrict);
+
+        // ShiftTemplate indexes
+        b.Entity<Scheduling.ShiftTemplate>()
+            .HasIndex(t => new { t.ClassId, t.DayOfWeek, t.AcademicYearId });
+
+        // ShiftInstance
+        b.Entity<Scheduling.ShiftInstance>().Property(i => i.Status).HasConversion<int>();
+        b.Entity<Scheduling.ShiftInstance>()
+            .HasOne(i => i.Template).WithMany(t => t.ShiftInstances)
+            .HasForeignKey(i => i.TemplateId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.ShiftInstance>()
+            .HasOne(i => i.ActualInstructor).WithMany()
+            .HasForeignKey(i => i.ActualInstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.ShiftInstance>()
+            .HasIndex(i => new { i.TemplateId, i.Date }).IsUnique();
+
+        // SubstitutionRequest
+        b.Entity<Scheduling.SubstitutionRequest>().Property(r => r.Status).HasConversion<int>();
+        b.Entity<Scheduling.SubstitutionRequest>()
+            .HasOne(r => r.ShiftInstance).WithMany(i => i.SubstitutionRequests)
+            .HasForeignKey(r => r.ShiftInstanceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.SubstitutionRequest>()
+            .HasOne(r => r.RequestingInstructor).WithMany()
+            .HasForeignKey(r => r.RequestingInstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.SubstitutionRequest>()
+            .HasOne(r => r.SubstituteInstructor).WithMany()
+            .HasForeignKey(r => r.SubstituteInstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.SubstitutionRequest>()
+            .HasOne(r => r.ApprovedByUser).WithMany()
+            .HasForeignKey(r => r.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // LessonLog — one-to-one with ShiftInstance
+        b.Entity<Scheduling.LessonLog>().Property(l => l.Status).HasConversion<int>();
+        b.Entity<Scheduling.LessonLog>()
+            .HasOne(l => l.ShiftInstance).WithOne(i => i.LessonLog)
+            .HasForeignKey<Scheduling.LessonLog>(l => l.ShiftInstanceId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.LessonLog>()
+            .HasOne(l => l.Model).WithMany(m => m.LessonLogs)
+            .HasForeignKey(l => l.ModelId).OnDelete(DeleteBehavior.Restrict);
+
+        // Attendance
+        b.Entity<Scheduling.Attendance>().Property(a => a.Status).HasConversion<int>();
+        b.Entity<Scheduling.Attendance>()
+            .Property(a => a.IdempotencyKey).HasMaxLength(100).IsRequired();
+        b.Entity<Scheduling.Attendance>()
+            .HasOne(a => a.LessonLog).WithMany(l => l.Attendances)
+            .HasForeignKey(a => a.LessonLogId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.Attendance>()
+            .HasOne(a => a.Client).WithMany()
+            .HasForeignKey(a => a.ClientId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Scheduling.Attendance>()
+            .HasIndex(a => new { a.LessonLogId, a.ClientId }).IsUnique();
+        b.Entity<Scheduling.Attendance>()
+            .HasIndex(a => a.IdempotencyKey).IsUnique();
     }
 }

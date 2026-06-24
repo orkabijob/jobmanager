@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orkabi.Web.Data;
@@ -11,9 +12,11 @@ using Orkabi.Web.Data;
 namespace Orkabi.Web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624064111_AddCurriculum")]
+    partial class AddCurriculum
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -394,9 +397,6 @@ namespace Orkabi.Web.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("SyllabusId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -406,8 +406,6 @@ namespace Orkabi.Web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcademicYearId");
-
-                    b.HasIndex("SyllabusId");
 
                     b.HasIndex("SchoolId", "AcademicYearId", "Name")
                         .IsUnique()
@@ -551,245 +549,6 @@ namespace Orkabi.Web.Migrations
                     b.ToTable("Schools");
                 });
 
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.Attendance", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ClientId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<int>("LessonLogId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientId");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("LessonLogId", "ClientId")
-                        .IsUnique();
-
-                    b.ToTable("Attendances");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.LessonLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ExpectedLessonsSnapshot")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("InstructorNotes")
-                        .HasColumnType("text");
-
-                    b.Property<int>("ModelId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ShiftInstanceId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ModelId");
-
-                    b.HasIndex("ShiftInstanceId")
-                        .IsUnique();
-
-                    b.ToTable("LessonLogs");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftInstance", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ActualInstructorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TemplateId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActualInstructorId");
-
-                    b.HasIndex("TemplateId", "Date")
-                        .IsUnique();
-
-                    b.ToTable("ShiftInstances");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftTemplate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AcademicYearId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ClassId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DefaultInstructorId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("EndTime")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("StartTime")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AcademicYearId");
-
-                    b.HasIndex("DefaultInstructorId");
-
-                    b.HasIndex("ClassId", "DayOfWeek", "AcademicYearId");
-
-                    b.ToTable("ShiftTemplates");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.SubstitutionRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("RequestingInstructorId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ShiftInstanceId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SubstituteInstructorId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApprovedByUserId");
-
-                    b.HasIndex("RequestingInstructorId");
-
-                    b.HasIndex("ShiftInstanceId");
-
-                    b.HasIndex("SubstituteInstructorId");
-
-                    b.ToTable("SubstitutionRequests");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
                     b.HasOne("Orkabi.Web.Modules.Identity.AppRole", null)
@@ -874,16 +633,9 @@ namespace Orkabi.Web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Orkabi.Web.Modules.Curriculum.Syllabus", "Syllabus")
-                        .WithMany("Classes")
-                        .HasForeignKey("SyllabusId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("AcademicYear");
 
                     b.Navigation("School");
-
-                    b.Navigation("Syllabus");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.People.Enrollment", b =>
@@ -905,134 +657,13 @@ namespace Orkabi.Web.Migrations
                     b.Navigation("Client");
                 });
 
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.Attendance", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.People.Client", "Client")
-                        .WithMany()
-                        .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.Scheduling.LessonLog", "LessonLog")
-                        .WithMany("Attendances")
-                        .HasForeignKey("LessonLogId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Client");
-
-                    b.Navigation("LessonLog");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.LessonLog", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.Curriculum.Model", "Model")
-                        .WithMany("LessonLogs")
-                        .HasForeignKey("ModelId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.Scheduling.ShiftInstance", "ShiftInstance")
-                        .WithOne("LessonLog")
-                        .HasForeignKey("Orkabi.Web.Modules.Scheduling.LessonLog", "ShiftInstanceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Model");
-
-                    b.Navigation("ShiftInstance");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftInstance", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "ActualInstructor")
-                        .WithMany()
-                        .HasForeignKey("ActualInstructorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Orkabi.Web.Modules.Scheduling.ShiftTemplate", "Template")
-                        .WithMany("ShiftInstances")
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ActualInstructor");
-
-                    b.Navigation("Template");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftTemplate", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.People.AcademicYear", "AcademicYear")
-                        .WithMany()
-                        .HasForeignKey("AcademicYearId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.People.Class", "Class")
-                        .WithMany()
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "DefaultInstructor")
-                        .WithMany()
-                        .HasForeignKey("DefaultInstructorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("AcademicYear");
-
-                    b.Navigation("Class");
-
-                    b.Navigation("DefaultInstructor");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.SubstitutionRequest", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "ApprovedByUser")
-                        .WithMany()
-                        .HasForeignKey("ApprovedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "RequestingInstructor")
-                        .WithMany()
-                        .HasForeignKey("RequestingInstructorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.Scheduling.ShiftInstance", "ShiftInstance")
-                        .WithMany("SubstitutionRequests")
-                        .HasForeignKey("ShiftInstanceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "SubstituteInstructor")
-                        .WithMany()
-                        .HasForeignKey("SubstituteInstructorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ApprovedByUser");
-
-                    b.Navigation("RequestingInstructor");
-
-                    b.Navigation("ShiftInstance");
-
-                    b.Navigation("SubstituteInstructor");
-                });
-
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.Model", b =>
                 {
-                    b.Navigation("LessonLogs");
-
                     b.Navigation("SyllabusModels");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.Syllabus", b =>
                 {
-                    b.Navigation("Classes");
-
                     b.Navigation("SyllabusModels");
                 });
 
@@ -1054,23 +685,6 @@ namespace Orkabi.Web.Migrations
             modelBuilder.Entity("Orkabi.Web.Modules.People.School", b =>
                 {
                     b.Navigation("Classes");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.LessonLog", b =>
-                {
-                    b.Navigation("Attendances");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftInstance", b =>
-                {
-                    b.Navigation("LessonLog");
-
-                    b.Navigation("SubstitutionRequests");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.Scheduling.ShiftTemplate", b =>
-                {
-                    b.Navigation("ShiftInstances");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,0 +1,39 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.Instances.IndexModel
+@{
+    ViewData["Title"] = "מופעי משמרת";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שיבוץ משמרות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט שיבוץ משמרות">
+      <a class="subnav__item" href="/Scheduling">סקירה</a>
+      <a class="subnav__item" href="/Scheduling/Templates">תבניות</a>
+      <a class="subnav__item is-active" href="/Scheduling/Instances">מופעים</a>
+      <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">מופעי משמרת</h1>
+      <button class="btn-primary"
+              hx-post="?handler=Generate"
+              hx-target="#instances-panel"
+              hx-swap="outerHTML"
+              hx-indicator="#gen-spin">
+        צור מופעים
+        <span id="gen-spin" class="htmx-indicator" aria-hidden="true"> ...</span>
+      </button>
+    </header>
+
+    @await Html.PartialAsync("_InstanceList", Model.Grouped)
+  </main>
+</div>

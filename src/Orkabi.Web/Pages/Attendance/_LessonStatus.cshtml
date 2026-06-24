@@ -1,0 +1,30 @@
+@model Orkabi.Web.Pages.Attendance.LogModel.StatusVm
+@{
+    var inProgress = Model.Status == Orkabi.Web.Modules.Scheduling.LessonLogStatus.InProgress;
+}
+<div id="lesson-status" class="lesson-status">
+  <span class="section-label">סטטוס</span>
+  <form hx-post="?handler=SaveLog" hx-target="#lesson-status" hx-swap="outerHTML" hx-include="#Model">
+    <div class="segment" role="radiogroup" aria-label="סטטוס שיעור">
+      <label class="segment__opt">
+        <input type="radio" name="status" value="InProgress" @(inProgress ? "checked" : "") />
+        <span>בתהליך</span>
+      </label>
+      <label class="segment__opt">
+        <input type="radio" name="status" value="Completed" @(inProgress ? "" : "checked") />
+        <span>הושלם</span>
+      </label>
+    </div>
+    <div class="form-field">
+      <label class="form-field__label" for="Notes">הערות מדריך</label>
+      <textarea id="Notes" name="notes" placeholder="מה נעשה בשיעור, קשיים, חומרים שחסרו…">@Model.Notes</textarea>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">שמור יומן</button>
+      @if (Model.Saved)
+      {
+        <span class="lesson-saved">נשמר ✓</span>
+      }
+    </div>
+  </form>
+</div>
