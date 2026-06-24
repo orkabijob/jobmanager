@@ -1,0 +1,88 @@
+@page
+@model Orkabi.Web.Pages.Operations.ActionItems.IndexModel
+@using Orkabi.Web.Modules.ActionHub
+@{
+    ViewData["Title"] = "משימות פתוחות";
+}
+
+@functions {
+    static string TypeToHebrew(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "חריגת קצב",
+        ActionItemType.Absence        => "היעדרות",
+        ActionItemType.Dispute        => "מחלוקת",
+        ActionItemType.Task           => "משימה",
+        ActionItemType.Birthday       => "יום הולדת",
+        ActionItemType.TryoutFollowup => "מעקב ניסיון",
+        _                             => t.ToString()
+    };
+
+    static string TypeToCssModifier(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "action-type--gap",
+        ActionItemType.Absence        => "action-type--absence",
+        ActionItemType.Dispute        => "action-type--dispute",
+        ActionItemType.Birthday       => "action-type--birthday",
+        ActionItemType.TryoutFollowup => "action-type--tryout",
+        _                             => ""   // Task uses base (brand) — no modifier
+    };
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">משימות פתוחות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תפעול">
+      <a class="subnav__item" href="/Operations">סקירה</a>
+      <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
+      <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+      <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
+      <a class="subnav__item is-active" href="/Operations/ActionItems">משימות פתוחות</a>
+    </nav>
+
+    <p class="scope-note">
+      <span aria-hidden="true">ⓘ</span>
+      זוהי תצוגה מצומצמת — מרכז הפעולות המלא יגיע בהמשך.
+    </p>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Items.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין משימות פתוחות</p>
+          <p class="empty-state__hint">כשתיווצר התראה היא תופיע כאן.</p>
+        </div>
+      }
+      else
+      {
+        <div class="action-list">
+          @foreach (var item in Model.Items)
+          {
+            var typeClass = TypeToCssModifier(item.Type);
+            var typeLabel = TypeToHebrew(item.Type);
+            <article class="action-card" id="action-@item.Id">
+              <div class="action-card__top">
+                <span class="action-type @typeClass">
+                  <span class="action-type__dot" aria-hidden="true"></span>@typeLabel
+                </span>
+                @if (item.DueDate.HasValue)
+                {
+                  <span class="action-card__due">יעד: <bdi class="num">@item.DueDate.Value.ToString("d בMMMM", new System.Globalization.CultureInfo("he-IL"))</bdi></span>
+                }
+                <span class="status-chip status-chip--active">פתוח</span>
+              </div>
+              <p class="action-card__desc">@item.Description</p>
+            </article>
+          }
+        </div>
+      }
+    </div>
+  </main>
+</div>

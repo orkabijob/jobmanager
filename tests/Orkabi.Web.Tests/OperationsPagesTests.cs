@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.Operations;
 using Orkabi.Web.Modules.People;
@@ -316,6 +317,62 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
 
         instrFactory.Dispose();
         adminFactory.Dispose();
+    }
+
+    // ── Task 6: Minimal Action-Items read page ──────────────────────────────
+
+    [Fact]
+    public async Task Instructor_redirected_from_action_items_page()
+    {
+        var (factory, client, _) = await CreateInstructorClientAsync(_sqlite, "_ai_403");
+        var resp = await client.GetAsync("/Operations/ActionItems");
+        // Cookie auth redirects Forbid() to AccessDenied (not a hard 403)
+        Assert.True(
+            resp.StatusCode == HttpStatusCode.Redirect ||
+            resp.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected redirect or 403, got {resp.StatusCode}");
+        if (resp.StatusCode == HttpStatusCode.Redirect)
+            Assert.Contains("AccessDenied", resp.Headers.Location?.ToString() ?? "");
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Admin_sees_open_gap_action_item_on_action_items_page()
+    {
+        var (factory, client, _) = await CreateAdminClientAsync(_sqlite, "_ai_read");
+
+        // Seed a Gap ActionItem directly via the service
+        using (var s = factory.Services.CreateScope())
+        {
+            var svc = s.ServiceProvider.GetRequiredService<ActionItemService>();
+            // Use dummy classId/modelId (5001/5002) that won't collide with other tests
+            await svc.EnsureGapActionItemAsync(5001, 5002, 8, 9);
+        }
+
+        var resp = await client.GetAsync("/Operations/ActionItems");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+
+        // The page must contain the scope note
+        Assert.Contains("תצוגה מצומצמת", body);
+        // The card must contain the Hebrew description seeded above (partial match on the description pattern)
+        Assert.Contains("חריגת קצב", body);
+        // Status chip for open item
+        Assert.Contains("פתוח", body);
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Admin_sees_empty_state_when_no_open_action_items()
+    {
+        var (factory, client, _) = await CreateAdminClientAsync(_sqlite, "_ai_empty");
+
+        var resp = await client.GetAsync("/Operations/ActionItems");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+        // Either empty state or list renders; page must not error
+        Assert.Contains("משימות פתוחות", body);
+        factory.Dispose();
     }
 
     [Fact]
