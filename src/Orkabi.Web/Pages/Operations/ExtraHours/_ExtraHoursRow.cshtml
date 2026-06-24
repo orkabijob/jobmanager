@@ -8,7 +8,7 @@
         ? TimeZoneInfo.ConvertTimeFromUtc(Model.ApprovedAt.Value, IsraelClock.IsraelTz)
         : (DateTime?)null;
     var approvedDate = approvedLocal.HasValue
-        ? approvedLocal.Value.ToString("dd ב-MM")
+        ? approvedLocal.Value.ToString("d MMMM", new System.Globalization.CultureInfo("he-IL"))
         : "—";
 }
 
