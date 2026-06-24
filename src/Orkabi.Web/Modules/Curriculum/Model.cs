@@ -9,5 +9,5 @@ public class Model : BaseEntity
     public string? MaterialLink { get; set; }
     public string? VideoLink { get; set; }
     public ICollection<SyllabusModel> SyllabusModels { get; set; } = new List<SyllabusModel>();
-    // Model.LessonLogs deferred to Task 2 (Scheduling.LessonLog does not exist yet).
+    public ICollection<Scheduling.LessonLog> LessonLogs { get; set; } = new List<Scheduling.LessonLog>();
 }
