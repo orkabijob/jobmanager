@@ -31,9 +31,10 @@ One compile error during implementation: `IndexModel.DayName` is static — refe
 
 ## base.css additions
 
-Inserted `§5 Scheduling` block (~30 lines) before the `@supports not backdrop-filter` fallback block (was line 1262). Added:
+Inserted `§5 Scheduling` block before the `@supports not backdrop-filter` fallback block (was line 1262). Added:
 - `.date-group-head`, `.inst-list`, `.inst-row`, `.inst-row__class/__time/__who`
 - `.status-chip--pending`, `.status-chip--approved`, `.status-chip--rejected`
+- `.status-chip--muted` (Detached "נערך ידנית" chip; muted bg + hollow `◦` bullet, matching the existing `--archived/--off` muted style) — added during review after finding the chip class referenced in `_InstanceList.cshtml` was undefined.
 - Mobile `@media` wrap rule for `.inst-row`
 
 ## Files changed

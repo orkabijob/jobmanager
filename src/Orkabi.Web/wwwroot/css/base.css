@@ -1283,6 +1283,8 @@ body { margin: 0; line-height: var(--lh-normal); }
 .status-chip--approved::before { content: "●"; }
 .status-chip--rejected { background: var(--absent-soft); color: var(--absent); }
 .status-chip--rejected::before { content: "✕"; font-size: 9px; }
+.status-chip--muted { background: rgba(var(--brand-rgb), .08); color: var(--brand-ink-muted); }
+.status-chip--muted::before { content: "◦"; }
 @media (max-width: 767px) {
   .inst-row { flex-wrap: wrap; }
 }
