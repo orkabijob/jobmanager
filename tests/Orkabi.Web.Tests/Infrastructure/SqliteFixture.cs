@@ -15,7 +15,13 @@ public sealed class SqliteFixture : IDisposable
 
     // Foreign Keys=True turns on FK enforcement (off by default in SQLite) so the inner loop
     // actually exercises relational constraints.
-    public string ConnectionString => $"Data Source={_path};Foreign Keys=True";
+    // Default Timeout=30 sets the SQLite busy-timeout to 30 s: when a second connection tries
+    // to acquire a write lock while the first is still held (e.g. a pooled connection from the
+    // previous test's OrkabiAppFactory hasn't been released yet), SQLite will retry for up to
+    // 30 s instead of returning "database is locked" immediately.  This is the root fix for the
+    // intermittent Generator_is_idempotent_on_second_call flake observed under parallel
+    // xUnit test-class execution where connection-pool handles can briefly outlive Dispose().
+    public string ConnectionString => $"Data Source={_path};Foreign Keys=True;Default Timeout=30";
 
     public void Dispose()
     {
