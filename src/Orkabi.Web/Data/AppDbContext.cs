@@ -198,6 +198,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 
         // VacationRequest
         b.Entity<Operations.VacationRequest>().Property(v => v.Status).HasConversion<int>();
+        b.Entity<Operations.VacationRequest>().Property(v => v.Reason).HasMaxLength(500);
         b.Entity<Operations.VacationRequest>().Property(v => v.AdminNote).HasMaxLength(500);
         b.Entity<Operations.VacationRequest>()
             .HasOne(v => v.Instructor).WithMany()

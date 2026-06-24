@@ -18,6 +18,9 @@ public class VacationRequest : BaseEntity
     public AppUser? ApprovedByUser { get; set; }
     public DateTime? ApprovedAt { get; set; }
 
+    /// <summary>Optional reason from the instructor; max 500 chars.</summary>
+    public string? Reason { get; set; }
+
     /// <summary>Optional admin note, e.g. denial reason; max 500 chars.</summary>
     public string? AdminNote { get; set; }
 }

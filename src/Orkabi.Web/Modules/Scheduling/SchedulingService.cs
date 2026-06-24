@@ -110,6 +110,19 @@ public class SchedulingService
             .ToListAsync();
     }
 
+    /// <summary>Returns the instructor's most recent ShiftInstances (up to 30) for use in operation submit forms.</summary>
+    public Task<List<ShiftInstance>> ListRecentForInstructorAsync(int userId, int take = 30)
+    {
+        var cutoff = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(-60);
+        return _db.ShiftInstances
+            .Where(i => i.ActualInstructorId == userId && i.Date >= cutoff)
+            .Include(i => i.Template).ThenInclude(t => t.Class)
+            .OrderByDescending(i => i.Date)
+            .Take(take)
+            .ToListAsync();
+    }
+
     // Single shift instance with its Template→Class (+ School) loaded — for the attendance/log surfaces.
     public Task<ShiftInstance?> GetShiftInstanceAsync(int shiftInstanceId) =>
         _db.ShiftInstances

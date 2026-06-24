@@ -1,0 +1,160 @@
+@page
+@model Orkabi.Web.Pages.Operations.Vacations.IndexModel
+@using Orkabi.Web.Modules.Operations
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "חופשות";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">@(isAdmin ? "אישור חופשות" : "חופשות")</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תפעול">
+      <a class="subnav__item" href="/Operations">סקירה</a>
+      @if (isAdmin)
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item is-active" href="/Operations/Vacations">אישור חופשות</a>
+        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
+      }
+      else
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">שעות נוספות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item is-active" href="/Operations/Vacations">חופשות</a>
+      }
+    </nav>
+
+    @if (!isAdmin)
+    {
+      @if (TempData["SuccessMessage"] != null)
+      {
+        <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+      }
+
+      <form method="post" class="glass glass--tile form-panel form-panel--instructor"
+            style="--lg-tile-shadow: var(--lg-shadow);">
+        <h1 class="form-panel__title">בקשת חופשה</h1>
+        <div class="form-grid form-grid--2col">
+          <div class="form-field">
+            <label class="form-field__label" for="StartDate">מתאריך <span class="req">*</span></label>
+            <input id="StartDate" asp-for="Input.StartDate" type="date">
+            <span class="form-field__error" asp-validation-for="Input.StartDate"></span>
+          </div>
+          <div class="form-field">
+            <label class="form-field__label" for="EndDate">עד תאריך <span class="req">*</span></label>
+            <input id="EndDate" asp-for="Input.EndDate" type="date">
+            <span class="form-field__error" asp-validation-for="Input.EndDate"></span>
+          </div>
+          <div class="form-field form-field--full">
+            <label class="form-field__label" for="Reason">סיבה <span class="opt">(לא חובה)</span></label>
+            <textarea id="Reason" asp-for="Input.Reason" placeholder="אירוע משפחתי, מחלה…"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Operations">ביטול</a>
+          <button type="submit" class="btn-primary">שליחת בקשה</button>
+        </div>
+      </form>
+
+      <div class="section-label" style="margin-block: var(--sp-6) var(--sp-4);">הבקשות שלי</div>
+
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        @if (!Model.MyVacations.Any())
+        {
+          <div class="empty-state">
+            <p class="empty-state__title">אין בקשות חופשה</p>
+            <p class="empty-state__hint">בקשות שתשלחו יופיעו כאן.</p>
+          </div>
+        }
+        else
+        {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">טווח</th>
+                <th scope="col">סיבה</th>
+                <th scope="col">סטטוס</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var vac in Model.MyVacations)
+              {
+                <tr class="data-row">
+                  <td class="data-cell data-cell--primary"><bdi class="num">@vac.StartDate.ToString("dd.MM")–@vac.EndDate.ToString("dd.MM")</bdi></td>
+                  <td class="data-cell">@(vac.Reason ?? "—")</td>
+                  <td class="data-cell">
+                    @if (vac.Status == VacationStatus.Pending)
+                    {
+                      <span class="status-chip status-chip--pending">ממתין</span>
+                    }
+                    else if (vac.Status == VacationStatus.Approved)
+                    {
+                      <span class="status-chip status-chip--approved">אושר</span>
+                    }
+                    else
+                    {
+                      <span class="status-chip status-chip--rejected">נדחה</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+    else
+    {
+      @* Admin: vacation approval list *@
+      <header class="list-head">
+        <h1 class="page-head__title">אישור חופשות</h1>
+      </header>
+
+      <form id="csrf-anchor" style="display:none">
+        @Html.AntiForgeryToken()
+      </form>
+
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        @if (!Model.PendingVacations.Any())
+        {
+          <div class="empty-state">
+            <p class="empty-state__title">אין בקשות חופשה ממתינות</p>
+            <p class="empty-state__hint">בקשות חדשות יופיעו כאן לאישור.</p>
+          </div>
+        }
+        else
+        {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">מדריך/ה</th>
+                <th scope="col">טווח</th>
+                <th scope="col">ימים</th>
+                <th scope="col">סיבה</th>
+                <th scope="col">סטטוס</th>
+                <th scope="col" class="data-table__actions-col">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var vac in Model.PendingVacations)
+              {
+                @(await Html.PartialAsync("_VacationRow", vac))
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+  </main>
+</div>

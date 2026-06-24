@@ -1,0 +1,44 @@
+@model Orkabi.Web.Modules.Operations.ExtraHours
+@using Orkabi.Web.Modules.Operations
+@using Orkabi.Web.Shared
+
+@{
+    var approverName = Model.ApprovedByUser?.FullName ?? Model.ApprovedByUser?.Email ?? "—";
+    var approvedLocal = Model.ApprovedAt.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(Model.ApprovedAt.Value, IsraelClock.IsraelTz)
+        : (DateTime?)null;
+    var approvedDate = approvedLocal.HasValue
+        ? approvedLocal.Value.ToString("dd ב-MM")
+        : "—";
+}
+
+<tr class="data-row" id="xh-row-@Model.Id">
+  <td class="data-cell data-cell--primary">@(Model.Instructor.FullName ?? Model.Instructor.Email)</td>
+  <td class="data-cell">@Model.ShiftInstance.Template.Class.Name · <bdi class="num">@Model.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
+  <td class="data-cell"><span class="hours-chip"><bdi class="num">@Model.Hours</bdi> ש׳</span></td>
+  <td class="data-cell">@Model.Reason</td>
+  <td class="data-cell">
+    @if (Model.Status == ExtraHoursStatus.Pending)
+    {
+      <span class="status-chip status-chip--pending">ממתין</span>
+    }
+    else
+    {
+      <span class="status-chip status-chip--approved">אושר</span>
+      <span class="approve-meta">אושר ע״י @approverName · <bdi class="num">@approvedDate</bdi></span>
+    }
+  </td>
+  <td class="data-cell data-cell--actions">
+    @if (Model.Status == ExtraHoursStatus.Pending)
+    {
+      <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
+              hx-post="/Operations/ExtraHours?handler=Approve&id=@Model.Id"
+              hx-target="#xh-row-@Model.Id"
+              hx-swap="outerHTML">אישור</button>
+    }
+    else
+    {
+      <span style="color:var(--brand-ink-muted);">—</span>
+    }
+  </td>
+</tr>

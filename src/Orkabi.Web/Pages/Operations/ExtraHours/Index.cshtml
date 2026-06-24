@@ -1,0 +1,172 @@
+@page
+@model Orkabi.Web.Pages.Operations.ExtraHours.IndexModel
+@using Orkabi.Web.Modules.Operations
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "שעות נוספות";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">@(isAdmin ? "אישור שעות נוספות" : "שעות נוספות")</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תפעול">
+      <a class="subnav__item" href="/Operations">סקירה</a>
+      @if (isAdmin)
+      {
+        <a class="subnav__item is-active" href="/Operations/ExtraHours">אישור שעות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
+        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
+      }
+      else
+      {
+        <a class="subnav__item is-active" href="/Operations/ExtraHours">שעות נוספות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">חופשות</a>
+      }
+    </nav>
+
+    @if (!isAdmin)
+    {
+      @* Instructor: submit form + my submissions *@
+      @if (TempData["SuccessMessage"] != null)
+      {
+        <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+      }
+
+      <form method="post" class="glass glass--tile form-panel form-panel--instructor"
+            style="--lg-tile-shadow: var(--lg-shadow);">
+        <h1 class="form-panel__title">דיווח שעות נוספות</h1>
+        <div class="form-grid">
+          <div class="form-field">
+            <label class="form-field__label" for="ShiftInstanceId">המשמרת <span class="req">*</span></label>
+            <select id="ShiftInstanceId" name="Input.ShiftInstanceId" class="form-select">
+              <option value="" disabled selected>בחרו משמרת…</option>
+              @foreach (var shift in Model.RecentShifts)
+              {
+                <option value="@shift.Id">@shift.Template.Class.Name · @shift.Date.ToString("dd/MM/yyyy") · @shift.Template.StartTime.ToString("HH:mm")–@shift.Template.EndTime.ToString("HH:mm")</option>
+              }
+            </select>
+            <span class="form-field__error" asp-validation-for="Input.ShiftInstanceId"></span>
+          </div>
+
+          <div class="form-field">
+            <label class="form-field__label" for="Hours">מספר שעות <span class="req">*</span></label>
+            <div class="form-field--suffix">
+              <input id="Hours" asp-for="Input.Hours" type="number" step="0.5" min="0.5" inputmode="decimal" class="num">
+              <span class="form-field__suffix-text">שעות</span>
+            </div>
+            <span class="form-field__hint">אפשר חצאי שעות (לדוגמה <bdi class="num">1.5</bdi>)</span>
+            <span class="form-field__error" asp-validation-for="Input.Hours"></span>
+          </div>
+
+          <div class="form-field form-field--full">
+            <label class="form-field__label" for="Reason">סיבה <span class="req">*</span></label>
+            <textarea id="Reason" asp-for="Input.Reason" placeholder="הכנת חומרים נוספת, הארכת מפגש…"></textarea>
+            <span class="form-field__error" asp-validation-for="Input.Reason"></span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Operations">ביטול</a>
+          <button type="submit" class="btn-primary">שליחת דיווח</button>
+        </div>
+      </form>
+
+      <div class="section-label" style="margin-block: var(--sp-6) var(--sp-4);">הדיווחים שלי</div>
+
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        @if (!Model.MySubmissions.Any())
+        {
+          <div class="empty-state">
+            <p class="empty-state__title">אין דיווחי שעות</p>
+            <p class="empty-state__hint">דיווחים שתשלחו יופיעו כאן.</p>
+          </div>
+        }
+        else
+        {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">משמרת</th>
+                <th scope="col">שעות</th>
+                <th scope="col">סיבה</th>
+                <th scope="col">סטטוס</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var xh in Model.MySubmissions)
+              {
+                <tr class="data-row">
+                  <td class="data-cell data-cell--primary">@xh.ShiftInstance.Template.Class.Name · <bdi class="num">@xh.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
+                  <td class="data-cell"><bdi class="num">@xh.Hours</bdi></td>
+                  <td class="data-cell">@xh.Reason</td>
+                  <td class="data-cell">
+                    @if (xh.Status == ExtraHoursStatus.Pending)
+                    {
+                      <span class="status-chip status-chip--pending">ממתין</span>
+                    }
+                    else
+                    {
+                      <span class="status-chip status-chip--approved">אושר</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+    else
+    {
+      @* Admin: approval list with HTMX row-swaps *@
+      <header class="list-head">
+        <h1 class="page-head__title">אישור שעות נוספות</h1>
+      </header>
+
+      <form id="csrf-anchor" style="display:none">
+        @Html.AntiForgeryToken()
+      </form>
+
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        @if (!Model.PendingExtraHours.Any())
+        {
+          <div class="empty-state">
+            <p class="empty-state__title">אין שעות לאישור</p>
+            <p class="empty-state__hint">דיווחים חדשים יופיעו כאן לאישור.</p>
+          </div>
+        }
+        else
+        {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">מדריך/ה</th>
+                <th scope="col">משמרת</th>
+                <th scope="col">שעות</th>
+                <th scope="col">סיבה</th>
+                <th scope="col">סטטוס</th>
+                <th scope="col" class="data-table__actions-col">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var xh in Model.PendingExtraHours)
+              {
+                @(await Html.PartialAsync("_ExtraHoursRow", xh))
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+  </main>
+</div>
