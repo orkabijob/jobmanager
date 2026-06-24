@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
 using Curriculum = Orkabi.Web.Modules.Curriculum;
+using Operations = Orkabi.Web.Modules.Operations;
 using People = Orkabi.Web.Modules.People;
 using Scheduling = Orkabi.Web.Modules.Scheduling;
 
@@ -27,6 +28,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<Scheduling.SubstitutionRequest> SubstitutionRequests => Set<Scheduling.SubstitutionRequest>();
     public DbSet<Scheduling.LessonLog> LessonLogs => Set<Scheduling.LessonLog>();
     public DbSet<Scheduling.Attendance> Attendances => Set<Scheduling.Attendance>();
+
+    public DbSet<Operations.ExtraHours> ExtraHours => Set<Operations.ExtraHours>();
+    public DbSet<Operations.IncidentReport> IncidentReports => Set<Operations.IncidentReport>();
+    public DbSet<Operations.VacationRequest> VacationRequests => Set<Operations.VacationRequest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -159,5 +164,42 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasIndex(a => new { a.LessonLogId, a.ClientId }).IsUnique();
         b.Entity<Scheduling.Attendance>()
             .HasIndex(a => a.IdempotencyKey).IsUnique();
+
+        // ── OPERATIONS ───────────────────────────────────────────────────────
+        // NOT IArchivable — no query filters on any Operations entity.
+
+        // ExtraHours
+        b.Entity<Operations.ExtraHours>().Property(e => e.Status).HasConversion<int>();
+        b.Entity<Operations.ExtraHours>().Property(e => e.Hours).HasPrecision(5, 2);
+        b.Entity<Operations.ExtraHours>().Property(e => e.Reason).HasMaxLength(500).IsRequired();
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.ShiftInstance).WithMany()
+            .HasForeignKey(e => e.ShiftInstanceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.Instructor).WithMany()
+            .HasForeignKey(e => e.InstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.ApprovedByUser).WithMany()
+            .HasForeignKey(e => e.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // IncidentReport
+        b.Entity<Operations.IncidentReport>().Property(r => r.Severity).HasConversion<int>();
+        b.Entity<Operations.IncidentReport>().Property(r => r.Description).HasMaxLength(2000).IsRequired();
+        b.Entity<Operations.IncidentReport>()
+            .HasOne(r => r.ShiftInstance).WithMany()
+            .HasForeignKey(r => r.ShiftInstanceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.IncidentReport>()
+            .HasOne(r => r.Instructor).WithMany()
+            .HasForeignKey(r => r.InstructorId).OnDelete(DeleteBehavior.Restrict);
+
+        // VacationRequest
+        b.Entity<Operations.VacationRequest>().Property(v => v.Status).HasConversion<int>();
+        b.Entity<Operations.VacationRequest>().Property(v => v.AdminNote).HasMaxLength(500);
+        b.Entity<Operations.VacationRequest>()
+            .HasOne(v => v.Instructor).WithMany()
+            .HasForeignKey(v => v.InstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.VacationRequest>()
+            .HasOne(v => v.ApprovedByUser).WithMany()
+            .HasForeignKey(v => v.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }
