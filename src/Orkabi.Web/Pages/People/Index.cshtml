@@ -1,0 +1,67 @@
+@page
+@model Orkabi.Web.Pages.People.IndexModel
+@{
+    ViewData["Title"] = "ניהול אנשים";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item is-active" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <header class="page-head">
+      <div>
+        <h1 class="page-head__title">ניהול אנשים</h1>
+        <p class="page-head__sub">בתי ספר, כיתות ולקוחות במקום אחד</p>
+      </div>
+      @if (Model.CurrentYear is not null)
+      {
+        <span class="year-chip" title="שנת הלימודים הפעילה">
+          <span class="year-chip__dot" aria-hidden="true"></span>
+          שנת הלימודים <bdi class="num">@Model.CurrentYear.Label</bdi>
+        </span>
+      }
+      else
+      {
+        <span class="year-chip" title="לא הוגדרה שנת לימודים פעילה"
+              style="background: var(--warn-soft); border-color: rgba(200,134,27,.28); color: var(--warn);">
+          לא הוגדרה שנת לימודים
+        </span>
+      }
+    </header>
+
+    <div class="glass glass--tile people-panel hub-grid" style="--lg-tile-shadow: var(--lg-shadow);">
+      <a class="nav-card" href="/People/Schools">
+        <span class="nav-card__icon" aria-hidden="true">🏫</span>
+        <span class="nav-card__title">בתי ספר</span>
+        <span class="nav-card__desc">ניהול מוסדות ופרטי קשר</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+      <a class="nav-card" href="/People/Classes">
+        <span class="nav-card__icon" aria-hidden="true">👥</span>
+        <span class="nav-card__title">כיתות</span>
+        <span class="nav-card__desc">קבוצות לימוד לפי בית ספר ושנה</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+      <a class="nav-card" href="/People/Clients">
+        <span class="nav-card__icon" aria-hidden="true">🎓</span>
+        <span class="nav-card__title">לקוחות</span>
+        <span class="nav-card__desc">תלמידים ופרטיהם</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+    </div>
+  </main>
+</div>

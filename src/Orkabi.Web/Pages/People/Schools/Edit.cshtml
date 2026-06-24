@@ -1,0 +1,69 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.People.Schools.EditModel
+@{
+    ViewData["Title"] = "עריכת בית ספר";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item is-active" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/People/Schools">בתי ספר</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>עריכת בית ספר</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">עריכת בית ספר</h1>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם בית הספר <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="City">
+            עיר <span class="req">*</span>
+          </label>
+          <input id="City" asp-for="Input.City" maxlength="100" />
+          <p class="form-field__error" asp-validation-for="Input.City"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Url">
+            כתובת אתר <span class="opt">(לא חובה)</span>
+          </label>
+          <input id="Url" asp-for="Input.ExternalWebsiteUrl" type="url"
+                 inputmode="url" dir="ltr" placeholder="https://example.co.il" />
+          <p class="form-field__hint">קישור לאתר בית הספר, אם קיים.</p>
+          <p class="form-field__error" asp-validation-for="Input.ExternalWebsiteUrl"></p>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/People/Schools">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת בית ספר</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
