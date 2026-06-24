@@ -394,6 +394,9 @@ namespace Orkabi.Web.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SyllabusId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -403,6 +406,8 @@ namespace Orkabi.Web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcademicYearId");
+
+                    b.HasIndex("SyllabusId");
 
                     b.HasIndex("SchoolId", "AcademicYearId", "Name")
                         .IsUnique()
@@ -869,9 +874,16 @@ namespace Orkabi.Web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Orkabi.Web.Modules.Curriculum.Syllabus", "Syllabus")
+                        .WithMany("Classes")
+                        .HasForeignKey("SyllabusId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("AcademicYear");
 
                     b.Navigation("School");
+
+                    b.Navigation("Syllabus");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.People.Enrollment", b =>
@@ -1019,6 +1031,8 @@ namespace Orkabi.Web.Migrations
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.Syllabus", b =>
                 {
+                    b.Navigation("Classes");
+
                     b.Navigation("SyllabusModels");
                 });
 
