@@ -49,17 +49,34 @@ public class IndexModel : PageModel
             return Forbid();
 
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (!User.IsInRole(AppRoles.Admin))
+        {
+            var classIds = await GetInstructorClassIdsAsync(userId);
+            var order = await LoadOrderAsync(id);
+            if (order is null || !classIds.Contains(order.ClassId)) return Forbid();
+        }
+
         await _supply.MarkAcceptedAsync(id, userId);
 
-        var order = await LoadOrderAsync(id);
-        if (order is null) return NotFound();
-        return Partial("_OrderCard", order);
+        var updatedOrder = await LoadOrderAsync(id);
+        if (updatedOrder is null) return NotFound();
+        return Partial("_OrderCard", updatedOrder);
     }
 
     public async Task<IActionResult> OnPostDisputeAsync(int id, string? disputeNotes)
     {
         if (!User.IsInRole(AppRoles.Instructor) && !User.IsInRole(AppRoles.Admin))
             return Forbid();
+
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (!User.IsInRole(AppRoles.Admin))
+        {
+            var classIds = await GetInstructorClassIdsAsync(userId);
+            var order = await LoadOrderAsync(id);
+            if (order is null || !classIds.Contains(order.ClassId)) return Forbid();
+        }
 
         if (string.IsNullOrWhiteSpace(disputeNotes))
         {
@@ -69,13 +86,20 @@ public class IndexModel : PageModel
             return Partial("_OrderDisputeForm", orderForError);
         }
 
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _supply.MarkDisputedAsync(id, userId, disputeNotes);
 
-        var order = await LoadOrderAsync(id);
-        if (order is null) return NotFound();
-        return Partial("_OrderCard", order);
+        var updatedOrder = await LoadOrderAsync(id);
+        if (updatedOrder is null) return NotFound();
+        return Partial("_OrderCard", updatedOrder);
     }
+
+    private Task<List<int>> GetInstructorClassIdsAsync(int userId) =>
+        _db.ShiftTemplates
+            .IgnoreQueryFilters()
+            .Where(t => t.DefaultInstructorId == userId && t.Status == Orkabi.Web.Shared.EntityStatus.Active)
+            .Select(t => t.ClassId)
+            .Distinct()
+            .ToListAsync();
 
     private async Task LoadAsync()
     {
