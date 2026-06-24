@@ -77,19 +77,6 @@ public class ShiftInstanceGeneratorTests : IClassFixture<SqliteFixture>
         return template;
     }
 
-    // Returns a fresh AcademicYear that spans today..today+60 days.
-    private static AcademicYear MakeCurrentAY()
-    {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        return new AcademicYear
-        {
-            Label = $"חג-{Guid.NewGuid():N}"[..10],
-            StartDate = today,
-            EndDate = today.AddDays(60),
-            IsCurrent = false
-        };
-    }
-
     [Fact]
     public async Task Generator_creates_instances_for_matching_day_of_week_in_window()
     {

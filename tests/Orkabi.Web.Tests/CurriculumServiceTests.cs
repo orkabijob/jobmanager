@@ -361,4 +361,87 @@ public class CurriculumServiceTests : IClassFixture<SqliteFixture>
         Assert.Equal(m3.Id, ordered[1].ModelId);
         Assert.Equal(2, ordered[1].OrderIndex);
     }
+
+    [Fact]
+    public async Task ReorderAsync_up_on_first_row_is_noop()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<CurriculumService>();
+
+        var m1 = await SeedModelAsync(db);
+        var m2 = await SeedModelAsync(db);
+
+        var syllabus = new Syllabus
+        {
+            Name = $"סילבוס-{Guid.NewGuid():N}",
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 6, 30),
+        };
+        await svc.CreateSyllabusAsync(syllabus, new[] { (m1.Id, 1), (m2.Id, 2) });
+
+        // Moving the first row up must be a no-op — no exception, order unchanged.
+        await svc.ReorderAsync(syllabus.Id, m1.Id, -1);
+
+        db.ChangeTracker.Clear();
+        var loaded = await svc.GetSyllabusAsync(syllabus.Id);
+        var ordered = loaded!.SyllabusModels.OrderBy(sm => sm.OrderIndex).ToList();
+        Assert.Equal(m1.Id, ordered[0].ModelId);
+        Assert.Equal(1, ordered[0].OrderIndex);
+        Assert.Equal(m2.Id, ordered[1].ModelId);
+        Assert.Equal(2, ordered[1].OrderIndex);
+    }
+
+    [Fact]
+    public async Task AddModelToSyllabusAsync_to_empty_syllabus_starts_at_one()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<CurriculumService>();
+
+        var m1 = await SeedModelAsync(db);
+
+        var syllabus = new Syllabus
+        {
+            Name = $"סילבוס-{Guid.NewGuid():N}",
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 6, 30),
+        };
+        // Create syllabus with no models.
+        await svc.CreateSyllabusAsync(syllabus, Array.Empty<(int, int)>());
+
+        // Adding the first model to an empty syllabus must get OrderIndex 1.
+        await svc.AddModelToSyllabusAsync(syllabus.Id, m1.Id);
+
+        db.ChangeTracker.Clear();
+        var loaded = await svc.GetSyllabusAsync(syllabus.Id);
+        Assert.Single(loaded!.SyllabusModels);
+        Assert.Equal(1, loaded.SyllabusModels.First().OrderIndex);
+    }
+
+    [Fact]
+    public async Task RemoveModelFromSyllabusAsync_missing_model_id_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<CurriculumService>();
+
+        var m1 = await SeedModelAsync(db);
+        var m2 = await SeedModelAsync(db);
+
+        var syllabus = new Syllabus
+        {
+            Name = $"סילבוס-{Guid.NewGuid():N}",
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 6, 30),
+        };
+        await svc.CreateSyllabusAsync(syllabus, new[] { (m1.Id, 1) });
+
+        // m2 is not in this syllabus — must throw InvalidOperationException.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.RemoveModelFromSyllabusAsync(syllabus.Id, m2.Id));
+    }
 }

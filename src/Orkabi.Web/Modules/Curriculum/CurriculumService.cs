@@ -150,12 +150,11 @@ public class CurriculumService
     /// Unique-index collision avoidance: EF Core cannot swap two rows' OrderIndex
     /// values in a single SaveChanges — it detects a circular dependency through
     /// the unique (SyllabusId, OrderIndex) index and throws. The solution is a
-    /// 3-step sentinel approach within a transaction:
-    ///   1. Set target.OrderIndex to a sentinel (0, which is outside the 1..n range).
-    ///   2. SaveChanges — neighbor's index is unchanged, target has sentinel. No collision.
-    ///   3. Set target to neighbor's old index; set neighbor to target's old index.
-    ///   4. SaveChanges — sentinel is gone, final values in place. No collision.
-    /// All 4 steps are inside one transaction so atomicity is maintained.
+    /// 3-SaveChanges sentinel approach within a transaction:
+    ///   1. Park target at sentinel 0 (outside valid 1..n range); SaveChanges — frees target's slot.
+    ///   2. Move neighbor to target's original index; SaveChanges — no collision (sentinel still holds target's slot).
+    ///   3. Move target to neighbor's original index; SaveChanges — sentinel gone, final values in place.
+    /// All 3 SaveChanges are inside one transaction so atomicity is maintained.
     /// </summary>
     public async Task ReorderAsync(int syllabusId, int modelId, int direction)
     {
@@ -201,33 +200,51 @@ public class CurriculumService
     /// <summary>
     /// Removes the junction row for (syllabusId, modelId) and compacts remaining
     /// OrderIndex values to be contiguous 1..n.
+    ///
+    /// Unique-index collision avoidance: mirrors the sentinel approach used by ReorderAsync.
+    /// Compaction in a single SaveChanges relies on EF's undocumented ascending UPDATE order,
+    /// which is not guaranteed on Postgres with a non-deferrable unique index. Instead:
+    ///   1. Delete target row; SaveChanges — removes one slot, remaining rows are gap-y but valid.
+    ///   2. Offset ALL remaining rows by +1000; SaveChanges — moves entire block into an empty
+    ///      high range (valid OrderIndex values are small, so no collision is possible).
+    ///   3. Assign final 1..n from the offset block; SaveChanges — target range 1..n is fully
+    ///      vacated by step 2, so no transient collision regardless of UPDATE order.
+    /// All 3 SaveChanges are inside one transaction so atomicity is maintained.
     /// </summary>
     public async Task RemoveModelFromSyllabusAsync(int syllabusId, int modelId)
     {
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
         var row = await _db.SyllabusModels
             .FirstOrDefaultAsync(sm => sm.SyllabusId == syllabusId && sm.ModelId == modelId)
             ?? throw new InvalidOperationException($"מודל {modelId} לא נמצא בסילבוס {syllabusId}");
 
+        // Step 1: delete the target row.
         _db.SyllabusModels.Remove(row);
         await _db.SaveChangesAsync();
 
-        // Compact: reload remaining rows ordered, then reassign 1..n.
-        // Because the OrderIndex is unique per (SyllabusId, OrderIndex), we must
-        // avoid transient collisions during reassignment. Strategy: update to a
-        // temporary offset (add a large sentinel), SaveChanges, then update to final.
-        // However, since we are removing one row, the remaining rows only need
-        // contiguous renumbering. We can do this safely by processing them in ascending
-        // order because the newly assigned index is always ≤ the current index (we
-        // fill the gap of the removed row), so no intermediate collision can occur.
         var remaining = await _db.SyllabusModels
             .Where(sm => sm.SyllabusId == syllabusId)
             .OrderBy(sm => sm.OrderIndex)
             .ToListAsync();
 
-        for (int i = 0; i < remaining.Count; i++)
+        if (remaining.Count == 0)
         {
-            remaining[i].OrderIndex = i + 1;
+            await tx.CommitAsync();
+            return;
         }
+
+        // Step 2: offset all remaining rows into a high sentinel range (+1000) so that
+        // the final target range 1..n is entirely vacated before we write to it.
+        foreach (var sm in remaining)
+            sm.OrderIndex += 1000;
         await _db.SaveChangesAsync();
+
+        // Step 3: assign final contiguous 1..n — no collision possible since 1..n is empty.
+        for (int i = 0; i < remaining.Count; i++)
+            remaining[i].OrderIndex = i + 1;
+        await _db.SaveChangesAsync();
+
+        await tx.CommitAsync();
     }
 }
