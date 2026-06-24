@@ -1,0 +1,95 @@
+@page
+@model Orkabi.Web.Pages.People.Schools.IndexModel
+@{
+    ViewData["Title"] = "בתי ספר";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item is-active" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">בתי ספר</h1>
+      <a class="btn-primary" href="/People/Schools/Create">+ בית ספר חדש</a>
+    </header>
+
+    <form class="search-bar" method="get" role="search">
+      <input class="search-bar__input" name="q" type="search" value="@Model.Q"
+             placeholder="חיפוש לפי שם או עיר…" aria-label="חיפוש בתי ספר">
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Schools.Any())
+      {
+        @if (!string.IsNullOrWhiteSpace(Model.Q))
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🔍</span>
+            <p class="empty-state__title">לא נמצאו תוצאות</p>
+            <p class="empty-state__hint">נסו מונח חיפוש אחר.</p>
+          </div>
+        }
+        else
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🏫</span>
+            <p class="empty-state__title">אין בתי ספר עדיין</p>
+            <p class="empty-state__hint">התחילו בהוספת בית הספר הראשון כדי לשייך אליו כיתות.</p>
+            <a class="btn-primary" href="/People/Schools/Create">+ בית ספר חדש</a>
+          </div>
+        }
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">שם בית הספר</th>
+              <th scope="col">עיר</th>
+              <th scope="col">אתר</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var school in Model.Schools)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@school.Name</td>
+                <td class="data-cell">@school.City</td>
+                <td class="data-cell">
+                  @if (!string.IsNullOrWhiteSpace(school.ExternalWebsiteUrl))
+                  {
+                    <a class="data-link" href="@school.ExternalWebsiteUrl" target="_blank" rel="noopener" dir="ltr">
+                      אתר <span class="icon-directional" aria-hidden="true">↗</span>
+                    </a>
+                  }
+                  else
+                  {
+                    <span>—</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm" href="/People/Schools/Edit/@school.Id">עריכה</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

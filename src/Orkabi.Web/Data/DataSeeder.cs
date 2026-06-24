@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -35,5 +36,19 @@ public static class DataSeeder
             return;
         }
         await users.AddToRoleAsync(admin, AppRoles.Admin);
+    }
+
+    public static async Task SeedAcademicYearAsync(IServiceProvider sp)
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        if (await db.AcademicYears.AnyAsync()) return;   // idempotent
+        db.AcademicYears.Add(new Orkabi.Web.Modules.People.AcademicYear
+        {
+            Label = "תשפ\"ו",
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 6, 30),
+            IsCurrent = true
+        });
+        await db.SaveChangesAsync();
     }
 }

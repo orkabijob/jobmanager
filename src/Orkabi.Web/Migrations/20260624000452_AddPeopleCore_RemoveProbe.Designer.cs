@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orkabi.Web.Data;
@@ -11,9 +12,11 @@ using Orkabi.Web.Data;
 namespace Orkabi.Web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624000452_AddPeopleCore_RemoveProbe")]
+    partial class AddPeopleCore_RemoveProbe
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -312,103 +315,6 @@ namespace Orkabi.Web.Migrations
                     b.ToTable("Classes");
                 });
 
-            modelBuilder.Entity("Orkabi.Web.Modules.People.Client", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("Age")
-                        .HasColumnType("integer");
-
-                    b.Property<DateOnly?>("Birthday")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ParentPhone")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Clients");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.People.Enrollment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ClassId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ClientId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("EnrolledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsTryout")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("PaidMaterials")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("PaidMonthly")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClassId");
-
-                    b.HasIndex("ClientId", "ClassId")
-                        .IsUnique()
-                        .HasFilter("\"Status\" <> 2");
-
-                    b.ToTable("Enrollments");
-                });
-
             modelBuilder.Entity("Orkabi.Web.Modules.People.School", b =>
                 {
                     b.Property<int>("Id")
@@ -517,38 +423,9 @@ namespace Orkabi.Web.Migrations
                     b.Navigation("School");
                 });
 
-            modelBuilder.Entity("Orkabi.Web.Modules.People.Enrollment", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.People.Class", "Class")
-                        .WithMany("Enrollments")
-                        .HasForeignKey("ClassId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Orkabi.Web.Modules.People.Client", "Client")
-                        .WithMany("Enrollments")
-                        .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Class");
-
-                    b.Navigation("Client");
-                });
-
             modelBuilder.Entity("Orkabi.Web.Modules.People.AcademicYear", b =>
                 {
                     b.Navigation("Classes");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.People.Class", b =>
-                {
-                    b.Navigation("Enrollments");
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.People.Client", b =>
-                {
-                    b.Navigation("Enrollments");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.People.School", b =>

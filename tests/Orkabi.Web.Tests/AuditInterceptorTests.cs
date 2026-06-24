@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.People;
 using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
@@ -17,11 +18,11 @@ public class AuditInterceptorTests : IClassFixture<SqliteFixture>
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // unique name keeps this row distinct (harmless; file-per-fixture also isolates)
-        var probe = new Probe { Name = $"audit-{Guid.NewGuid():N}" };
-        db.Probes.Add(probe);
+        var school = new School { Name = $"audit-{Guid.NewGuid():N}", City = "תל אביב" };
+        db.Schools.Add(school);
         await db.SaveChangesAsync();
 
-        Assert.NotEqual(default, probe.CreatedAt);
-        Assert.Equal(probe.CreatedAt, probe.UpdatedAt);
+        Assert.NotEqual(default, school.CreatedAt);
+        Assert.Equal(school.CreatedAt, school.UpdatedAt);
     }
 }

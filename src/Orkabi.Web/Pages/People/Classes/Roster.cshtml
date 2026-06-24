@@ -1,0 +1,148 @@
+@page "{classId:int}"
+@model Orkabi.Web.Pages.People.Classes.RosterModel
+@using Orkabi.Web.Modules.People
+@using Orkabi.Web.Shared
+@{
+    ViewData["Title"] = $"רוסטר — {Model.TheClass?.Name}";
+    var enrolledCount = Model.Enrolled.Count(e => !e.IsTryout);
+    var tryoutCount = Model.Enrolled.Count(e => e.IsTryout);
+    var classId = Model.TheClass!.Id;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">רוסטר — @Model.TheClass!.Name</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item is-active" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <header class="roster-head">
+      <nav class="breadcrumb" aria-label="ניווט">
+        <a href="/People/Classes">כיתות</a>
+        <span class="icon-directional" aria-hidden="true">‹</span>
+        <span>@Model.TheClass!.Name — רוסטר</span>
+      </nav>
+      <p class="roster-head__meta">
+        @Model.TheClass!.School.Name ·
+        <bdi class="num">@Model.TheClass!.AcademicYear.Label</bdi> ·
+        @if (Model.TheClass!.Status == EntityStatus.Active)
+        {
+          <span class="status-chip status-chip--active">פעילה</span>
+        }
+        else
+        {
+          <span class="status-chip status-chip--archived">בארכיון</span>
+        }
+      </p>
+      <div class="roster-head__counts">
+        <span class="count-chip">רשומים <bdi class="num">@enrolledCount</bdi></span>
+        @if (tryoutCount > 0)
+        {
+          <span class="count-chip count-chip--tryout">ניסיון <bdi class="num">@tryoutCount</bdi></span>
+        }
+      </div>
+    </header>
+
+    @if (TempData["ErrorMessage"] is string errorMsg)
+    {
+      <p class="form-field__error" role="alert" style="margin-block-end: var(--sp-4);">@errorMsg</p>
+    }
+
+    <div class="glass glass--tile roster-pane" style="--lg-tile-shadow: var(--lg-shadow);">
+
+      <section class="roster-col roster-col--enrolled" aria-label="רשומים לכיתה">
+        <div class="section-label">רשומים לכיתה</div>
+
+        @if (!Model.Enrolled.Any(e => !e.IsTryout))
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">👥</span>
+            <p class="empty-state__title">אין תלמידים רשומים</p>
+            <p class="empty-state__hint">הוסיפו תלמידים מהרשימה כדי לבנות את הרוסטר.</p>
+          </div>
+        }
+        else
+        {
+          <ul class="roster-list" role="list">
+            @foreach (var e in Model.Enrolled.Where(e => !e.IsTryout))
+            {
+              <partial name="_RosterRow" model="new RosterRowVm(e, classId, false)" />
+            }
+          </ul>
+        }
+
+        @if (Model.Enrolled.Any(e => e.IsTryout))
+        {
+          <div class="tryout-tray">
+            <div class="section-label tryout-tray__label">על תנאי (ניסיון)</div>
+            <ul class="roster-list" role="list">
+              @foreach (var e in Model.Enrolled.Where(e => e.IsTryout))
+              {
+                <partial name="_RosterRow" model="new RosterRowVm(e, classId, true)" />
+              }
+            </ul>
+          </div>
+        }
+      </section>
+
+      <section class="roster-col roster-col--available" aria-label="תלמידים זמינים">
+        <div class="section-label">תלמידים זמינים</div>
+
+        <form class="search-bar search-bar--inset" role="search" method="get">
+          <input type="hidden" name="classId" value="@classId" />
+          <input class="search-bar__input" name="Q" type="search" value="@Model.Q"
+                 placeholder="חיפוש תלמיד…" aria-label="חיפוש תלמיד" />
+        </form>
+
+        @if (!Model.Available.Any())
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🔍</span>
+            @if (!string.IsNullOrWhiteSpace(Model.Q))
+            {
+              <p class="empty-state__title">לא נמצאו תלמידים</p>
+            }
+            else
+            {
+              <p class="empty-state__title">כל התלמידים הזמינים כבר רשומים</p>
+            }
+          </div>
+        }
+        else
+        {
+          <ul class="avail-list" role="list">
+            @foreach (var c in Model.Available)
+            {
+              <li class="avail-row">
+                <div class="roster-row__who">
+                  <span class="roster-row__name">@c.Name</span>
+                  @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
+                  {
+                    <bdi class="roster-row__phone num">@c.ParentPhone</bdi>
+                  }
+                </div>
+                <form method="post" asp-page-handler="Add" asp-route-classId="@classId">
+                  <input type="hidden" name="clientId" value="@c.Id" />
+                  @Html.AntiForgeryToken()
+                  <button type="submit" class="btn-ghost btn-ghost--sm btn-ghost--accent">+ הוספה</button>
+                </form>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+    </div>
+  </main>
+</div>

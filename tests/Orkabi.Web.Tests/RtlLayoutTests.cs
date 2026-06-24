@@ -16,4 +16,14 @@ public class RtlLayoutTests : IClassFixture<SqliteFixture>
         Assert.Contains("tokens.css", html);
         Assert.Contains("base.css", html);
     }
+
+    [Fact]
+    public async Task Base_css_contains_people_surface_classes()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var css = await factory.CreateClient().GetStringAsync("/css/base.css");
+        // Verify People surface marker classes are present (Task 5 — Slice 1 CSS additions)
+        Assert.Contains(".roster-pane", css);
+        Assert.Contains(".subnav", css);
+    }
 }

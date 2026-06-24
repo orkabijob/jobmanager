@@ -1,0 +1,92 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.People.Clients.EditModel
+@{
+    ViewData["Title"] = "עריכת לקוח";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item is-active" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/People/Clients">לקוחות</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>עריכת לקוח</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">עריכת לקוח</h1>
+      <form method="post" class="form-grid form-grid--2col">
+        <div asp-validation-summary="ModelOnly" class="form-field__error" style="grid-column: 1 / -1;"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם מלא <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Phone">
+            טלפון הורה
+          </label>
+          <input id="Phone" asp-for="Input.ParentPhone" type="tel" dir="ltr"
+                 inputmode="tel" placeholder="050-0000000" autocomplete="tel" />
+          <p class="form-field__error" asp-validation-for="Input.ParentPhone"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Age">
+            גיל
+          </label>
+          <input id="Age" asp-for="Input.Age" type="number" min="3" max="21" dir="ltr" class="num" />
+          <p class="form-field__error" asp-validation-for="Input.Age"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Bday">
+            יום הולדת
+          </label>
+          <input id="Bday" asp-for="Input.Birthday" type="date" dir="ltr" class="num" />
+          <p class="form-field__error" asp-validation-for="Input.Birthday"></p>
+        </div>
+
+        <div class="form-field form-field--full">
+          <label class="form-field__label" for="Addr">
+            כתובת
+          </label>
+          <input id="Addr" asp-for="Input.Address" />
+        </div>
+
+        <div class="form-field form-field--full">
+          <span class="form-field__label">סטטוס</span>
+          <label class="toggle-pill">
+            <input type="checkbox" asp-for="Input.IsActive" />
+            <span class="toggle-pill__track" aria-hidden="true"></span>
+            <span class="toggle-pill__label">פעיל</span>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/People/Clients">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת לקוח</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
