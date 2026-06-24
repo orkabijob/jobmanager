@@ -1,0 +1,177 @@
+@page
+@model Orkabi.Web.Pages.Operations.Incidents.IndexModel
+@using Orkabi.Web.Modules.Operations
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "דיווחי אירוע";
+    var isAdminOrCs = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.CustomerService);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">דיווחי אירוע</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תפעול">
+      <a class="subnav__item" href="/Operations">סקירה</a>
+      @if (User.IsInRole(AppRoles.Admin))
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
+        <a class="subnav__item is-active" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
+        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
+      }
+      else
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">שעות נוספות</a>
+        <a class="subnav__item is-active" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">חופשות</a>
+      }
+    </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+      <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+    }
+
+    @* Submit form — visible to instructors and admins *@
+    <form method="post" class="glass glass--tile form-panel form-panel--instructor"
+          style="--lg-tile-shadow: var(--lg-shadow);">
+      <h1 class="form-panel__title">דיווח אירוע</h1>
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-field__label" for="ShiftInstanceId">המשמרת <span class="req">*</span></label>
+          <select id="ShiftInstanceId" name="Input.ShiftInstanceId" class="form-select">
+            <option value="" disabled selected>בחרו משמרת…</option>
+            @foreach (var shift in Model.RecentShifts)
+            {
+              <option value="@shift.Id">@shift.Template.Class.Name · @shift.Date.ToString("dd/MM/yyyy") · @shift.Template.StartTime.ToString("HH:mm")–@shift.Template.EndTime.ToString("HH:mm")</option>
+            }
+          </select>
+          <span class="form-field__error" asp-validation-for="Input.ShiftInstanceId"></span>
+        </div>
+
+        <div class="form-field form-field--full">
+          <span class="form-field__label">חומרת האירוע <span class="req">*</span></span>
+          <div class="segment" role="radiogroup" aria-label="חומרת האירוע">
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.Severity" value="Low">
+              <span>נמוכה</span>
+            </label>
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.Severity" value="Medium">
+              <span>בינונית</span>
+            </label>
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.Severity" value="High">
+              <span>גבוהה</span>
+            </label>
+          </div>
+          <span class="form-field__error" asp-validation-for="Input.Severity"></span>
+        </div>
+
+        <div class="form-field form-field--full">
+          <label class="form-field__label" for="Description">תיאור האירוע <span class="req">*</span></label>
+          <textarea id="Description" asp-for="Input.Description" placeholder="מה קרה, מתי, מי מעורב, פעולות שננקטו…"></textarea>
+          <span class="form-field__error" asp-validation-for="Input.Description"></span>
+        </div>
+      </div>
+      <div class="form-actions">
+        <a class="btn-ghost" href="/Operations">ביטול</a>
+        <button type="submit" class="btn-primary">שליחת דיווח</button>
+      </div>
+    </form>
+
+    @if (isAdminOrCs && Model.AllIncidents.Any())
+    {
+      <div class="section-label" style="margin-block: var(--sp-6) var(--sp-4);">דיווחי אירוע — כל המדריכים</div>
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">מדריך/ה</th>
+              <th scope="col">משמרת</th>
+              <th scope="col">חומרה</th>
+              <th scope="col">תיאור</th>
+              <th scope="col">תאריך</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var inc in Model.AllIncidents)
+            {
+              var severityClass = inc.Severity == IncidentSeverity.High ? "severity-chip--high"
+                  : inc.Severity == IncidentSeverity.Medium ? "severity-chip--medium"
+                  : "severity-chip--low";
+              var severityLabel = inc.Severity == IncidentSeverity.High ? "גבוהה"
+                  : inc.Severity == IncidentSeverity.Medium ? "בינונית"
+                  : "נמוכה";
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@(inc.Instructor.FullName ?? inc.Instructor.Email)</td>
+                <td class="data-cell">@inc.ShiftInstance.Template.Class.Name · <bdi class="num">@inc.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
+                <td class="data-cell"><span class="severity-chip @severityClass">@severityLabel</span></td>
+                <td class="data-cell">@inc.Description</td>
+                <td class="data-cell"><bdi class="num">@inc.CreatedAt.ToString("dd/MM")</bdi></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    else if (!isAdminOrCs)
+    {
+      <div class="section-label" style="margin-block: var(--sp-6) var(--sp-4);">הדיווחים שלי</div>
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        @if (!Model.MyIncidents.Any())
+        {
+          <div class="empty-state">
+            <p class="empty-state__title">אין דיווחים</p>
+            <p class="empty-state__hint">דיווחים שתשלחו יופיעו כאן.</p>
+          </div>
+        }
+        else
+        {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">משמרת</th>
+                <th scope="col">חומרה</th>
+                <th scope="col">תיאור</th>
+                <th scope="col">תאריך</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var inc in Model.MyIncidents)
+              {
+                var severityClass = inc.Severity == IncidentSeverity.High ? "severity-chip--high"
+                    : inc.Severity == IncidentSeverity.Medium ? "severity-chip--medium"
+                    : "severity-chip--low";
+                var severityLabel = inc.Severity == IncidentSeverity.High ? "גבוהה"
+                    : inc.Severity == IncidentSeverity.Medium ? "בינונית"
+                    : "נמוכה";
+                <tr class="data-row">
+                  <td class="data-cell data-cell--primary">@inc.ShiftInstance.Template.Class.Name · <bdi class="num">@inc.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
+                  <td class="data-cell"><span class="severity-chip @severityClass">@severityLabel</span></td>
+                  <td class="data-cell">@inc.Description</td>
+                  <td class="data-cell"><bdi class="num">@inc.CreatedAt.ToString("dd/MM")</bdi></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+    else
+    {
+      <div class="empty-state" style="margin-block-start: var(--sp-8);">
+        <p class="empty-state__title">אין דיווחי אירוע</p>
+        <p class="empty-state__hint">דיווחים מהמדריכים יופיעו כאן.</p>
+      </div>
+    }
+  </main>
+</div>

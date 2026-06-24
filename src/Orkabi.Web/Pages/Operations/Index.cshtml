@@ -1,0 +1,67 @@
+@page
+@model Orkabi.Web.Pages.Operations.IndexModel
+@{
+    ViewData["Title"] = "תפעול";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">תפעול</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תפעול">
+      <a class="subnav__item is-active" href="/Operations">סקירה</a>
+      @if (User.IsInRole("Admin"))
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
+        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
+      }
+      else
+      {
+        <a class="subnav__item" href="/Operations/ExtraHours">שעות נוספות</a>
+        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
+        <a class="subnav__item" href="/Operations/Vacations">חופשות</a>
+      }
+    </nav>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      <div class="hub-grid">
+        <a href="/Operations/ExtraHours" class="nav-card">
+          <span class="nav-card__icon">⏱</span>
+          <span class="nav-card__title">שעות נוספות</span>
+          <span class="nav-card__desc">דיווח ואישור שעות מעבר למשמרת</span>
+          <span class="nav-card__count"><bdi class="num">@Model.PendingExtraHoursCount</bdi> ממתינות</span>
+        </a>
+        <a href="/Operations/Incidents" class="nav-card">
+          <span class="nav-card__icon">⚠</span>
+          <span class="nav-card__title">דיווחי אירוע</span>
+          <span class="nav-card__desc">תיעוד אירועים מהשטח</span>
+          <span class="nav-card__count"><bdi class="num">@Model.IncidentsThisMonthCount</bdi> החודש</span>
+        </a>
+        <a href="/Operations/Vacations" class="nav-card">
+          <span class="nav-card__icon">🏖</span>
+          <span class="nav-card__title">חופשות</span>
+          <span class="nav-card__desc">בקשה ואישור ימי חופשה</span>
+          <span class="nav-card__count"><bdi class="num">@Model.PendingVacationsCount</bdi> ממתינה</span>
+        </a>
+        @if (User.IsInRole("Admin"))
+        {
+          <a href="/Operations/ActionItems" class="nav-card">
+            <span class="nav-card__icon">✅</span>
+            <span class="nav-card__title">משימות פתוחות</span>
+            <span class="nav-card__desc">התראות מערכת הדורשות טיפול</span>
+            <span class="nav-card__count"><bdi class="num">@Model.OpenActionItemsCount</bdi> פתוחות</span>
+          </a>
+        }
+      </div>
+    </div>
+  </main>
+</div>

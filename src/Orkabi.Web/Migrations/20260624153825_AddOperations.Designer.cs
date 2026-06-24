@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Orkabi.Web.Data;
@@ -11,9 +12,11 @@ using Orkabi.Web.Data;
 namespace Orkabi.Web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624153825_AddOperations")]
+    partial class AddOperations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,65 +126,6 @@ namespace Orkabi.Web.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.ActionHub.ActionItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AssignedToRole")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int?>("AssignedToUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("DeduplicationKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateOnly?>("DueDate")
-                        .HasColumnType("date");
-
-                    b.Property<int?>("RelatedEntityId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("UpdatedByUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedToUserId");
-
-                    b.HasIndex("DeduplicationKey")
-                        .IsUnique()
-                        .HasFilter("\"DeduplicationKey\" IS NOT NULL");
-
-                    b.ToTable("ActionItems");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.Model", b =>
@@ -509,10 +453,6 @@ namespace Orkabi.Web.Migrations
 
                     b.Property<int>("InstructorId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
@@ -1002,37 +942,6 @@ namespace Orkabi.Web.Migrations
                     b.ToTable("SubstitutionRequests");
                 });
 
-            modelBuilder.Entity("Orkabi.Web.Shared.OutboxEvent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ScheduledFor")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OutboxEvents");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
                     b.HasOne("Orkabi.Web.Modules.Identity.AppRole", null)
@@ -1082,16 +991,6 @@ namespace Orkabi.Web.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Orkabi.Web.Modules.ActionHub.ActionItem", b =>
-                {
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "AssignedToUser")
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("AssignedToUser");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.SyllabusModel", b =>

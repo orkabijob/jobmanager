@@ -1,0 +1,52 @@
+@model Orkabi.Web.Modules.Operations.VacationRequest
+@using Orkabi.Web.Modules.Operations
+@using Orkabi.Web.Shared
+
+@{
+    var days = Model.EndDate.DayNumber - Model.StartDate.DayNumber + 1;
+    var approverName = Model.ApprovedByUser?.FullName ?? Model.ApprovedByUser?.Email ?? "—";
+    var approvedLocal = Model.ApprovedAt.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(Model.ApprovedAt.Value, IsraelClock.IsraelTz)
+        : (DateTime?)null;
+    var approvedDate = approvedLocal.HasValue ? approvedLocal.Value.ToString("d MMMM", new System.Globalization.CultureInfo("he-IL")) : "—";
+}
+
+<tr class="data-row vac-row" id="vac-row-@Model.Id">
+  <td class="data-cell data-cell--primary">@(Model.Instructor.FullName ?? Model.Instructor.Email)</td>
+  <td class="data-cell"><bdi class="num">@Model.StartDate.ToString("dd.MM")–@Model.EndDate.ToString("dd.MM")</bdi></td>
+  <td class="data-cell"><bdi class="num">@days</bdi></td>
+  <td class="data-cell">@(Model.Reason ?? "—")</td>
+  <td class="data-cell">
+    @if (Model.Status == VacationStatus.Pending)
+    {
+      <span class="status-chip status-chip--pending">ממתין</span>
+    }
+    else if (Model.Status == VacationStatus.Approved)
+    {
+      <span class="status-chip status-chip--approved">אושר</span>
+      <span class="approve-meta">אושר ע״י @approverName · <bdi class="num">@approvedDate</bdi></span>
+    }
+    else
+    {
+      <span class="status-chip status-chip--rejected">נדחה</span>
+      <span class="approve-meta">נדחה ע״י @approverName · <bdi class="num">@approvedDate</bdi></span>
+    }
+  </td>
+  <td class="data-cell data-cell--actions">
+    @if (Model.Status == VacationStatus.Pending)
+    {
+      <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
+              hx-post="/Operations/Vacations?handler=Approve&id=@Model.Id"
+              hx-target="#vac-row-@Model.Id"
+              hx-swap="outerHTML">אישור</button>
+      <button class="btn-ghost btn-ghost--sm"
+              hx-post="/Operations/Vacations?handler=Reject&id=@Model.Id"
+              hx-target="#vac-row-@Model.Id"
+              hx-swap="outerHTML">דחייה</button>
+    }
+    else
+    {
+      <span style="color:var(--brand-ink-muted);">—</span>
+    }
+  </td>
+</tr>

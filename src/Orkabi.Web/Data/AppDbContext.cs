@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
+using ActionHub = Orkabi.Web.Modules.ActionHub;
 using Curriculum = Orkabi.Web.Modules.Curriculum;
+using Operations = Orkabi.Web.Modules.Operations;
 using People = Orkabi.Web.Modules.People;
 using Scheduling = Orkabi.Web.Modules.Scheduling;
 
@@ -27,6 +29,13 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<Scheduling.SubstitutionRequest> SubstitutionRequests => Set<Scheduling.SubstitutionRequest>();
     public DbSet<Scheduling.LessonLog> LessonLogs => Set<Scheduling.LessonLog>();
     public DbSet<Scheduling.Attendance> Attendances => Set<Scheduling.Attendance>();
+
+    public DbSet<Operations.ExtraHours> ExtraHours => Set<Operations.ExtraHours>();
+    public DbSet<Operations.IncidentReport> IncidentReports => Set<Operations.IncidentReport>();
+    public DbSet<Operations.VacationRequest> VacationRequests => Set<Operations.VacationRequest>();
+
+    public DbSet<ActionHub.ActionItem> ActionItems => Set<ActionHub.ActionItem>();
+    public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -159,5 +168,72 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasIndex(a => new { a.LessonLogId, a.ClientId }).IsUnique();
         b.Entity<Scheduling.Attendance>()
             .HasIndex(a => a.IdempotencyKey).IsUnique();
+
+        // ── OPERATIONS ───────────────────────────────────────────────────────
+        // NOT IArchivable — no query filters on any Operations entity.
+
+        // ExtraHours
+        b.Entity<Operations.ExtraHours>().Property(e => e.Status).HasConversion<int>();
+        b.Entity<Operations.ExtraHours>().Property(e => e.Hours).HasPrecision(5, 2);
+        b.Entity<Operations.ExtraHours>().Property(e => e.Reason).HasMaxLength(500).IsRequired();
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.ShiftInstance).WithMany()
+            .HasForeignKey(e => e.ShiftInstanceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.Instructor).WithMany()
+            .HasForeignKey(e => e.InstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.ExtraHours>()
+            .HasOne(e => e.ApprovedByUser).WithMany()
+            .HasForeignKey(e => e.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // IncidentReport
+        b.Entity<Operations.IncidentReport>().Property(r => r.Severity).HasConversion<int>();
+        b.Entity<Operations.IncidentReport>().Property(r => r.Description).HasMaxLength(2000).IsRequired();
+        b.Entity<Operations.IncidentReport>()
+            .HasOne(r => r.ShiftInstance).WithMany()
+            .HasForeignKey(r => r.ShiftInstanceId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.IncidentReport>()
+            .HasOne(r => r.Instructor).WithMany()
+            .HasForeignKey(r => r.InstructorId).OnDelete(DeleteBehavior.Restrict);
+
+        // VacationRequest
+        b.Entity<Operations.VacationRequest>().Property(v => v.Status).HasConversion<int>();
+        b.Entity<Operations.VacationRequest>().Property(v => v.Reason).HasMaxLength(500);
+        b.Entity<Operations.VacationRequest>().Property(v => v.AdminNote).HasMaxLength(500);
+        b.Entity<Operations.VacationRequest>()
+            .HasOne(v => v.Instructor).WithMany()
+            .HasForeignKey(v => v.InstructorId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Operations.VacationRequest>()
+            .HasOne(v => v.ApprovedByUser).WithMany()
+            .HasForeignKey(v => v.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // ── ACTION HUB ───────────────────────────────────────────────────────
+        // NOT IArchivable — no query filter on ActionItem.
+
+        // ActionItem enum conversions
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Type).HasConversion<int>();
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Status).HasConversion<int>();
+
+        // ActionItem string lengths
+        b.Entity<ActionHub.ActionItem>().Property(a => a.AssignedToRole).HasMaxLength(50);
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Description).HasMaxLength(1000).IsRequired();
+        b.Entity<ActionHub.ActionItem>().Property(a => a.DeduplicationKey).HasMaxLength(200);
+
+        // ActionItem FK → AspNetUsers (Restrict — user delete must be blocked)
+        b.Entity<ActionHub.ActionItem>()
+            .HasOne(a => a.AssignedToUser).WithMany()
+            .HasForeignKey(a => a.AssignedToUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // Partial unique index on DeduplicationKey: only non-null values must be unique
+        b.Entity<ActionHub.ActionItem>()
+            .HasIndex(a => a.DeduplicationKey)
+            .HasFilter("\"DeduplicationKey\" IS NOT NULL")
+            .IsUnique();
+
+        // ── OUTBOX ───────────────────────────────────────────────────────────
+        // NOT BaseEntity — infrastructure; audit interceptor does NOT touch OutboxEvent.
+
+        b.Entity<OutboxEvent>().Property(e => e.EventType).HasMaxLength(100).IsRequired();
+        b.Entity<OutboxEvent>().Property(e => e.Payload).IsRequired();
     }
 }

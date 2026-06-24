@@ -1457,6 +1457,123 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 
 /* ============================================================
+   SLICE 3 — Operations + Real-Gap (minimal)
+   Reuses verbatim: .subnav, .page-head, .form-panel/.form-grid(+--2col)/
+   .form-field/.form-select, .segment, .data-table(+.data-row/.data-cell/
+   .data-cell--actions), .status-chip(+--pending/--approved/--rejected/
+   --active/--muted), .btn-primary/.btn-ghost(+--sm/--accent), .empty-state,
+   .nav-card/.hub-grid, .section-label, .num.
+   Perf: topbar is the only blur; panels are glass once; rows/cards opaque.
+   NO .glass--lensed, NO .glass--clear under data text.
+   ============================================================ */
+
+/* ---- Instructor-scale form modifier ---- */
+.form-panel--instructor .form-panel__title { font-size: var(--t-title); }
+.form-panel--instructor .form-field__label { font-size: var(--t-label); text-transform: none; letter-spacing: var(--ls-normal); }
+.form-panel--instructor .form-field input,
+.form-panel--instructor .form-field select,
+.form-panel--instructor .form-field textarea,
+.form-panel--instructor .form-select { font-size: var(--t-body); }
+.form-panel--instructor .form-field__hint,
+.form-panel--instructor .form-field__error { font-size: var(--t-meta); }
+.form-panel--instructor .segment__opt span { font-size: var(--t-label); }
+
+/* ---- Field with an inline trailing unit ---- */
+.form-field--suffix { display: flex; align-items: center; gap: var(--sp-3); }
+.form-field--suffix input { inline-size: auto; flex: 1; min-inline-size: 0; }
+.form-field__suffix-text {
+  flex: 0 0 auto; font-size: var(--t-label); font-weight: var(--fw-medium);
+  color: var(--brand-ink-muted);
+}
+
+/* ---- Hours chip ---- */
+.hours-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding-block: 2px; padding-inline: var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .18);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold); color: var(--brand);
+}
+
+/* ---- Approver/decider meta line ---- */
+.approve-meta {
+  display: block; margin-block-start: 2px;
+  font-size: var(--t-admin-meta); color: var(--brand-ink-muted);
+}
+
+/* ---- Severity chip ---- */
+.severity-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  padding-block: 2px; padding-inline: var(--sp-2); border-radius: var(--radius-pill);
+}
+.severity-chip::before { content: "⬤"; font-size: 8px; line-height: 1; }
+.severity-chip--low    { background: var(--ok-soft);     color: var(--ok); }
+.severity-chip--medium { background: var(--warn-soft);   color: var(--warn); }
+.severity-chip--high   { background: var(--absent-soft); color: var(--absent); }
+
+/* ---- Action-Item minimal card ---- */
+.action-card {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding-block: var(--sp-4); padding-inline: var(--sp-5);
+  background: rgba(var(--brand-rgb), .04);
+  border: 1px solid rgba(var(--brand-rgb), .10);
+  border-radius: var(--radius-card);
+  transition: opacity var(--dur-fast) var(--ease-glass),
+              background var(--dur-fast) var(--ease-glass);
+}
+.action-card + .action-card { margin-block-start: var(--sp-3); }
+.action-card__top {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+}
+.action-card__due {
+  margin-inline-start: auto;
+  font-size: var(--t-admin-meta); color: var(--brand-ink-muted);
+}
+.action-card__desc {
+  margin: 0; font-size: var(--t-admin-body); color: var(--brand-ink);
+  line-height: var(--lh-snug);
+}
+.action-card__actions { display: flex; justify-content: flex-end; }
+.action-card__resolved-meta {
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold); color: var(--ok);
+}
+.action-card.is-resolved { opacity: .6; background: rgba(var(--brand-rgb), .03); }
+
+/* ---- Action type badge ---- */
+.action-type {
+  display: inline-flex; align-items: center; gap: var(--sp-2); flex: 0 0 auto;
+  padding-block: 2px; padding-inline: var(--sp-3); border-radius: var(--radius-pill);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  background: rgba(var(--brand-rgb), .08); color: var(--brand);
+  border: 1px solid rgba(var(--brand-rgb), .14);
+}
+.action-type__dot { inline-size: 7px; block-size: 7px; border-radius: 50%;
+  background: var(--brand); flex: 0 0 auto; }
+.action-type--gap     { background: var(--warn-soft);   color: var(--warn);   border-color: rgba(200,134,27,.28); }
+.action-type--gap     .action-type__dot { background: var(--warn); }
+.action-type--absence,
+.action-type--dispute { background: var(--absent-soft); color: var(--absent); border-color: rgba(178,58,72,.26); }
+.action-type--absence .action-type__dot,
+.action-type--dispute .action-type__dot { background: var(--absent); }
+.action-type--tryout  { background: var(--warn-soft);   color: var(--warn);   border-color: rgba(200,134,27,.28); }
+.action-type--tryout  .action-type__dot { background: var(--warn); }
+.action-type--birthday .action-type__dot { background: var(--brand-tint); }
+
+/* ---- Scope-note hint line ---- */
+.scope-note {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-block-end: var(--sp-4);
+  font-size: var(--t-admin-meta); color: var(--brand-ink-muted);
+}
+
+/* ---- Responsive: instructor forms + action cards on mobile ---- */
+@media (max-width: 767px) {
+  .form-field--suffix { flex-wrap: nowrap; }
+  .action-card__due { margin-inline-start: 0; inline-size: 100%; }
+}
+
+/* ============================================================
    Universal fallback — @supports not backdrop-filter
    ============================================================ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
