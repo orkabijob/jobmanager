@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
+using Curriculum = Orkabi.Web.Modules.Curriculum;
 using People = Orkabi.Web.Modules.People;
 
 namespace Orkabi.Web.Data;
@@ -15,6 +16,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<People.Class> Classes => Set<People.Class>();
     public DbSet<People.Client> Clients => Set<People.Client>();
     public DbSet<People.Enrollment> Enrollments => Set<People.Enrollment>();
+
+    public DbSet<Curriculum.Model> Models => Set<Curriculum.Model>();
+    public DbSet<Curriculum.Syllabus> Syllabi => Set<Curriculum.Syllabus>();
+    public DbSet<Curriculum.SyllabusModel> SyllabusModels => Set<Curriculum.SyllabusModel>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -53,5 +58,17 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
         // One enrollment per (client, class) while not Dropped (Status 2 = Dropped → re-enroll allowed)
         b.Entity<People.Enrollment>().HasIndex(e => new { e.ClientId, e.ClassId })
             .HasFilter("\"Status\" <> 2").IsUnique();
+
+        // CURRICULUM — Syllabus is the aggregate root. Model and SyllabusModel get NO filter.
+        b.Entity<Curriculum.Syllabus>().HasQueryFilter(s => s.Status == EntityStatus.Active);
+        b.Entity<Curriculum.Syllabus>().Property(s => s.Status).HasConversion<int>();
+        b.Entity<Curriculum.Syllabus>().Property(s => s.Name).HasMaxLength(200).IsRequired();
+        b.Entity<Curriculum.Model>().Property(m => m.Name).HasMaxLength(200).IsRequired();
+        b.Entity<Curriculum.SyllabusModel>().HasKey(sm => new { sm.SyllabusId, sm.ModelId });
+        b.Entity<Curriculum.SyllabusModel>().HasOne(sm => sm.Syllabus).WithMany(s => s.SyllabusModels)
+            .HasForeignKey(sm => sm.SyllabusId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Curriculum.SyllabusModel>().HasOne(sm => sm.Model).WithMany(m => m.SyllabusModels)
+            .HasForeignKey(sm => sm.ModelId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Curriculum.SyllabusModel>().HasIndex(sm => new { sm.SyllabusId, sm.OrderIndex }).IsUnique();
     }
 }
