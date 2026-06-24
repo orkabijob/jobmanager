@@ -1,0 +1,99 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.People.Classes.EditModel
+@{
+    ViewData["Title"] = "עריכת כיתה";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item is-active" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/People/Classes">כיתות</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>עריכת כיתה</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">עריכת כיתה</h1>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם הכיתה <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="School">
+            בית ספר <span class="req">*</span>
+          </label>
+          <select id="School" asp-for="Input.SchoolId" class="form-select">
+            <option value="0" disabled>בחרו בית ספר…</option>
+            @foreach (var school in Model.Schools)
+            {
+              <option value="@school.Id">@school.Name</option>
+            }
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.SchoolId"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Year">
+            שנת לימודים <span class="req">*</span>
+          </label>
+          <select id="Year" asp-for="Input.AcademicYearId" class="form-select">
+            <option value="0" disabled>בחרו שנת לימודים…</option>
+            @foreach (var year in Model.Years)
+            {
+              <option value="@year.Id">
+                @year.Label@(year.IsCurrent ? " (נוכחית)" : "")
+              </option>
+            }
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.AcademicYearId"></p>
+        </div>
+
+        <fieldset class="form-field">
+          <legend class="form-field__label">סטטוס</legend>
+          <div class="segment" role="radiogroup" aria-label="סטטוס כיתה">
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.Status"
+                     value="@Orkabi.Web.Shared.EntityStatus.Active"
+                     checked="@(Model.Input.Status == Orkabi.Web.Shared.EntityStatus.Active)" />
+              <span>פעילה</span>
+            </label>
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.Status"
+                     value="@Orkabi.Web.Shared.EntityStatus.Archived"
+                     checked="@(Model.Input.Status == Orkabi.Web.Shared.EntityStatus.Archived)" />
+              <span>בארכיון</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/People/Classes">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת כיתה</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

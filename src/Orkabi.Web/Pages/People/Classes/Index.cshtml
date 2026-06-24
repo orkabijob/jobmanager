@@ -1,0 +1,152 @@
+@page
+@model Orkabi.Web.Pages.People.Classes.IndexModel
+@{
+    ViewData["Title"] = "כיתות";
+    var currentStatus = Model.Status ?? "Active";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item is-active" href="/People/Classes">כיתות</a>
+      <a class="subnav__item" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">כיתות</h1>
+      <a class="btn-primary" href="/People/Classes/Create">+ כיתה חדשה</a>
+    </header>
+
+    <form class="classes-filter-rail" method="get" role="search">
+      <div class="filter-group">
+        <label class="form-field__label" for="SchoolFilter">בית ספר</label>
+        <select id="SchoolFilter" name="schoolId" class="form-select filter-select"
+                onchange="this.form.submit()">
+          <option value="">כל בתי הספר</option>
+          @foreach (var school in Model.Schools)
+          {
+            if (Model.SchoolId == school.Id)
+            {
+              <option value="@school.Id" selected>@school.Name</option>
+            }
+            else
+            {
+              <option value="@school.Id">@school.Name</option>
+            }
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-field__label" for="YearFilter">שנה</label>
+        <select id="YearFilter" name="yearId" class="form-select filter-select"
+                onchange="this.form.submit()">
+          <option value="">כל השנים</option>
+          @foreach (var year in Model.Years)
+          {
+            if (Model.YearId == year.Id)
+            {
+              <option value="@year.Id" selected>@year.Label</option>
+            }
+            else
+            {
+              <option value="@year.Id">@year.Label</option>
+            }
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <span class="form-field__label">סטטוס</span>
+        <div class="status-pill-rail">
+          <button type="submit" name="status" value="Active"
+                  class="status-pill @(currentStatus == "Active" ? "status-pill--on" : "")">
+            פעילות
+          </button>
+          <button type="submit" name="status" value="Archived"
+                  class="status-pill @(currentStatus == "Archived" ? "status-pill--on" : "")">
+            בארכיון
+          </button>
+          <button type="submit" name="status" value="All"
+                  class="status-pill @(currentStatus == "All" ? "status-pill--on" : "")">
+            הכל
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Classes.Any())
+      {
+        @if (Model.SchoolId.HasValue || Model.YearId.HasValue || currentStatus != "Active")
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🔍</span>
+            <p class="empty-state__title">אין כיתות התואמות את הסינון</p>
+            <p class="empty-state__hint">נסו לשנות את הסינון או להוסיף כיתה חדשה.</p>
+          </div>
+        }
+        else
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">👥</span>
+            <p class="empty-state__title">אין כיתות עדיין</p>
+            <p class="empty-state__hint">צרו כיתה ושייכו אותה לבית ספר ולשנת לימודים.</p>
+            <a class="btn-primary" href="/People/Classes/Create">+ כיתה חדשה</a>
+          </div>
+        }
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">שם הכיתה</th>
+              <th scope="col">בית ספר</th>
+              <th scope="col">שנה</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var cls in Model.Classes)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@cls.Name</td>
+                <td class="data-cell">@cls.School?.Name</td>
+                <td class="data-cell"><bdi class="num">@cls.AcademicYear?.Label</bdi></td>
+                <td class="data-cell">
+                  @if (cls.Status == Orkabi.Web.Shared.EntityStatus.Active)
+                  {
+                    <span class="status-chip status-chip--active">פעילה</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--archived">בארכיון</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm btn-ghost--accent"
+                     href="/People/Classes/Roster/@cls.Id">רוסטר</a>
+                  <a class="btn-ghost btn-ghost--sm"
+                     href="/People/Classes/Edit/@cls.Id">עריכה</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

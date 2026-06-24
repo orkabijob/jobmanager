@@ -1187,6 +1187,37 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 
 /* ============================================================
+   CLASSES — filter rail (status pills + school/year selects)
+   ============================================================ */
+.classes-filter-rail {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-4);
+  margin-block-end: var(--sp-5);
+}
+.filter-group {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.filter-select {
+  inline-size: auto; min-inline-size: 180px;
+}
+.status-pill-rail {
+  display: inline-flex; gap: var(--sp-1); padding: 3px;
+  background: rgba(var(--brand-rgb), .07);
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 2px 6px rgba(var(--brand-rgb), .10);
+}
+.status-pill {
+  padding-block: var(--sp-2); padding-inline: var(--sp-4);
+  border-radius: var(--radius-pill);
+  border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--t-admin-label);
+  font-weight: var(--fw-medium); color: var(--brand-ink-muted);
+  transition: background var(--dur-fast) var(--ease-glass), color var(--dur-fast) var(--ease-glass);
+}
+.status-pill:hover { color: var(--brand); background: rgba(var(--brand-rgb), .08); }
+.status-pill--on { background: var(--brand); color: #fff; font-weight: var(--fw-semibold); }
+.status-pill--on:hover { background: var(--brand); color: #fff; }
+
+/* ============================================================
    Universal fallback — @supports not backdrop-filter
    ============================================================ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
