@@ -7,4 +7,5 @@ public static class AppRoles
     public const string Logistics = "Logistics";
     public const string Instructor = "Instructor";
     public static readonly string[] All = { Admin, CustomerService, Logistics, Instructor };
+    public const string CsOrAdmin = Admin + "," + CustomerService;
 }
