@@ -1,0 +1,53 @@
+@model Orkabi.Web.Pages.People.Classes.RosterRowVm
+@{
+    var e = Model.Enrollment;
+    var classId = Model.ClassId;
+    var tryout = Model.Tryout;
+}
+<li class="roster-row@(tryout ? " roster-row--tryout" : "")" data-enrollment-id="@e.Id">
+  @if (tryout)
+  {
+    <span class="tryout-badge">TRYOUT</span>
+  }
+  <div class="roster-row__who">
+    <span class="roster-row__name">@e.Client.Name</span>
+    @if (!string.IsNullOrWhiteSpace(e.Client.ParentPhone))
+    {
+      <bdi class="roster-row__phone num">@e.Client.ParentPhone</bdi>
+    }
+  </div>
+  <div class="roster-row__toggles">
+    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
+      <input type="hidden" name="enrollmentId" value="@e.Id" />
+      <input type="hidden" name="field" value="materials" />
+      @Html.AntiForgeryToken()
+      <button type="submit"
+              class="pill-toggle@(e.PaidMaterials ? " is-on" : "")"
+              aria-pressed="@(e.PaidMaterials ? "true" : "false")"
+              aria-label="שולם חומרים">חומרים</button>
+    </form>
+    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
+      <input type="hidden" name="enrollmentId" value="@e.Id" />
+      <input type="hidden" name="field" value="monthly" />
+      @Html.AntiForgeryToken()
+      <button type="submit"
+              class="pill-toggle@(e.PaidMonthly ? " is-on" : "")"
+              aria-pressed="@(e.PaidMonthly ? "true" : "false")"
+              aria-label="שולם חודשי">חודשי</button>
+    </form>
+    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
+      <input type="hidden" name="enrollmentId" value="@e.Id" />
+      <input type="hidden" name="field" value="tryout" />
+      @Html.AntiForgeryToken()
+      <button type="submit"
+              class="pill-toggle pill-toggle--tryout@(e.IsTryout ? " is-on" : "")"
+              aria-pressed="@(e.IsTryout ? "true" : "false")"
+              aria-label="תלמיד ניסיון">ניסיון</button>
+    </form>
+  </div>
+  <form method="post" asp-page-handler="Remove" asp-route-classId="@classId">
+    <input type="hidden" name="enrollmentId" value="@e.Id" />
+    @Html.AntiForgeryToken()
+    <button type="submit" class="roster-row__remove" aria-label="הסרה מהכיתה">✕</button>
+  </form>
+</li>

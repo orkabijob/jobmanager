@@ -27,53 +27,49 @@
       <a class="subnav__item" href="/People/Clients">לקוחות</a>
     </nav>
 
-    @if (TempData["ErrorMessage"] is string errorMsg)
-    {
-      <div class="alert alert--error" role="alert">@errorMsg</div>
-    }
-
-    <header class="roster-head list-head">
-      <div>
-        <nav class="breadcrumb" aria-label="מסלול ניווט">
-          <a href="/People/Classes">כיתות</a>
-          <span aria-hidden="true"> › </span>
-          <span>@Model.TheClass!.Name</span>
-        </nav>
-        <h1 class="page-head__title">@Model.TheClass!.Name</h1>
-        <div class="roster-head__meta">
-          <span class="label-meta">@Model.TheClass!.School.Name — @Model.TheClass!.School.City</span>
-          <span class="label-meta">@Model.TheClass!.AcademicYear.Label</span>
-          @if (Model.TheClass!.Status == EntityStatus.Active)
-          {
-            <span class="status-chip status-chip--active">פעילה</span>
-          }
-          else
-          {
-            <span class="status-chip status-chip--archived">בארכיון</span>
-          }
-        </div>
-      </div>
-      <div class="roster-head__chips">
-        <span class="count-chip"><bdi class="num">@enrolledCount</bdi> רשומים</span>
+    <header class="roster-head">
+      <nav class="breadcrumb" aria-label="ניווט">
+        <a href="/People/Classes">כיתות</a>
+        <span class="icon-directional" aria-hidden="true">‹</span>
+        <span>@Model.TheClass!.Name — רוסטר</span>
+      </nav>
+      <p class="roster-head__meta">
+        @Model.TheClass!.School.Name ·
+        <bdi class="num">@Model.TheClass!.AcademicYear.Label</bdi> ·
+        @if (Model.TheClass!.Status == EntityStatus.Active)
+        {
+          <span class="status-chip status-chip--active">פעילה</span>
+        }
+        else
+        {
+          <span class="status-chip status-chip--archived">בארכיון</span>
+        }
+      </p>
+      <div class="roster-head__counts">
+        <span class="count-chip">רשומים <bdi class="num">@enrolledCount</bdi></span>
         @if (tryoutCount > 0)
         {
-          <span class="count-chip count-chip--tryout"><bdi class="num">@tryoutCount</bdi> ניסיון</span>
+          <span class="count-chip count-chip--tryout">ניסיון <bdi class="num">@tryoutCount</bdi></span>
         }
       </div>
     </header>
 
-    <div class="roster-layout">
+    @if (TempData["ErrorMessage"] is string errorMsg)
+    {
+      <p class="form-field__error" role="alert" style="margin-block-end: var(--sp-4);">@errorMsg</p>
+    }
 
-      <!-- ENROLLED PANE -->
-      <div class="glass glass--tile roster-pane roster-col--enrolled" style="--lg-tile-shadow: var(--lg-shadow);">
-        <h2 class="roster-pane__title">תלמידים רשומים</h2>
+    <div class="glass glass--tile roster-pane" style="--lg-tile-shadow: var(--lg-shadow);">
+
+      <section class="roster-col roster-col--enrolled" aria-label="רשומים לכיתה">
+        <div class="section-label">רשומים לכיתה</div>
 
         @if (!Model.Enrolled.Any(e => !e.IsTryout))
         {
           <div class="empty-state">
             <span class="empty-state__icon" aria-hidden="true">👥</span>
             <p class="empty-state__title">אין תלמידים רשומים</p>
-            <p class="empty-state__hint">הוסיפו תלמידים מרשימת הזמינים מצד שמאל.</p>
+            <p class="empty-state__hint">הוסיפו תלמידים מהרשימה כדי לבנות את הרוסטר.</p>
           </div>
         }
         else
@@ -81,43 +77,7 @@
           <ul class="roster-list" role="list">
             @foreach (var e in Model.Enrolled.Where(e => !e.IsTryout))
             {
-              <li class="roster-row" data-enrollment-id="@e.Id">
-                <span class="roster-row__name">@e.Client.Name</span>
-                <div class="roster-row__toggles">
-                  <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                    <input type="hidden" name="enrollmentId" value="@e.Id" />
-                    <input type="hidden" name="field" value="materials" />
-                    @Html.AntiForgeryToken()
-                    <button type="submit"
-                            class="pill-toggle @(e.PaidMaterials ? "is-on" : "")"
-                            aria-pressed="@(e.PaidMaterials ? "true" : "false")"
-                            aria-label="שולם חומרים">חומרים</button>
-                  </form>
-                  <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                    <input type="hidden" name="enrollmentId" value="@e.Id" />
-                    <input type="hidden" name="field" value="monthly" />
-                    @Html.AntiForgeryToken()
-                    <button type="submit"
-                            class="pill-toggle @(e.PaidMonthly ? "is-on" : "")"
-                            aria-pressed="@(e.PaidMonthly ? "true" : "false")"
-                            aria-label="שולם חודשי">חודשי</button>
-                  </form>
-                  <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                    <input type="hidden" name="enrollmentId" value="@e.Id" />
-                    <input type="hidden" name="field" value="tryout" />
-                    @Html.AntiForgeryToken()
-                    <button type="submit"
-                            class="pill-toggle @(e.IsTryout ? "is-on" : "")"
-                            aria-pressed="@(e.IsTryout ? "true" : "false")"
-                            aria-label="ניסיון">ניסיון</button>
-                  </form>
-                </div>
-                <form method="post" asp-page-handler="Remove" asp-route-classId="@classId">
-                  <input type="hidden" name="enrollmentId" value="@e.Id" />
-                  @Html.AntiForgeryToken()
-                  <button type="submit" class="roster-row__remove" aria-label="הסרה מהכיתה">✕</button>
-                </form>
-              </li>
+              <partial name="_RosterRow" model="new RosterRowVm(e, classId, false)" />
             }
           </ul>
         }
@@ -125,75 +85,38 @@
         @if (Model.Enrolled.Any(e => e.IsTryout))
         {
           <div class="tryout-tray">
-            <h3 class="tryout-tray__title">ניסיון</h3>
-            <ul class="roster-list roster-list--tryout" role="list">
+            <div class="section-label tryout-tray__label">על תנאי (ניסיון)</div>
+            <ul class="roster-list" role="list">
               @foreach (var e in Model.Enrolled.Where(e => e.IsTryout))
               {
-                <li class="roster-row roster-row--tryout" data-enrollment-id="@e.Id">
-                  <span class="roster-row__name">@e.Client.Name</span>
-                  <span class="tryout-badge" aria-label="תלמיד בתקופת ניסיון">TRYOUT</span>
-                  <div class="roster-row__toggles">
-                    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                      <input type="hidden" name="enrollmentId" value="@e.Id" />
-                      <input type="hidden" name="field" value="materials" />
-                      @Html.AntiForgeryToken()
-                      <button type="submit"
-                              class="pill-toggle @(e.PaidMaterials ? "is-on" : "")"
-                              aria-pressed="@(e.PaidMaterials ? "true" : "false")"
-                              aria-label="שולם חומרים">חומרים</button>
-                    </form>
-                    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                      <input type="hidden" name="enrollmentId" value="@e.Id" />
-                      <input type="hidden" name="field" value="monthly" />
-                      @Html.AntiForgeryToken()
-                      <button type="submit"
-                              class="pill-toggle @(e.PaidMonthly ? "is-on" : "")"
-                              aria-pressed="@(e.PaidMonthly ? "true" : "false")"
-                              aria-label="שולם חודשי">חודשי</button>
-                    </form>
-                    <form method="post" asp-page-handler="Toggle" asp-route-classId="@classId">
-                      <input type="hidden" name="enrollmentId" value="@e.Id" />
-                      <input type="hidden" name="field" value="tryout" />
-                      @Html.AntiForgeryToken()
-                      <button type="submit"
-                              class="pill-toggle is-on"
-                              aria-pressed="true"
-                              aria-label="ניסיון">ניסיון</button>
-                    </form>
-                  </div>
-                  <form method="post" asp-page-handler="Remove" asp-route-classId="@classId">
-                    <input type="hidden" name="enrollmentId" value="@e.Id" />
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="roster-row__remove" aria-label="הסרה מהכיתה">✕</button>
-                  </form>
-                </li>
+                <partial name="_RosterRow" model="new RosterRowVm(e, classId, true)" />
               }
             </ul>
           </div>
         }
-      </div>
+      </section>
 
-      <!-- AVAILABLE PANE -->
-      <div class="glass glass--tile roster-pane roster-col--available" style="--lg-tile-shadow: var(--lg-shadow);">
-        <h2 class="roster-pane__title">זמינים להוספה</h2>
+      <section class="roster-col roster-col--available" aria-label="תלמידים זמינים">
+        <div class="section-label">תלמידים זמינים</div>
 
-        <form method="get" class="avail-search" role="search">
+        <form class="search-bar search-bar--inset" role="search" method="get">
           <input type="hidden" name="classId" value="@classId" />
-          <input type="search"
-                 name="Q"
-                 value="@Model.Q"
-                 class="form-input"
-                 placeholder="חיפוש לפי שם..."
-                 aria-label="חיפוש תלמידים זמינים" />
-          <button type="submit" class="btn-ghost btn-ghost--sm">חיפוש</button>
+          <input class="search-bar__input" name="Q" type="search" value="@Model.Q"
+                 placeholder="חיפוש תלמיד…" aria-label="חיפוש תלמיד" />
         </form>
 
         @if (!Model.Available.Any())
         {
           <div class="empty-state">
             <span class="empty-state__icon" aria-hidden="true">🔍</span>
-            <p class="empty-state__title">אין תלמידים זמינים</p>
-            <p class="empty-state__hint">כל התלמידים הפעילים כבר רשומים לכיתה זו.</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Q))
+            {
+              <p class="empty-state__title">לא נמצאו תלמידים</p>
+            }
+            else
+            {
+              <p class="empty-state__title">כל התלמידים הזמינים כבר רשומים</p>
+            }
           </div>
         }
         else
@@ -202,7 +125,13 @@
             @foreach (var c in Model.Available)
             {
               <li class="avail-row">
-                <span class="avail-row__name">@c.Name</span>
+                <div class="roster-row__who">
+                  <span class="roster-row__name">@c.Name</span>
+                  @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
+                  {
+                    <bdi class="roster-row__phone num">@c.ParentPhone</bdi>
+                  }
+                </div>
                 <form method="post" asp-page-handler="Add" asp-route-classId="@classId">
                   <input type="hidden" name="clientId" value="@c.Id" />
                   @Html.AntiForgeryToken()
@@ -212,7 +141,7 @@
             }
           </ul>
         }
-      </div>
+      </section>
 
     </div>
   </main>

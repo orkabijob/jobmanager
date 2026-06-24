@@ -6,6 +6,9 @@ using Orkabi.Web.Modules.People;
 
 namespace Orkabi.Web.Pages.People.Classes;
 
+/// <summary>View model for the _RosterRow partial — one enrolled student row.</summary>
+public record RosterRowVm(Enrollment Enrollment, int ClassId, bool Tryout);
+
 [Authorize(Roles = AppRoles.CsOrAdmin)]
 public class RosterModel : PageModel
 {
