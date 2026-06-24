@@ -24,6 +24,7 @@ builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.IShiftInstanceGenerator
 builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.SchedulingService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Curriculum.CurriculumService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.ActionHub.ActionItemService>();
+builder.Services.AddScoped<IOutboxDrainer, OutboxDrainer>();
 
 var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
 builder.Services.AddDbContext<AppDbContext>((sp, o) =>
@@ -126,6 +127,29 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// ── Opportunistic outbox drain ────────────────────────────────────────────────
+// After each AUTHENTICATED request completes, fire-and-forget a drain on a FRESH DI scope
+// (the request scope — and its AppDbContext — is disposed once the response finishes, so the
+// drainer cannot borrow it). Errors are logged inside the drainer; the dedup-key index is the
+// backstop against a concurrent double-drain. The dedicated BackgroundService is Slice 4.
+var drainScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
+app.Use(async (ctx, next) =>
+{
+    await next(ctx);
+    if (ctx.User.Identity?.IsAuthenticated == true)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = drainScopeFactory.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<IOutboxDrainer>().DrainAsync();
+            }
+            catch { /* already logged inside the drainer */ }
+        });
+    }
+});
 
 app.MapRazorPages();
 

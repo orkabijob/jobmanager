@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.People;
@@ -137,6 +138,13 @@ public class SchedulingService
             var model = await _db.Models.FindAsync(modelId)
                 ?? throw new InvalidOperationException($"מודל {modelId} לא נמצא");
 
+            // Resolve the owning class via shift → template (IgnoreQueryFilters so an archived
+            // template still resolves) — carried in the outbox payload for the Real-Gap monitor.
+            var classId = await _db.ShiftInstances.IgnoreQueryFilters()
+                .Where(i => i.Id == shiftInstanceId)
+                .Select(i => i.Template.ClassId)
+                .FirstAsync();
+
             var log = new LessonLog
             {
                 ShiftInstanceId = shiftInstanceId,
@@ -145,8 +153,23 @@ public class SchedulingService
                 InstructorNotes = notes,
                 ExpectedLessonsSnapshot = model.ExpectedLessonsToComplete   // captured at CREATE only
             };
+
+            var evt = new OutboxEvent
+            {
+                EventType = "LessonLogSaved",
+                Payload = JsonSerializer.Serialize(new { classId, modelId }),
+                CreatedAt = DateTime.UtcNow,
+                ScheduledFor = null
+            };
+
+            // ONE transaction: the LessonLog and its outbox event commit atomically (or not at
+            // all). Do NOT nest transactions — SQLite errors on nested. The drainer reads the
+            // event only after this commit; the dedup-key index backstops any double-drain.
+            await using var tx = await _db.Database.BeginTransactionAsync();
             _db.LessonLogs.Add(log);
+            _db.OutboxEvents.Add(evt);
             await _db.SaveChangesAsync();
+            await tx.CommitAsync();
             return log;
         }
 

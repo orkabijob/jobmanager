@@ -26,6 +26,24 @@ public sealed class SqliteFixture : IDisposable
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();   // release file handles before delete
-        if (File.Exists(_path)) File.Delete(_path);
+
+        // A fire-and-forget outbox drain (Program.cs opportunistic-drain middleware) opens its
+        // own short-lived SQLite connection on a detached Task and may still be releasing the
+        // file handle when teardown runs. ClearAllPools doesn't wait on that handle, so the
+        // immediate File.Delete can race it and throw IOException("file in use"). The drain is
+        // bounded and self-completing, so a short bounded retry lets the OS release the handle
+        // before we delete. (Mirrors the pooled-handle reasoning in the ConnectionString comment.)
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (File.Exists(_path)) File.Delete(_path);
+                return;
+            }
+            catch (IOException) when (attempt < 20)
+            {
+                Thread.Sleep(50);   // up to ~1 s total — far longer than a single drain takes
+            }
+        }
     }
 }
