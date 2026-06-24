@@ -6,18 +6,26 @@ Orkabi (Hebrew: **עורקבי**) is a role-based, 100%-Hebrew RTL web app for a
 
 ---
 
-## ✅ Status: Slice 0 (walking skeleton) is COMPLETE, deployed, and LIVE
+## ✅ Status: Slices 0 + 1 are COMPLETE, deployed, and LIVE. Slice 2 in progress.
 
-- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`)
-- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`)
-- **Tests:** 14/14 green (`dotnet test`). Build green under `TreatWarningsAsErrors`.
+- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`; CS/Admin manage People at `/People`)
+- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`; Slice-1 merge `12121bb`)
+- **Tests:** 36/36 green (`dotnet test`). Build clean.
+- **Slice 1 deploy verified:** anonymous `/People` → 302 → `/Account/Login`, `/health` → ok. Boot `MigrateAsync` applied both People migrations on real Neon + seeded the current academic year (the spec's "sole Postgres-fidelity gate" — passed).
 
 ### What Slice 0 delivers
-- **Auth:** ASP.NET Core Identity (int keys), **email/password** login + **Google OAuth** plumbing (Google not yet configured → its button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*` → 401-not-302). Password policy relaxed to **8+ chars, no complexity**. OAuth `email_verified` security gate.
-- **RBAC:** 4 fixed roles (Admin / CustomerService / Logistics / Instructor) via policies; a role-router home (`/`) + 4 role-gated dashboards.
-- **Cross-cutting foundations** every later slice builds on: the **archival** `IArchivable` + global-query-filter pattern (on a throwaway `Probe` entity), `BaseEntity` + **audit interceptor** (sync+async), the **dual-provider** data story (SQLite `EnsureCreated` for fast offline tests / **Npgsql migrations for prod**), `IsraelClock` (Asia/Jerusalem) stub.
-- **Design:** an "Apple **Liquid Glass**" RTL design system — **a photo backdrop** (`wwwroot/img/bg-liquid.jpg`, water/granite) that the glass **refracts**, recessed-well inputs, **text-immune** lensing (refraction lives on a `.glass__lens` background layer, never on text), `he-IL` culture, self-hosted Assistant + Heebo variable fonts. An Admin **bento command-center** dashboard (⚠️ with **placeholder** data — 847 clients, sample tasks/alerts — NOT real yet).
+- **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.
+- **RBAC:** 4 fixed roles (Admin / CustomerService / Logistics / Instructor); role-router home (`/`) + 4 role-gated dashboards.
+- **Cross-cutting foundations:** `IArchivable` + global-query-filter pattern, `BaseEntity` + audit interceptor (sync+async), dual-provider data (SQLite `EnsureCreated` for tests / **Npgsql migrations for prod**), `IsraelClock` (Asia/Jerusalem) constant.
+- **Design:** Apple **Liquid Glass** RTL system — photo backdrop (`wwwroot/img/bg-liquid.jpg`) the glass refracts, recessed-well inputs, text-immune `.glass__lens` layer, `he-IL` culture, self-hosted Assistant + Heebo fonts. Admin **bento** dashboard (⚠️ still **placeholder** data).
 - **Ops:** `/health`, the `/api/*` 401 seam, Dockerfile, `render.yaml`, env-var admin seed, `docs/DEPLOY.md`.
+
+### What Slice 1 (People) delivers
+- **Entities (`Modules/People/`):** `AcademicYear` (lookup; single-current enforced by partial unique index; seeded **תשפ"ו / 5786**, 2025-09-01→2026-06-30), `School`, `Class` (the **only** archival aggregate — `EntityStatus` + global query filter; partial unique index on school+year+name WHERE Active), `Client` (uses `IsActive`, orthogonal to archival — dropouts stay visible), `Enrollment` join (`EnrollmentStatus` Active/Tryout/Dropped/Completed; `IsTryout`/`PaidMaterials`/`PaidMonthly`; partial unique index on (client,class) WHERE not Dropped → re-enroll after drop allowed). All FKs `Restrict`. `Class.SyllabusId` deliberately deferred to Slice 2.
+- **Service layer:** `AcademicYearService` (incl. transactional `SetCurrentAsync`), `SchoolService`, `ClassService` (archived view via `IgnoreQueryFilters`), `ClientService` (active-only vs all), `EnrollmentService` (app-level dup guard + DB safety-net index, drop, tryout/payment toggle).
+- **Pages (`Pages/People/`, all `[Authorize(Roles = AppRoles.CsOrAdmin)]`):** People hub, Schools CRUD, Classes CRUD (+ archived filter), Clients CRUD (+ active filter), and the **signature Roster builder** (`/People/Classes/Roster/{id}`) — two-pane enroll/drop, three per-enrollment toggle pills (חומרים/חודשי/ניסיון), tryout tray + TRYOUT badge, friendly Hebrew duplicate-enroll error.
+- **Design:** new People component vocabulary in `base.css` (subnav, page-head, data-table, recessed-well forms, segmented control, toggle pill, status chips, empty states, roster two-pane, tryout tray) — all from `docs/design/slice-1-people-design.md`.
+- **Cleanup:** removed the `Probe` scaffold + all Bootstrap/jQuery/`site.css`/`_ValidationScriptsPartial`/`_Layout.cshtml.css` template cruft; fixed the `GoogleSchemeTests` file-lock flake.
 
 ---
 
@@ -25,55 +33,55 @@ Orkabi (Hebrew: **עורקבי**) is a role-based, 100%-Hebrew RTL web app for a
 
 | Piece | Detail |
 |---|---|
-| **Host** | Render (free, Docker, **auto-deploys on push to `master`**). Free tier **sleeps after ~15 min** → first hit cold-starts ~30–60s and can throw a one-off transient error that clears on refresh. |
-| **DB** | Neon (free) — project `orkabi` (`cold-math-14190037`), org `org-wild-hall-90364045`, database `neondb`. **Both** `ConnectionStrings__Default` and `__Migrations` use the **direct** (non-pooled) endpoint — we dropped the pooler because the long pooled string (with `Max Auto Prepare`) kept getting a line-break mangled on paste, and direct is fine at this scale. |
-| **Secrets** | All live secrets are **Render env vars** (NOT in the repo): the two `ConnectionStrings__*`, `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, and (when wired) `Authentication__Google__ClientId`/`Secret`. Get them from the Render dashboard or the user. |
-| **Admin login** | The seeded admin = `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (e.g. `orkabijob@gmail.com`). Seeded on boot, idempotent. Remove `SEED_ADMIN_PASSWORD` from Render after first boot. |
-| **Migrations** | Already applied to Neon. App boot re-runs `MigrateAsync` (no-op if none pending) then seeds roles + admin. |
+| **Host** | Render (free, Docker, **auto-deploys on push to `master`**). Free tier sleeps after ~15 min → ~30–60s cold start; if a boot migration ever fails its health check, Render keeps the previous deploy serving (no outage). |
+| **DB** | Neon (free) — project `orkabi` (`cold-math-14190037`), org `org-wild-hall-90364045`, db `neondb`. Both `ConnectionStrings__Default` and `__Migrations` use the **direct** (non-pooled) endpoint. |
+| **Secrets** | All live secrets are **Render env vars**: the two `ConnectionStrings__*`, `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, and (when wired) `Authentication__Google__ClientId`/`Secret`. Not in the repo. |
+| **Admin login** | Seeded admin = `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`. Idempotent on boot. |
+| **Migrations** | Applied at boot via `MigrateAsync` (idempotent). To apply manually: `ORKABI_MIGRATIONS_CONNSTRING="<direct neon string>" dotnet ef database update --project src/Orkabi.Web`. |
 
 ---
 
-## 🚧 What's left — the roadmap (vertical slices, build in order)
+## 🚧 Roadmap (vertical slices, build in order)
 
-See `docs/superpowers/plans/2026-06-23-orkabi-roadmap.md`. Each slice gets its own just-in-time detailed plan.
+See `docs/superpowers/plans/2026-06-23-orkabi-roadmap.md`.
 
-- **Slice 1 — People.** FIRST: **remove the `Probe` scaffolding entity + its migrations**, and the **unused Bootstrap/jQuery/site.css/`_ValidationScriptsPartial`** template cruft. Then: `AcademicYear` (lookup + seed current year) → Schools → Classes (with `AcademicYearId` + `status`) → Clients → the **`Enrollment` join** (`is_tryout`/`paid_materials`/`paid_monthly` move from Client → Enrollment).
-- **Slice 2 — Curriculum + Scheduling.** Models, Syllabus (+ ordered models), Shift_Template→Instance with `ShiftInstanceGenerator`, `Substitution_Request` + date-scoped resource auth, `Lesson_Log` (incl. `ExpectedLessonsAtLogTime` snapshot), Attendance (HTMX instructor mobile view + swipe/tap). Add `htmx.min.js` to `_Layout`.
-- **Slice 3 — Operations + Real-Gap.** Extra_Hours, Incident_Report, Vacation_Request (single-approval), the Outbox-backed Real-Gap pacing monitor.
-- **Slice 4 — Logistics + Automations.** Logistics_Order + dispute loop, `SupplyPacingService`, the **in-process** `BackgroundService` scheduler with catch-up-on-wake + `JobExecutionLog` (birthdays, shift-gen), event-driven absence/drop-out, deferred tryout follow-up.
-- **Slice 5 — Action Hub + real dashboards.** `Action_Item` ticketing (polling-first) + replace the **placeholder** Admin bento data with real metrics/tasks/alerts; build the Logistics master packing list, CS surfaces, syllabus-management module.
+- **Slice 0 — Walking skeleton.** ✅ LIVE
+- **Slice 1 — People.** ✅ LIVE
+- **Slice 2 — Curriculum + Scheduling.** 🔄 IN PROGRESS (branch `slice-2-curriculum-scheduling`). Models, Syllabus (+ ordered Syllabus_Models), `Class.SyllabusId` FK, Shift_Template→Instance with `ShiftInstanceGenerator`, `Substitution_Request` + **date-scoped resource authorization**, `Lesson_Log` (incl. `expected_lessons_snapshot`), Attendance (HTMX instructor mobile view + swipe/tap). Adds `htmx.min.js` to `_Layout`.
+- **Slice 3 — Operations + Real-Gap.** Extra_Hours, Incident_Report, Vacation_Request, the Outbox-backed Real-Gap pacing monitor.
+- **Slice 4 — Logistics + Automations.** Logistics_Order + dispute loop, `SupplyPacingService`, the in-process `BackgroundService` scheduler with catch-up-on-wake + `JobExecutionLog`.
+- **Slice 5 — Action Hub + real dashboards.** `Action_Item` ticketing + replace the **placeholder** Admin bento data with real metrics; Logistics packing list, CS surfaces, syllabus-management.
 
 ---
 
 ## ⚠️ Known issues / tech debt (deferred, non-blocking)
 
-- **`Probe` test entity + its migrations** ship in prod — remove at the start of Slice 1.
-- **Unused template cruft** (Bootstrap/jQuery/`wwwroot/css/site.css`/`js/site.js`/`_Layout.cshtml.css`/`_ValidationScriptsPartial`) — sweep it (no longer referenced by `_Layout`).
-- **Test isolation:** `GoogleSchemeTests.Google_challenge_redirects_to_accounts_google_com` **fails when run in isolation** but **passes in the full suite** (14/14). It's not self-contained — make it standalone.
-- **Hebrew Identity errors:** Identity validation messages render in **English** in a Hebrew app — add a Hebrew `IdentityErrorDescriber`.
-- **Open self-registration:** anyone can hit `/Account/Register` (they get no role → AccessDenied). Decide if it should be admin-only.
-- **Google OAuth not wired:** to enable, create a Google OAuth client, set `Authentication__Google__ClientId`/`Secret` in Render, and add the redirect URI `https://orkabi.onrender.com/signin-google` (NOT the page path). The login button then appears automatically.
-- **Dashboard data is placeholder** (mock) until Slices 1–5 fill it.
-- **Free-tier sleep:** Render + Neon both sleep → ~30–60s cold start + rare transient first-hit error. Optional later: a keep-warm ping or a ~$5 always-on VPS.
+- **Admin dashboard data is placeholder** (mock) until Slice 5.
+- **Hebrew Identity errors:** Identity validation messages render in English — add a Hebrew `IdentityErrorDescriber`.
+- **Open self-registration:** anyone can hit `/Account/Register` (gets no role → AccessDenied). Decide if it should be admin-only.
+- **Google OAuth not wired:** create a Google OAuth client, set `Authentication__Google__ClientId`/`Secret` in Render, add redirect URI `https://orkabi.onrender.com/signin-google`. Button then appears automatically.
+- **Slice-1 polish (deferred to Slice 2):** People topbar greeting is static "שלום" (no user name) and the topbar/subnav shell is repeated per page (extract a shared `_PeopleShell`/layout partial); no save-success toasts. Minor test-coverage gaps (Class-name partial-index enforcement test; AuditInterceptor update-path test).
+- **Free-tier sleep:** ~30–60s cold start after idle. Optional later: UptimeRobot `/health` ping or a ~$5 always-on host.
 - Minor: `RoleRoutingTests` uses an exact-string `Location` compare (prefer `LocalPath`).
 
 ---
 
 ## How this project is built (process + conventions)
 
-- **Subagent-driven development:** per task → implementer subagent → reviewer-gate → fix; a final whole-branch review (strongest model). Tests are xUnit. SQLite (`EnsureCreated`) for the fast offline inner loop; Npgsql/Neon for prod (the **real-Neon deploy is the sole Postgres-fidelity gate**).
-- **Commands:** `dotnet test` (14/14), `dotnet build`, `dotnet run` (local — note `launchSettings.json` picks the port; use `--no-launch-profile` to honor `ASPNETCORE_URLS`). Apply migrations to Neon: `ORKABI_MIGRATIONS_CONNSTRING="<direct neon string>" dotnet ef database update --project src/Orkabi.Web`.
-- **Deploy:** push to `master` → Render auto-deploys (~3–5 min).
-- **User working preferences (important):** consult a **specialist agent team** (Architect / Full-stack / Reviewer / a dedicated **Apple Liquid-Glass designer**) for decisions instead of asking the user; work autonomously; reviewer-gate each step; for design, route through the Liquid-Glass designer (target = true Apple Liquid Glass). The user oversees at a PM altitude.
+- **Subagent-driven development:** per task → fresh implementer subagent → task-review gate (spec + quality) → fix; a final whole-branch review (strongest model) before merge; deploy + verify. Tests are xUnit; SQLite `EnsureCreated` for the fast inner loop, Npgsql/Neon for prod (the real-Neon deploy is the Postgres-fidelity gate). Progress ledger at `.superpowers/sdd/progress.md` (gitignored).
+- **Commands:** `dotnet test`, `dotnet build`, `dotnet run`. New migration: `dotnet ef migrations add <Name> --project src/Orkabi.Web` (offline; design-time factory uses a fake Npgsql string).
+- **Branch/deploy:** each slice on its own branch (`slice-N-...`); merge to `master` only when complete + reviewed + green → Render auto-deploys → verify `/health` + a slice route. **Pushing to `master` triggers a production deploy and requires explicit user sign-off** (harness-gated).
+- **User working preferences (important):** FULL autonomous mandate through ALL slices — do not pause between slices; route every question/decision to a **specialist agent** (Architect / Full-stack / Reviewer / Apple Liquid-Glass designer / researcher), never to the user. The user oversees at PM altitude. The only confirmed exception: the production deploy push to `master`.
 
 ## Key documents
 - Spec: `docs/superpowers/specs/2026-06-23-orkabi-design.md`
 - Roadmap: `docs/superpowers/plans/2026-06-23-orkabi-roadmap.md`
 - Slice 0 plan: `docs/superpowers/plans/2026-06-23-orkabi-slice-0-walking-skeleton.md`
+- Slice 1 plan: `docs/superpowers/plans/2026-06-24-orkabi-slice-1-people.md`
 - Design system: `docs/design/liquid-glass-design-system.md`
+- Slice 1 design: `docs/design/slice-1-people-design.md`
 - Deploy guide: `docs/DEPLOY.md`
 
-## Suggested first moves for the next session
-1. Confirm the live site + current design look with the user (design was still being iterated — inputs/glass/background were being tuned).
-2. Wire Google OAuth if the user wants it (creds + redirect URI above).
-3. Start **Slice 1 (People)**: remove `Probe` + template cruft, write the just-in-time Slice 1 plan, build it via the subagent-driven process.
+## Suggested next moves
+1. Finish **Slice 2 (Curriculum + Scheduling)** via the subagent-driven process (architect + designer blueprints already in flight; write the just-in-time plan, execute task-by-task, deploy + verify).
+2. Optionally wire Google OAuth (needs creds from the user).
