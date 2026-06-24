@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -131,6 +132,60 @@ app.MapGet("/health", () => Results.Json(new { status = "ok" }));
 
 app.MapGet("/api/ping", () => Results.Json(new { pong = true })).RequireAuthorization();
 
+// ── POST /api/attendance ─────────────────────────────────────────────────────
+// Optimistic attendance submit. Cookie-authed (the /api/* → 401 seam handles anonymous).
+// Re-checks the date-scope guard server-side (Admin bypasses), validates antiforgery from the
+// RequestVerificationToken header, then submits with a client-supplied idempotency key.
+// Idempotent: a repeat with the same key returns 409 "already saved" — never a duplicate write.
+app.MapPost("/api/attendance", async (
+    AttendanceRequest body,
+    HttpContext http,
+    Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery,
+    Orkabi.Web.Modules.Scheduling.SchedulingService scheduling) =>
+{
+    // Antiforgery — the HTMX/JS slice sends the token in the RequestVerificationToken header.
+    try { await antiforgery.ValidateRequestAsync(http); }
+    catch (Microsoft.AspNetCore.Antiforgery.AntiforgeryValidationException)
+    {
+        return Results.Json(new { error = "antiforgery" }, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    if (body is null || body.marks is null || body.marks.Count == 0)
+        return Results.Json(new { error = "marks חסרים" }, statusCode: StatusCodes.Status400BadRequest);
+    if (string.IsNullOrWhiteSpace(body.idempotencyKey))
+        return Results.Json(new { error = "idempotencyKey חסר" }, statusCode: StatusCodes.Status400BadRequest);
+
+    var userId = int.Parse(http.User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)!);
+    var isAdmin = http.User.IsInRole(AppRoles.Admin);
+
+    // Server-side date-scope guard (mirrors the page). Admin bypasses.
+    if (!isAdmin && !await scheduling.CanAccessShiftAsync(body.shiftInstanceId, userId))
+        return Results.Json(new { error = "אין הרשאה למשמרת זו" }, statusCode: StatusCodes.Status403Forbidden);
+
+    // Resolve the LessonLog (get-or-create with the class's current model).
+    var (lessonLogId, _, _) = await scheduling.ResolveLessonLogForAttendanceAsync(body.shiftInstanceId);
+    if (lessonLogId is null)
+        return Results.Json(new { error = "טרם שובץ דגם לכיתה" }, statusCode: StatusCodes.Status409Conflict);
+
+    var marks = new List<(int, Orkabi.Web.Modules.Scheduling.AttendanceStatus)>(body.marks.Count);
+    foreach (var m in body.marks)
+    {
+        if (!Enum.TryParse<Orkabi.Web.Modules.Scheduling.AttendanceStatus>(m.status, ignoreCase: true, out var status))
+            return Results.Json(new { error = $"status לא חוקי: {m.status}" }, statusCode: StatusCodes.Status400BadRequest);
+        marks.Add((m.clientId, status));
+    }
+
+    // Was this batch key already used? Decide the friendly response BEFORE submitting — but still
+    // call Submit (idempotent per-row) so a partially-saved first attempt is completed on retry.
+    var alreadyUsed = await scheduling.WasIdempotencyKeyUsedAsync(body.idempotencyKey);
+    var saved = await scheduling.SubmitAttendanceAsync(lessonLogId.Value, marks, body.idempotencyKey);
+
+    return alreadyUsed
+        ? Results.Json(new { saved = true, count = saved.Count, message = "הנוכחות כבר נשמרה" },
+            statusCode: StatusCodes.Status409Conflict)
+        : Results.Json(new { saved = true, count = saved.Count, message = "הנוכחות נשמרה" });
+}).RequireAuthorization();
+
 if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 {
     var migrateCs = app.Configuration.GetConnectionString("Migrations")
@@ -146,5 +201,9 @@ if (!app.Environment.IsEnvironment("Testing") && dbProvider != "Sqlite")
 }
 
 app.Run();
+
+// Request DTOs for POST /api/attendance.
+public sealed record AttendanceMarkInput(int clientId, string status);
+public sealed record AttendanceRequest(int shiftInstanceId, List<AttendanceMarkInput> marks, string idempotencyKey);
 
 public partial class Program { }

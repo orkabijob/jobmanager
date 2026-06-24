@@ -18,6 +18,41 @@ public class SchedulingService
         _enrollmentService = enrollmentService;
     }
 
+    /// <summary>
+    /// Resolves the "current" lesson model for a shift's class via the class's syllabus
+    /// (first model by OrderIndex — the Slice-2 rule; precise "first incomplete" is a later
+    /// refinement), then GETS-OR-CREATES the LessonLog for this shift instance with that model.
+    /// Returns (null, null) when the class has no syllabus or the syllabus has no models —
+    /// the caller then shows the "טרם שובץ דגם" state and disables submit (no LessonLog created).
+    /// </summary>
+    public async Task<(int? lessonLogId, int? modelId, string? modelName)>
+        ResolveLessonLogForAttendanceAsync(int shiftInstanceId)
+    {
+        // An existing log wins — it already pins the model chosen for this lesson.
+        var existing = await _db.LessonLogs
+            .Include(l => l.Model)
+            .FirstOrDefaultAsync(l => l.ShiftInstanceId == shiftInstanceId);
+        if (existing is not null)
+            return (existing.Id, existing.ModelId, existing.Model?.Name);
+
+        // No log yet — resolve the first syllabus model of the shift's class.
+        var firstModel = await (
+            from i in _db.ShiftInstances
+            where i.Id == shiftInstanceId
+            join c in _db.Classes.IgnoreQueryFilters() on i.Template.ClassId equals c.Id
+            where c.SyllabusId != null
+            from sm in _db.SyllabusModels.Where(sm => sm.SyllabusId == c.SyllabusId)
+            orderby sm.OrderIndex
+            select new { sm.ModelId, sm.Model.Name }
+        ).FirstOrDefaultAsync();
+
+        if (firstModel is null)
+            return (null, null, null);   // no syllabus / no models → caller disables submit
+
+        var log = await SaveLessonLogAsync(shiftInstanceId, firstModel.ModelId, LessonLogStatus.InProgress, null);
+        return (log.Id, firstModel.ModelId, firstModel.Name);
+    }
+
     // ── Template management ──────────────────────────────────────────────────
 
     public async Task<ShiftTemplate> CreateTemplateAsync(ShiftTemplate t)
@@ -74,6 +109,12 @@ public class SchedulingService
             .ToListAsync();
     }
 
+    // Single shift instance with its Template→Class (+ School) loaded — for the attendance/log surfaces.
+    public Task<ShiftInstance?> GetShiftInstanceAsync(int shiftInstanceId) =>
+        _db.ShiftInstances
+            .Include(i => i.Template).ThenInclude(t => t.Class).ThenInclude(c => c.School)
+            .FirstOrDefaultAsync(i => i.Id == shiftInstanceId);
+
     // Security-critical: DB query only, no caching, date-scoped to today Israel.
     public Task<bool> CanAccessShiftAsync(int shiftInstanceId, int userId)
     {
@@ -116,6 +157,11 @@ public class SchedulingService
         await _db.SaveChangesAsync();
         return existing;
     }
+
+    // The LessonLog for a shift instance (if one exists), with its Model loaded.
+    public Task<LessonLog?> GetLessonLogAsync(int shiftInstanceId) =>
+        _db.LessonLogs.Include(l => l.Model)
+            .FirstOrDefaultAsync(l => l.ShiftInstanceId == shiftInstanceId);
 
     // "X of N" — how many lessons of this model has this class completed, vs. expected.
     public async Task<(int spent, int expected, bool over)> ComputePacingAsync(int classId, int modelId)
@@ -236,6 +282,12 @@ public class SchedulingService
                 $"נוכחות עבור תלמיד {clientId} בשיעור {lessonLogId} כבר קיימת עם מפתח שונה");
         }
     }
+
+    // A batch idempotency key was "used" iff any Attendance row carries a per-row key derived
+    // from it (SubmitAttendanceAsync stores "{batchKey}:{clientId}"). Lets the API report a
+    // friendly 409 "already saved" without attempting (and absorbing) a duplicate write.
+    public Task<bool> WasIdempotencyKeyUsedAsync(string batchKey) =>
+        _db.Attendances.AnyAsync(a => a.IdempotencyKey.StartsWith(batchKey + ":"));
 
     public async Task<List<Attendance>> SubmitAttendanceAsync(
         int lessonLogId,

@@ -1218,6 +1218,173 @@ body { margin: 0; line-height: var(--lh-normal); }
 .status-pill--on:hover { background: var(--brand); color: #fff; }
 
 /* ============================================================
+   SLICE 2 — model-chip (§9.4) + §1 instructor home + §2 attendance + §3 lesson-log
+   Perf: topbar/sheet are the only blur; lists scroll opaque; rows zero blur.
+   ============================================================ */
+
+/* ---- The lesson-model chip (§9.4) — recurring brand signature ---- */
+.model-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding-block: var(--sp-2); padding-inline: var(--sp-4);
+  background: var(--lg-fill-tint);
+  border: 1px solid rgba(var(--brand-rgb), .20);
+  border-radius: var(--radius-pill);
+  font-size: var(--t-label); font-weight: var(--fw-semibold); color: var(--brand);
+}
+.model-chip__dot {
+  inline-size: 7px; block-size: 7px; border-radius: 50%;
+  background: var(--ok); flex: 0 0 auto;
+}
+.model-chip--warn { color: var(--warn); border-color: rgba(200,134,27,.30); background: var(--warn-soft); }
+.model-chip--warn .model-chip__dot { background: var(--warn); }
+
+/* ============================================================
+   §1 Instructor "today" home
+   ============================================================ */
+.today-stage { max-inline-size: 560px; margin-inline: auto; }
+.today-head { margin-block-end: var(--sp-5); }
+.today-head__greeting { margin: 0; font-size: var(--t-title); font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight); color: var(--brand-ink); }
+.today-head__date { margin: var(--sp-1) 0 0; font-size: var(--t-label); color: var(--brand-ink-muted); }
+.today-foot { text-align: center; font-size: var(--t-meta); color: var(--brand-ink-muted); margin-block: var(--sp-5); }
+
+.shift-card { display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: var(--sp-6); margin-block-end: var(--sp-5); }
+.shift-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.shift-card__time { font-size: var(--t-title); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.shift-card__class { margin: 0; font-size: var(--t-body); font-weight: var(--fw-medium); color: var(--brand-ink); }
+.shift-card__meta { margin: 0; font-size: var(--t-meta); color: var(--brand-ink-muted); }
+
+/* The "קח נוכחות" MONOLITH — uses existing .hero-solid; this adds layout + press */
+.hero-cta {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-2); min-block-size: 38vh;
+  padding-block: var(--sp-8); padding-inline: var(--sp-6);
+  margin-block-start: var(--sp-2);
+  text-decoration: none; text-align: center;
+  transition: transform var(--dur-instant) var(--ease-spring), box-shadow var(--dur-fast) var(--ease-glass);
+}
+.hero-cta:active { transform: scale(.97); box-shadow: 0 12px 40px -14px rgba(var(--brand-rgb), .60) inset, var(--lg-shadow-hero); }
+.hero-cta__label { font-size: var(--t-hero-cta); font-weight: var(--fw-bold); color: #fff; letter-spacing: var(--ls-tight); }
+.hero-cta__sub { font-size: var(--t-label); font-weight: var(--fw-medium); color: rgba(255,255,255,.78); }
+/* locked future shift: opaque but inert */
+.hero-cta--locked { background: var(--brand-deep); cursor: not-allowed; }
+.hero-cta--locked:active { transform: none; }
+.hero-cta--locked .hero-cta__label { color: rgba(255,255,255,.62); }
+
+/* ============================================================
+   §2 ATTENDANCE — (full block; see §2 spec for rationale)
+   ============================================================ */
+.attendance-stage {
+  position: relative; min-block-size: 100dvh; min-block-size: 100vh;
+  padding-block-start: var(--sp-5);
+  padding-block-end: calc(var(--sp-20) + var(--sp-16));
+  padding-inline: var(--sp-4); max-inline-size: 640px; margin-inline: auto;
+}
+.attendance-panel { padding: var(--sp-4); --att-row-fill: rgba(255,255,255,.86); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .attendance-panel { --att-row-fill: rgba(28,42,60,.88); }
+}
+.att-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.att-row {
+  position: relative; isolation: isolate; overflow: hidden;
+  inline-size: 100%; min-block-size: 56px;
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding-block: var(--sp-3); padding-inline: var(--sp-5);
+  background: var(--att-row-fill);
+  border: 1px solid rgba(var(--brand-rgb), .10);
+  border-radius: var(--radius-pill); box-shadow: var(--lg-shadow);
+  font: inherit; text-align: start; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow var(--dur-fast) var(--ease-glass);
+}
+.att-row:active { box-shadow: var(--lg-shadow-lifted); }
+.att-row__fill {
+  position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none;
+  transform-origin: inline-start; transform: scaleX(0);
+  transition: transform var(--dur-fast) var(--ease-spring), background-color var(--dur-fast) var(--ease-spring);
+}
+.att-row > :not(.att-row__fill) { position: relative; z-index: 2; }
+.att-row__who { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; flex: 1; }
+.att-row__name { font-size: var(--t-body); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.att-row__phone { font-size: var(--t-meta); color: var(--brand-ink-muted); }
+.att-row__verdict { flex: 0 0 auto; font-size: var(--t-label); font-weight: var(--fw-bold);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-glass); }
+.att-row__guide { position: absolute; z-index: 1; inset-block: 22%; inset-inline-start: 50%;
+  inline-size: 1px; background: rgba(var(--brand-rgb), .18); pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-glass); }
+
+.att-row.is-present .att-row__fill { transform: scaleX(1); background: var(--ok-soft); }
+.att-row.is-present { border-color: rgba(46,125,91,.30); }
+.att-row.is-present .att-row__verdict { opacity: 1; color: var(--ok); }
+.att-row.is-present .att-row__verdict::after { content: "נוכח ✓"; }
+.att-row.is-present .att-row__guide { opacity: 0; }
+
+.att-row.is-absent .att-row__fill { transform: scaleX(.38); background: var(--absent-soft); }
+.att-row.is-absent { border-color: rgba(178,58,72,.28); }
+.att-row.is-absent .att-row__verdict { opacity: 1; color: var(--absent); order: -1; }
+.att-row.is-absent .att-row__verdict::after { content: "נעדר ✕"; }
+.att-row.is-absent .att-row__guide { opacity: 0; }
+
+.att-row--tryout { background: rgba(200,134,27,.08); border-color: rgba(200,134,27,.20); }
+.att-tray { margin-block-start: var(--sp-5); padding: var(--sp-3);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .14); border-radius: var(--radius-card); }
+.att-tray__label { border-block-end: none; color: var(--warn); }
+
+.att-sheet {
+  position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 120;
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding-block: var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  padding-inline: var(--sp-5);
+  border-start-start-radius: var(--radius-sheet); border-start-end-radius: var(--radius-sheet);
+  border-block-end: 0;
+}
+.att-sheet__header { position: relative; isolation: isolate; overflow: hidden;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3);
+  padding-block: var(--sp-2); padding-inline: var(--sp-3); border-radius: var(--radius-card); }
+.att-sheet__ctx { font-size: var(--t-label); color: var(--brand-ink-muted); }
+.att-sheet__tally { margin-inline-start: auto; font-size: var(--t-label); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.att-submit { inline-size: 100%; font-size: var(--t-body); padding-block: calc(var(--sp-3) + 4px); }
+.att-submit:disabled { opacity: .55; cursor: not-allowed; }
+.att-submit.is-busy { pointer-events: none; opacity: .85; }
+.att-submit.is-done { background: var(--ok); }
+.att-error { font-size: var(--t-label); font-weight: var(--fw-semibold); color: var(--absent);
+  background: var(--absent-soft); border-radius: var(--radius-chip);
+  padding-block: var(--sp-2); padding-inline: var(--sp-3); text-align: center; }
+.att-error[hidden] { display: none; }
+@media (max-width: 767px) { .att-sheet__tally { margin-inline-start: 0; inline-size: 100%; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes att-sheet-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .att-sheet { animation: att-sheet-rise var(--dur-slow) var(--ease-glass) both; }
+}
+
+/* ============================================================
+   §3 Lesson-log — pacing + bar
+   ============================================================ */
+.lesson-card { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-6); }
+.lesson-card__ctx { margin: 0; font-size: var(--t-label); color: var(--brand-ink-muted); }
+.lesson-pacing { display: flex; flex-direction: column; gap: var(--sp-3); }
+.lesson-pacing__count { margin: 0; font-size: var(--t-title); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.lesson-pacing__count--over { color: var(--warn); }
+.pace-bar { block-size: 8px; border-radius: var(--radius-pill);
+  background: rgba(var(--brand-rgb), .10); overflow: hidden; }
+.pace-bar__fill { display: block; block-size: 100%; inline-size: var(--pace, 0%);
+  background: var(--brand); border-radius: inherit;
+  transition: inline-size var(--dur-mid) var(--ease-spring); }
+.pace-bar--over .pace-bar__fill { background: var(--warn); }
+.lesson-status { display: flex; flex-direction: column; gap: var(--sp-3); margin-block-start: var(--sp-2); }
+.lesson-status .form-actions { border-block-start: none; padding-block-start: 0; }
+.lesson-saved { font-size: var(--t-label); font-weight: var(--fw-semibold); color: var(--ok); }
+
+/* ---- Responsive: instructor surfaces ---- */
+@media (max-width: 767px) {
+  .shift-card { padding: var(--sp-5); }
+  .hero-cta { min-block-size: 40vh; }
+}
+
+/* ============================================================
    SLICE 2 §4 — Curriculum: ordered model rows, link chips, row controls
    ============================================================ */
 .curriculum-panel { padding: var(--sp-6); }

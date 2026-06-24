@@ -1,7 +1,7 @@
 @page
 @model InstructorModel
 @{
-    ViewData["Title"] = "לוח בקרה — מדריך";
+    ViewData["Title"] = "מדריך";
 }
 
 <div class="dash-shell">
@@ -9,13 +9,86 @@
     <a href="/" class="dash-topbar__wordmark">עורקבי</a>
     <span class="dash-topbar__title">מדריך</span>
     <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
       <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
     </nav>
   </header>
-  <main class="dash-body">
-    <div class="glass glass--tile dash-stub">
-      <span class="dash-stub__title">לוח מדריך</span>
-      <p class="dash-stub__text">כאן יוצגו המפגשים, רשימות נוכחות וניהול שיעורים. הממשק בפיתוח.</p>
-    </div>
+
+  <main class="dash-body today-stage">
+    <header class="today-head">
+      <h1 class="today-head__greeting">שלום, @Model.Greeting</h1>
+      <p class="today-head__date">
+        @{
+            var parts = Model.TodayLine.Split(" · ");
+        }
+        @if (parts.Length == 2)
+        {
+          @parts[0]<text> · </text><bdi class="num">@parts[1]</bdi>
+        }
+        else
+        {
+          @Model.TodayLine
+        }
+      </p>
+    </header>
+
+    @if (Model.Shifts.Count == 0)
+    {
+      <div class="glass glass--tile" style="--lg-tile-shadow: var(--lg-shadow); padding: var(--sp-8);">
+        <div class="empty-state">
+          <p class="empty-state__title">אין לך מפגשים היום</p>
+          <p class="empty-state__hint">כשישובץ לך מפגש הוא יופיע כאן.</p>
+        </div>
+      </div>
+    }
+    else
+    {
+      <div class="section-label">המפגשים שלי היום</div>
+
+      @foreach (var shift in Model.Shifts)
+      {
+        <article class="glass glass--tile shift-card" style="--lg-tile-shadow: var(--lg-shadow);">
+          <div class="shift-card__head">
+            @if (shift.ModelName is not null)
+            {
+              <span class="model-chip">
+                <span class="model-chip__dot" aria-hidden="true"></span>
+                דגם: @shift.ModelName
+              </span>
+            }
+            else
+            {
+              <span class="model-chip model-chip--warn">
+                <span class="model-chip__dot" aria-hidden="true"></span>
+                טרם הוגדר דגם נוכחי
+              </span>
+            }
+            <bdi class="shift-card__time num">@shift.TimeRange</bdi>
+          </div>
+          <p class="shift-card__class">@shift.ClassLine</p>
+          <p class="shift-card__meta">רשומים <bdi class="num">@shift.RosterCount</bdi></p>
+
+          @if (shift.IsLocked)
+          {
+            <span class="hero-solid hero-cta hero-cta--locked" aria-disabled="true" role="link">
+              <span class="hero-cta__label">קח נוכחות</span>
+              <span class="hero-cta__sub">נפתח ב־<bdi>@shift.StartTime.ToString("HH\\:mm")</bdi></span>
+            </span>
+          }
+          else
+          {
+            <a class="hero-solid hero-cta" href="/Attendance/@shift.ShiftInstanceId">
+              <span class="hero-cta__label">קח נוכחות</span>
+              <span class="hero-cta__sub"><bdi class="num">@shift.RosterCount</bdi> תלמידים · <bdi>@shift.StartTime.ToString("HH\\:mm")</bdi></span>
+            </a>
+          }
+        </article>
+      }
+
+      @if (Model.Shifts.Count == 1)
+      {
+        <p class="today-foot">אין עוד מפגשים היום</p>
+      }
+    }
   </main>
 </div>

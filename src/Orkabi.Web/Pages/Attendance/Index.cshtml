@@ -1,0 +1,108 @@
+@page "{shiftInstanceId:int}"
+@model Orkabi.Web.Pages.Attendance.IndexModel
+@{
+    ViewData["Title"] = "נוכחות";
+    var totalRoster = Model.Roster.Count + Model.Tryouts.Count;
+}
+
+@functions {
+    void AttRow(Orkabi.Web.Pages.Attendance.IndexModel.RosterEntry r, bool tryout)
+    {
+        <li>
+          <button type="button" class="att-row@(tryout ? " att-row--tryout" : "")"
+                  data-client-id="@r.ClientId" aria-pressed="false"
+                  aria-label="@r.Name — טרם סומן">
+            <span class="att-row__fill" aria-hidden="true"></span>
+            @if (tryout)
+            {
+              <span class="tryout-badge">TRYOUT</span>
+            }
+            <span class="att-row__who">
+              <span class="att-row__name">@r.Name</span>
+              @if (!string.IsNullOrWhiteSpace(r.Phone))
+              {
+                <bdi class="att-row__phone num">@r.Phone</bdi>
+              }
+            </span>
+            <span class="att-row__verdict" aria-hidden="true"></span>
+            <span class="att-row__guide" aria-hidden="true"></span>
+          </button>
+        </li>
+    }
+}
+
+<main class="attendance-stage" id="attendance"
+      data-shift="@Model.ShiftInstanceId"
+      data-lesson-log="@(Model.LessonLogId?.ToString() ?? "")"
+      data-idempotency-key="@Model.IdempotencyKey"
+      data-has-model="@(Model.HasModel ? "true" : "false")">
+
+  @* Hidden antiforgery token: HTMX/JS reads the meta tag, tests read this input. *@
+  @Html.AntiForgeryToken()
+
+  <p style="margin-block-end:var(--sp-3);"><a href="/Dashboard/Instructor" class="btn-ghost" style="font-size:var(--t-label);">חזרה</a></p>
+
+  @if (totalRoster == 0)
+  {
+    <section class="glass glass--tile" style="--lg-tile-shadow: var(--lg-shadow); padding: var(--sp-8);">
+      <div class="empty-state">
+        <p class="empty-state__title">אין תלמידים רשומים לכיתה</p>
+        <p class="empty-state__hint">שבצו תלמידים לכיתה לפני נטילת נוכחות.</p>
+      </div>
+    </section>
+  }
+  else
+  {
+    <section class="glass glass--panel attendance-panel" aria-label="רשימת נוכחות"
+             style="--lg-tile-shadow: var(--lg-shadow);">
+      <ul class="att-list" role="list">
+        @foreach (var r in Model.Roster) { AttRow(r, false); }
+      </ul>
+
+      @if (Model.Tryouts.Count > 0)
+      {
+        <div class="att-tray">
+          <div class="section-label att-tray__label">על תנאי (ניסיון)</div>
+          <ul class="att-list" role="list">
+            @foreach (var r in Model.Tryouts) { AttRow(r, true); }
+          </ul>
+        </div>
+      }
+    </section>
+
+    <div class="glass glass--nav att-sheet">
+      <div class="att-sheet__header glass--lensed">
+        <div class="glass__lens" aria-hidden="true"></div>
+        @if (Model.HasModel)
+        {
+          <span class="model-chip">
+            <span class="model-chip__dot" aria-hidden="true"></span>
+            דגם: @Model.ModelName
+          </span>
+        }
+        else
+        {
+          <span class="model-chip model-chip--warn">
+            <span class="model-chip__dot" aria-hidden="true"></span>
+            טרם שובץ דגם — הגדירו סילבוס לכיתה
+          </span>
+        }
+        <span class="att-sheet__ctx">· @Model.ClassName · <bdi class="num">@Model.DateLine</bdi></span>
+        <span class="att-sheet__tally">
+          נוכח <bdi class="num" data-count-present>0</bdi> ·
+          נעדר <bdi class="num" data-count-absent>0</bdi> ·
+          נותרו <bdi class="num" data-count-left>@totalRoster</bdi>
+        </span>
+      </div>
+
+      <p class="att-error" data-att-error hidden>השמירה נכשלה — נסו שוב</p>
+
+      <button type="button" class="btn-primary att-submit" data-att-submit
+              @(Model.HasModel ? "" : "disabled")>
+        שמור נוכחות (<bdi class="num">@totalRoster</bdi>)
+      </button>
+    </div>
+  }
+</main>
+
+<script src="~/js/attendance.js" defer asp-append-version="true"></script>
