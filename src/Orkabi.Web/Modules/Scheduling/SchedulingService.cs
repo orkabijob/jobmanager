@@ -301,6 +301,50 @@ public class SchedulingService
         try
         {
             await _db.SaveChangesAsync();
+            // ── CREATE path only ─────────────────────────────────────────────
+            // Attendance row was newly created.  Resolve classId once (IgnoreQueryFilters
+            // so an archived template chain still resolves) and fire the appropriate outbox
+            // event.  These appends are AFTER the attendance commit (append-after-commit):
+            // a missed outbox ticket is preferable to rolling back the attendance row.
+            var classId = await _db.LessonLogs.IgnoreQueryFilters()
+                .Where(l => l.Id == lessonLogId)
+                .Select(l => l.ShiftInstance.Template.ClassId)
+                .FirstAsync();
+
+            if (status == AttendanceStatus.Absent)
+            {
+                _db.OutboxEvents.Add(new OutboxEvent
+                {
+                    EventType = "AttendanceAbsent",
+                    Payload = JsonSerializer.Serialize(new { clientId, lessonLogId }),
+                    CreatedAt = DateTime.UtcNow,
+                    ScheduledFor = null
+                });
+                await _db.SaveChangesAsync();
+            }
+            else if (status == AttendanceStatus.Present)
+            {
+                var isTryout = await _db.Enrollments.AnyAsync(e =>
+                    e.ClientId == clientId && e.ClassId == classId &&
+                    (e.Status == EnrollmentStatus.Tryout || e.IsTryout));
+
+                if (isTryout)
+                {
+                    var nowIl = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz);
+                    var t = nowIl.Date.AddDays(1).AddHours(8);
+                    var schedUtc = TimeZoneInfo.ConvertTimeToUtc(t, IsraelClock.IsraelTz);
+
+                    _db.OutboxEvents.Add(new OutboxEvent
+                    {
+                        EventType = "TryoutPresent",
+                        Payload = JsonSerializer.Serialize(new { clientId, classId }),
+                        CreatedAt = DateTime.UtcNow,
+                        ScheduledFor = schedUtc
+                    });
+                    await _db.SaveChangesAsync();
+                }
+            }
+
             return attendance;
         }
         catch (DbUpdateException)
@@ -308,6 +352,7 @@ public class SchedulingService
             _db.ChangeTracker.Clear();
 
             // Try to find by idempotency key first (same-key retry = idempotent return).
+            // NOTE: we do NOT append any outbox event here — the retry path must not double-fire.
             var byKey = await _db.Attendances
                 .FirstOrDefaultAsync(a => a.IdempotencyKey == idempotencyKey);
             if (byKey is not null)
