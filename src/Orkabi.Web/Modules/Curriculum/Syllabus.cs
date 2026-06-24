@@ -9,5 +9,5 @@ public class Syllabus : BaseEntity, IArchivable
     public DateOnly EndDate { get; set; }
     public EntityStatus Status { get; set; } = EntityStatus.Active;
     public ICollection<SyllabusModel> SyllabusModels { get; set; } = new List<SyllabusModel>();
-    // Syllabus.Classes (inverse of Class.SyllabusId) deferred to Task 3 (People.Class.SyllabusId does not exist yet).
+    public ICollection<Orkabi.Web.Modules.People.Class> Classes { get; set; } = new List<Orkabi.Web.Modules.People.Class>();
 }

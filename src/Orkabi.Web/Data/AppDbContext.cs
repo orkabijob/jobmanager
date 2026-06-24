@@ -46,6 +46,10 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasForeignKey(c => c.SchoolId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<People.Class>().HasOne(c => c.AcademicYear).WithMany(y => y.Classes)
             .HasForeignKey(c => c.AcademicYearId).OnDelete(DeleteBehavior.Restrict);
+        // SetNull is the ONE intentional exception to the Restrict convention:
+        // retiring/archiving a syllabus must not block existing classes.
+        b.Entity<People.Class>().HasOne(c => c.Syllabus).WithMany(s => s.Classes)
+            .HasForeignKey(c => c.SyllabusId).OnDelete(DeleteBehavior.SetNull);
 
         // One current academic year, enforced at the DB (partial unique index).
         b.Entity<People.AcademicYear>().HasIndex(y => y.IsCurrent).HasFilter("\"IsCurrent\" = true").IsUnique();

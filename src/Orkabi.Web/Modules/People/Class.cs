@@ -8,6 +8,7 @@ public class Class : Orkabi.Web.Shared.BaseEntity, Orkabi.Web.Shared.IArchivable
     public int AcademicYearId { get; set; }
     public AcademicYear AcademicYear { get; set; } = null!;
     public Orkabi.Web.Shared.EntityStatus Status { get; set; } = Orkabi.Web.Shared.EntityStatus.Active;
-    // SyllabusId DEFERRED to Slice 2 (Syllabus table does not exist yet).
+    public int? SyllabusId { get; set; }
+    public Orkabi.Web.Modules.Curriculum.Syllabus? Syllabus { get; set; }
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 }
