@@ -1,0 +1,123 @@
+@page
+@model Orkabi.Web.Pages.Logistics.Orders.IndexModel
+@using Orkabi.Web.Modules.Logistics
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "לוגיסטיקה";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+    var isInstructor = User.IsInRole(AppRoles.Instructor);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">לוגיסטיקה</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט לוגיסטיקה">
+      <a class="subnav__item is-active" href="/Logistics/Orders">הזמנות</a>
+      @if (isAdmin || isInstructor)
+      {
+        <a class="subnav__item" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
+      }
+    </nav>
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">הזמנות לוגיסטיקה</h1>
+      </div>
+      <form id="csrf-anchor" style="display:none">
+        @Html.AntiForgeryToken()
+      </form>
+      <button class="btn-primary"
+              hx-post="?handler=Generate&classId=@(Model.ClassIdFilter?.ToString() ?? "")"
+              hx-target="#orders-body"
+              hx-swap="outerHTML"
+              hx-include="#csrf-anchor">
+        צור הזמנות
+        <span class="htmx-indicator" aria-hidden="true">…</span>
+      </button>
+    </div>
+
+    <form method="get" class="classes-filter-rail">
+      <div class="status-pill-rail" role="tablist" aria-label="סינון לפי סטטוס">
+        <a class="status-pill @(string.IsNullOrEmpty(Model.StatusFilter) ? "status-pill--on" : "")"
+           href="?classId=@Model.ClassIdFilter">הכול</a>
+        <a class="status-pill @(Model.StatusFilter == "Pending" ? "status-pill--on" : "")"
+           href="?status=Pending&classId=@Model.ClassIdFilter">ממתין</a>
+        <a class="status-pill @(Model.StatusFilter == "Packed" ? "status-pill--on" : "")"
+           href="?status=Packed&classId=@Model.ClassIdFilter">נארז</a>
+        <a class="status-pill @(Model.StatusFilter == "Accepted" ? "status-pill--on" : "")"
+           href="?status=Accepted&classId=@Model.ClassIdFilter">התקבל</a>
+        <a class="status-pill @(Model.StatusFilter == "Disputed" ? "status-pill--on" : "")"
+           href="?status=Disputed&classId=@Model.ClassIdFilter">במחלוקת</a>
+      </div>
+      <div class="filter-group">
+        <label class="form-field__label" for="ClassFilter">כיתה:</label>
+        <select id="ClassFilter" name="classId" class="form-select filter-select"
+                onchange="this.form.submit()">
+          <option value="">כל הכיתות</option>
+          @foreach (var cls in Model.Classes)
+          {
+            if (Model.ClassIdFilter == cls.Id)
+            {
+              <option value="@cls.Id" selected>@cls.Name</option>
+            }
+            else
+            {
+              <option value="@cls.Id">@cls.Name</option>
+            }
+          }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.StatusFilter))
+        {
+          <input type="hidden" name="status" value="@Model.StatusFilter" />
+        }
+      </div>
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Orders.Any())
+      {
+        <div class="empty-state">
+          @if (string.IsNullOrEmpty(Model.StatusFilter) && !Model.ClassIdFilter.HasValue)
+          {
+            <p class="empty-state__title">אין הזמנות</p>
+            <p class="empty-state__hint">לחצו "צור הזמנות" כדי להתחיל.</p>
+          }
+          else
+          {
+            <p class="empty-state__title">אין הזמנות בסטטוס זה</p>
+            <p class="empty-state__hint">שנו את הסינון או צרו הזמנות חדשות.</p>
+          }
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">כיתה</th>
+              <th scope="col">דגם</th>
+              <th scope="col">כמות</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col">נמסר ב…</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            @foreach (var order in Model.Orders)
+            {
+              @(await Html.PartialAsync("_OrderRow", order))
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

@@ -7,6 +7,7 @@ using Curriculum = Orkabi.Web.Modules.Curriculum;
 using Operations = Orkabi.Web.Modules.Operations;
 using People = Orkabi.Web.Modules.People;
 using Scheduling = Orkabi.Web.Modules.Scheduling;
+using Logistics = Orkabi.Web.Modules.Logistics;
 
 namespace Orkabi.Web.Data;
 
@@ -36,6 +37,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 
     public DbSet<ActionHub.ActionItem> ActionItems => Set<ActionHub.ActionItem>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
+
+    public DbSet<Logistics.LogisticsOrder> LogisticsOrders => Set<Logistics.LogisticsOrder>();
+    public DbSet<JobExecutionLog> JobExecutionLogs => Set<JobExecutionLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -207,6 +211,22 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasOne(v => v.ApprovedByUser).WithMany()
             .HasForeignKey(v => v.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
 
+        // ── LOGISTICS ────────────────────────────────────────────────────────
+        // NOT IArchivable — no query filter.
+
+        b.Entity<Logistics.LogisticsOrder>().Property(o => o.Status).HasConversion<int>();
+        b.Entity<Logistics.LogisticsOrder>().Property(o => o.DisputeNotes).HasMaxLength(500);
+
+        b.Entity<Logistics.LogisticsOrder>()
+            .HasOne(o => o.Class).WithMany()
+            .HasForeignKey(o => o.ClassId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Logistics.LogisticsOrder>()
+            .HasOne(o => o.Model).WithMany()
+            .HasForeignKey(o => o.ModelId).OnDelete(DeleteBehavior.Restrict);
+
+        b.Entity<Logistics.LogisticsOrder>()
+            .HasIndex(o => new { o.ClassId, o.ModelId });
+
         // ── ACTION HUB ───────────────────────────────────────────────────────
         // NOT IArchivable — no query filter on ActionItem.
 
@@ -235,5 +255,14 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 
         b.Entity<OutboxEvent>().Property(e => e.EventType).HasMaxLength(100).IsRequired();
         b.Entity<OutboxEvent>().Property(e => e.Payload).IsRequired();
+
+        // ── JOB EXECUTION LOG ────────────────────────────────────────────────
+        // NOT BaseEntity — infrastructure; audit interceptor does NOT touch JobExecutionLog.
+        // Unique (JobName, ScheduledFor) is the idempotency gate: duplicate insert → DbUpdateException.
+
+        b.Entity<JobExecutionLog>().Property(j => j.JobName).HasMaxLength(100).IsRequired();
+        b.Entity<JobExecutionLog>().Property(j => j.Status).HasConversion<int>();
+        b.Entity<JobExecutionLog>()
+            .HasIndex(j => new { j.JobName, j.ScheduledFor }).IsUnique();
     }
 }

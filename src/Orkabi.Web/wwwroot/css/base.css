@@ -1614,3 +1614,46 @@ body { margin: 0; line-height: var(--lh-normal); }
   .bento__focal { grid-column: 1 / 3; grid-row: auto; }
   .bento__metric, .bento__feed, .bento__tasks, .bento__alerts { grid-column: auto; grid-row: auto; }
 }
+
+/* ============================================================
+   SLICE 4 — Logistics (dispute loop)
+   Reuses verbatim: .subnav, .page-head, .data-table(+.data-row/.data-cell/
+   .data-cell--primary/--actions), .status-chip(+--pending/--approved/--rejected),
+   .status-pill-rail/.status-pill, .filter-select/.filter-group/.classes-filter-rail,
+   .model-chip, .action-card(+__top/__desc/__actions/__resolved-meta/.is-resolved),
+   .form-field(+--full)/textarea (recessed-well), .form-panel--instructor,
+   .btn-primary/.btn-ghost(+--sm/--accent), .empty-state, .htmx-indicator,
+   .num, .req. Perf: topbar is the only blur; panel is glass once; rows/cards opaque.
+   NO .glass--lensed, NO .glass--clear under data text.
+   ============================================================ */
+
+/* ---- §4 Packed status chip (the ONE new chip variant) ----
+   Mid-flow brand-neutral state — distinct from --active/--approved green.
+   Flat brand tint, zero backdrop-filter (table/card-safe). */
+.status-chip--packed { background: var(--info); color: var(--brand); }
+.status-chip--packed::before { content: "◑"; font-size: 9px; line-height: 1; }
+
+/* ---- §2/§3 Dispute-note read-line — shows dispute_notes after a Disputed swap.
+   Sibling-of-chip in the admin status cell; standalone line in the instructor card.
+   Tiny muted-meta, analogous to .approve-meta. Notes wrap; quantities go in <bdi>. */
+.dispute-note {
+  display: block; margin-block-start: 2px;
+  font-size: var(--t-admin-meta); color: var(--brand-ink-muted);
+  line-height: var(--lh-snug);
+}
+/* Instructor card scale: the disputed note reads at instructor meta inside an
+   instructor-scaled panel (so it isn't dense-tiny on a phone). */
+.form-panel--instructor .dispute-note { font-size: var(--t-meta); }
+
+/* ---- §3 Order-card class label (the "כיתה N" beside the model-chip) ---- */
+.action-card__class {
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  color: var(--brand-ink-muted);
+}
+
+/* ---- §3 Instructor-scale lift for the reused .action-card body on MyOrders.
+   .action-card defaults to dense (--t-admin-*); inside an instructor-scaled
+   panel the card body + meta rise to instructor scale for thumb reading. ---- */
+.form-panel--instructor .action-card__desc       { font-size: var(--t-body); }
+.form-panel--instructor .action-card__class       { font-size: var(--t-label); }
+.form-panel--instructor .action-card__resolved-meta { font-size: var(--t-label); }
