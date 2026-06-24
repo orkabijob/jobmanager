@@ -26,4 +26,15 @@ public class RtlLayoutTests : IClassFixture<SqliteFixture>
         Assert.Contains(".roster-pane", css);
         Assert.Contains(".subnav", css);
     }
+
+    [Fact]
+    public async Task Layout_includes_htmx_script_and_csrf_meta()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var html = await factory.CreateClient().GetStringAsync("/Account/Login");
+        // htmx script include — allow for asp-append-version querystring
+        Assert.Contains("htmx.min.js", html);
+        // antiforgery meta tag for HTMX POST wiring
+        Assert.Contains("name=\"htmx-csrf\"", html);
+    }
 }
