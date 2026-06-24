@@ -1,0 +1,23 @@
+@model List<Orkabi.Web.Modules.Logistics.LogisticsOrder>
+@using Orkabi.Web.Modules.Logistics
+
+<tbody id="orders-body">
+  @if (!Model.Any())
+  {
+    <tr>
+      <td colspan="6">
+        <div class="empty-state">
+          <p class="empty-state__title">אין הזמנות</p>
+          <p class="empty-state__hint">לחצו "צור הזמנות" כדי להתחיל.</p>
+        </div>
+      </td>
+    </tr>
+  }
+  else
+  {
+    @foreach (var order in Model)
+    {
+      @(await Html.PartialAsync("_OrderRow", order))
+    }
+  }
+</tbody>

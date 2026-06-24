@@ -1,0 +1,65 @@
+@model Orkabi.Web.Modules.Logistics.LogisticsOrder
+@using Orkabi.Web.Modules.Logistics
+@using Orkabi.Web.Shared
+
+@{
+    var deliveredLocal = Model.DeliveredAt.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(Model.DeliveredAt.Value, IsraelClock.IsraelTz)
+        : (DateTime?)null;
+    var deliveredDate = deliveredLocal.HasValue
+        ? deliveredLocal.Value.ToString("d MMMM", new System.Globalization.CultureInfo("he-IL"))
+        : null;
+    var isResolved = Model.Status == LogisticsOrderStatus.Accepted || Model.Status == LogisticsOrderStatus.Disputed;
+}
+
+<article class="action-card @(isResolved ? "is-resolved" : "")" id="order-card-@Model.Id">
+  <div class="action-card__top">
+    <span class="model-chip"><span class="model-chip__dot" aria-hidden="true"></span>@Model.Model?.Name</span>
+    <span class="action-card__class">כיתה @Model.Class?.Name</span>
+    @switch (Model.Status)
+    {
+      case LogisticsOrderStatus.Pending:
+        <span class="status-chip status-chip--pending" style="margin-inline-start:auto;">ממתין</span>
+        break;
+      case LogisticsOrderStatus.Packed:
+        <span class="status-chip status-chip--packed" style="margin-inline-start:auto;">נארז</span>
+        break;
+      case LogisticsOrderStatus.Accepted:
+        <span class="status-chip status-chip--approved" style="margin-inline-start:auto;">התקבל</span>
+        break;
+      case LogisticsOrderStatus.Disputed:
+        <span class="status-chip status-chip--rejected" style="margin-inline-start:auto;">במחלוקת</span>
+        break;
+    }
+  </div>
+  <p class="action-card__desc">
+    כמות: <bdi class="num">@Model.Quantity</bdi>
+    @if (deliveredDate is not null)
+    {
+      <span> · נמסר ב־<bdi class="num">@deliveredDate</bdi></span>
+    }
+  </p>
+
+  @if (Model.Status == LogisticsOrderStatus.Packed)
+  {
+    <div class="action-card__actions">
+      <button class="btn-ghost btn-ghost--sm"
+              hx-get="/Logistics/MyOrders?handler=DisputeForm&id=@Model.Id"
+              hx-target="#order-card-@Model.Id"
+              hx-swap="outerHTML">מחלוקת</button>
+      <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
+              hx-post="/Logistics/MyOrders?handler=Accept&id=@Model.Id"
+              hx-target="#order-card-@Model.Id"
+              hx-swap="outerHTML"
+              hx-include="#csrf-anchor">התקבל</button>
+    </div>
+  }
+  else if (Model.Status == LogisticsOrderStatus.Accepted)
+  {
+    <span class="action-card__resolved-meta">✓ אושרה הקבלה</span>
+  }
+  else if (Model.Status == LogisticsOrderStatus.Disputed && !string.IsNullOrEmpty(Model.DisputeNotes))
+  {
+    <span class="dispute-note">הערת מחלוקת: @Model.DisputeNotes</span>
+  }
+</article>

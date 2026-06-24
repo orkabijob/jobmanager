@@ -1,0 +1,49 @@
+@page
+@model Orkabi.Web.Pages.Logistics.MyOrders.IndexModel
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "לוגיסטיקה";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">לוגיסטיקה</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט לוגיסטיקה">
+      @if (isAdmin || User.IsInRole(AppRoles.Logistics))
+      {
+        <a class="subnav__item" href="/Logistics/Orders">הזמנות</a>
+      }
+      <a class="subnav__item is-active" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
+    </nav>
+
+    <form id="csrf-anchor" style="display:none">
+      @Html.AntiForgeryToken()
+    </form>
+
+    <div class="glass glass--tile people-panel form-panel--instructor" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Orders.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין הזמנות לכיתה שלך</p>
+          <p class="empty-state__hint">הזמנות חדשות יופיעו כאן כשייווצרו.</p>
+        </div>
+      }
+      else
+      {
+        @foreach (var order in Model.Orders)
+        {
+          @(await Html.PartialAsync("_OrderCard", order))
+        }
+      }
+    </div>
+  </main>
+</div>

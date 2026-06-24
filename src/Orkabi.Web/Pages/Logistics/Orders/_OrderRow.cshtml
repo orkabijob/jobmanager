@@ -1,0 +1,65 @@
+@model Orkabi.Web.Modules.Logistics.LogisticsOrder
+@using Orkabi.Web.Modules.Logistics
+@using Orkabi.Web.Shared
+
+@{
+    var deliveredLocal = Model.DeliveredAt.HasValue
+        ? TimeZoneInfo.ConvertTimeFromUtc(Model.DeliveredAt.Value, IsraelClock.IsraelTz)
+        : (DateTime?)null;
+    var deliveredDate = deliveredLocal.HasValue
+        ? deliveredLocal.Value.ToString("d MMMM", new System.Globalization.CultureInfo("he-IL"))
+        : null;
+}
+
+<tr class="data-row" id="order-row-@Model.Id">
+  <td class="data-cell data-cell--primary">@Model.Class?.Name</td>
+  <td class="data-cell">
+    <span class="model-chip"><span class="model-chip__dot" aria-hidden="true"></span>@Model.Model?.Name</span>
+  </td>
+  <td class="data-cell"><bdi class="num">@Model.Quantity</bdi></td>
+  <td class="data-cell">
+    @switch (Model.Status)
+    {
+      case LogisticsOrderStatus.Pending:
+        <span class="status-chip status-chip--pending">ממתין</span>
+        break;
+      case LogisticsOrderStatus.Packed:
+        <span class="status-chip status-chip--packed">נארז</span>
+        break;
+      case LogisticsOrderStatus.Accepted:
+        <span class="status-chip status-chip--approved">התקבל</span>
+        break;
+      case LogisticsOrderStatus.Disputed:
+        <span class="status-chip status-chip--rejected">במחלוקת</span>
+        @if (!string.IsNullOrEmpty(Model.DisputeNotes))
+        {
+          <span class="dispute-note">הערת מחלוקת: @Model.DisputeNotes</span>
+        }
+        break;
+    }
+  </td>
+  <td class="data-cell">
+    @if (deliveredDate is not null)
+    {
+      <bdi class="num">@deliveredDate</bdi>
+    }
+    else
+    {
+      <span>—</span>
+    }
+  </td>
+  <td class="data-cell data-cell--actions">
+    @if (Model.Status == LogisticsOrderStatus.Pending)
+    {
+      <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
+              hx-post="/Logistics/Orders?handler=Pack&id=@Model.Id"
+              hx-target="#order-row-@Model.Id"
+              hx-swap="outerHTML"
+              hx-include="#csrf-anchor">נארז</button>
+    }
+    else
+    {
+      <span style="color:var(--brand-ink-muted);">—</span>
+    }
+  </td>
+</tr>

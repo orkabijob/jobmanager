@@ -1,0 +1,31 @@
+@model Orkabi.Web.Modules.Logistics.LogisticsOrder
+@using Orkabi.Web.Modules.Logistics
+
+<article class="action-card" id="order-card-@Model.Id">
+  <div class="action-card__top">
+    <span class="model-chip"><span class="model-chip__dot" aria-hidden="true"></span>@Model.Model?.Name</span>
+    <span class="action-card__class">כיתה @Model.Class?.Name</span>
+    <span class="status-chip status-chip--packed" style="margin-inline-start:auto;">נארז</span>
+  </div>
+  <p class="action-card__desc">
+    כמות: <bdi class="num">@Model.Quantity</bdi>
+  </p>
+
+  <div class="form-field form-field--full"
+       hx-post="/Logistics/MyOrders?handler=Dispute&id=@Model.Id"
+       hx-target="#order-card-@Model.Id"
+       hx-swap="outerHTML"
+       hx-include="#csrf-anchor">
+    <label class="form-field__label" for="DisputeNotes-@Model.Id">מה הבעיה? <span class="req">*</span></label>
+    <textarea id="DisputeNotes-@Model.Id" name="DisputeNotes"
+              placeholder="חסרו ערכות, פריט פגום, כמות שגויה…" required></textarea>
+    <span class="form-field__error" data-valmsg-for="DisputeNotes"></span>
+    <div class="action-card__actions" style="gap:var(--sp-3);">
+      <button type="button" class="btn-ghost btn-ghost--sm"
+              hx-get="/Logistics/MyOrders?handler=Card&id=@Model.Id"
+              hx-target="#order-card-@Model.Id"
+              hx-swap="outerHTML">ביטול</button>
+      <button type="submit" class="btn-ghost btn-ghost--sm btn-ghost--accent">שליחת מחלוקת</button>
+    </div>
+  </div>
+</article>
