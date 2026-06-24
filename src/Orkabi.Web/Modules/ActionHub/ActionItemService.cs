@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.Identity;
+using Orkabi.Web.Modules.Logistics;
 
 namespace Orkabi.Web.Modules.ActionHub;
 
@@ -77,4 +78,290 @@ public class ActionItemService
             .Where(a => a.Status == ActionItemStatus.Open && a.AssignedToRole == role)
             .OrderBy(a => a.CreatedAt)
             .ToListAsync();
+
+    /// <summary>
+    /// Ensures exactly one Open absence action item exists for a client who missed two consecutive
+    /// lessons in the given class. Idempotent: an Open item with key "absence_double_{clientId}_{classId}"
+    /// already present → no-op. Concurrent insert races are absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureDoubleAbsenceActionItemAsync(int clientId, int classId)
+    {
+        var dedupKey = $"absence_double_{clientId}_{classId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        var client = await _db.Clients.FindAsync(clientId);
+        var cls = await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
+
+        var clientName = client?.Name ?? clientId.ToString();
+        var className = cls?.Name ?? classId.ToString();
+
+        var item = new ActionItem
+        {
+            Type = ActionItemType.Absence,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.CustomerService,
+            AssignedToUserId = null,
+            RelatedEntityId = clientId,
+            DeduplicationKey = dedupKey,
+            Description = $"היעדרות כפולה: {clientName} נעדר/ה פעמיים ברצף בכיתה {className}."
+        };
+
+        _db.ActionItems.Add(item);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Ensures exactly one Open absence action item exists for a class with an unusually high
+    /// dropout rate within one week. Idempotent: an Open item with key "dropout_mass_{classId}"
+    /// already present → no-op. Concurrent insert races are absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureMassDropoutActionItemAsync(int classId)
+    {
+        var dedupKey = $"dropout_mass_{classId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        var cls = await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
+        var className = cls?.Name ?? classId.ToString();
+
+        var item = new ActionItem
+        {
+            Type = ActionItemType.Absence,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = classId,
+            DeduplicationKey = dedupKey,
+            Description = $"נשירה חריגה: מספר תלמידים עזבו את כיתה {className} בתוך שבוע."
+        };
+
+        _db.ActionItems.Add(item);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Ensures exactly one Open dispute action item exists for the given logistics order.
+    /// Idempotent: an Open item with key "dispute_{logisticsOrderId}" already present → no-op.
+    /// Concurrent insert races are absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureDisputeActionItemAsync(int logisticsOrderId, int classId)
+    {
+        var dedupKey = $"dispute_{logisticsOrderId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        var order = await _db.LogisticsOrders
+            .Include(o => o.Class)
+            .Include(o => o.Model)
+            .FirstOrDefaultAsync(o => o.Id == logisticsOrderId);
+
+        var cls = order?.Class ?? await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
+        var className = cls?.Name ?? classId.ToString();
+        var modelName = order?.Model?.Name ?? "";
+
+        var item = new ActionItem
+        {
+            Type = ActionItemType.Dispute,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = logisticsOrderId,
+            DeduplicationKey = dedupKey,
+            Description = $"מחלוקת על הזמנה לוגיסטית: כיתה {className} · דגם {modelName}."
+        };
+
+        _db.ActionItems.Add(item);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Ensures birthday day-of action items exist for the given client. Always creates an admin
+    /// item (key "birthday_dayof_{clientId}_{birthday:yyyy-MM-dd}_admin"). When instructorId is
+    /// provided, also creates an instructor-assigned item (key "birthday_dayof_{clientId}_{birthday:yyyy-MM-dd}_user_{instructorId}").
+    /// Each item is independently idempotent. Concurrent insert races absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureBirthdayDayOfActionItemAsync(int clientId, int? instructorId, DateOnly birthday)
+    {
+        var client = await _db.Clients.FindAsync(clientId);
+        var clientName = client?.Name ?? clientId.ToString();
+        var birthdayStr = birthday.ToString("yyyy-MM-dd");
+        var description = $"יום הולדת היום: {clientName}.";
+
+        if (instructorId.HasValue)
+        {
+            var instructorKey = $"birthday_dayof_{clientId}_{birthdayStr}_user_{instructorId.Value}";
+            var existingInstructor = await _db.ActionItems
+                .FirstOrDefaultAsync(a => a.DeduplicationKey == instructorKey && a.Status == ActionItemStatus.Open);
+            if (existingInstructor is null)
+            {
+                _db.ActionItems.Add(new ActionItem
+                {
+                    Type = ActionItemType.Birthday,
+                    Status = ActionItemStatus.Open,
+                    AssignedToRole = null,
+                    AssignedToUserId = instructorId.Value,
+                    RelatedEntityId = clientId,
+                    DeduplicationKey = instructorKey,
+                    DueDate = birthday,
+                    Description = description
+                });
+                try { await _db.SaveChangesAsync(); }
+                catch (DbUpdateException) { _db.ChangeTracker.Clear(); }
+            }
+        }
+
+        var adminKey = $"birthday_dayof_{clientId}_{birthdayStr}_admin";
+        var existingAdmin = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == adminKey && a.Status == ActionItemStatus.Open);
+        if (existingAdmin is null)
+        {
+            _db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.Birthday,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.Admin,
+                AssignedToUserId = null,
+                RelatedEntityId = clientId,
+                DeduplicationKey = adminKey,
+                DueDate = birthday,
+                Description = description
+            });
+            try { await _db.SaveChangesAsync(); }
+            catch (DbUpdateException) { _db.ChangeTracker.Clear(); }
+        }
+    }
+
+    /// <summary>
+    /// Ensures birthday 24-hours-ahead action items exist for the given client. Always creates an
+    /// admin item (key "birthday_24h_{clientId}_{birthday:yyyy-MM-dd}_admin"). When instructorId
+    /// is provided, also creates an instructor-assigned item (key "birthday_24h_{clientId}_{birthday:yyyy-MM-dd}_user_{instructorId}").
+    /// Each item is independently idempotent. Concurrent insert races absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureBirthday24hActionItemAsync(int clientId, int? instructorId, DateOnly birthday)
+    {
+        var client = await _db.Clients.FindAsync(clientId);
+        var clientName = client?.Name ?? clientId.ToString();
+        var birthdayStr = birthday.ToString("yyyy-MM-dd");
+        var description = $"יום הולדת מחר: {clientName}.";
+
+        if (instructorId.HasValue)
+        {
+            var instructorKey = $"birthday_24h_{clientId}_{birthdayStr}_user_{instructorId.Value}";
+            var existingInstructor = await _db.ActionItems
+                .FirstOrDefaultAsync(a => a.DeduplicationKey == instructorKey && a.Status == ActionItemStatus.Open);
+            if (existingInstructor is null)
+            {
+                _db.ActionItems.Add(new ActionItem
+                {
+                    Type = ActionItemType.Birthday,
+                    Status = ActionItemStatus.Open,
+                    AssignedToRole = null,
+                    AssignedToUserId = instructorId.Value,
+                    RelatedEntityId = clientId,
+                    DeduplicationKey = instructorKey,
+                    DueDate = birthday,
+                    Description = description
+                });
+                try { await _db.SaveChangesAsync(); }
+                catch (DbUpdateException) { _db.ChangeTracker.Clear(); }
+            }
+        }
+
+        var adminKey = $"birthday_24h_{clientId}_{birthdayStr}_admin";
+        var existingAdmin = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == adminKey && a.Status == ActionItemStatus.Open);
+        if (existingAdmin is null)
+        {
+            _db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.Birthday,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.Admin,
+                AssignedToUserId = null,
+                RelatedEntityId = clientId,
+                DeduplicationKey = adminKey,
+                DueDate = birthday,
+                Description = description
+            });
+            try { await _db.SaveChangesAsync(); }
+            catch (DbUpdateException) { _db.ChangeTracker.Clear(); }
+        }
+    }
+
+    /// <summary>
+    /// Ensures exactly one Open tryout-followup action item exists for the given client+class pair.
+    /// Idempotent: an Open item with key "tryout_followup_{clientId}_{classId}" already present → no-op.
+    /// Concurrent insert races are absorbed via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureTryoutFollowupActionItemAsync(int clientId, int classId)
+    {
+        var dedupKey = $"tryout_followup_{clientId}_{classId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        var client = await _db.Clients.FindAsync(clientId);
+        var cls = await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
+
+        var clientName = client?.Name ?? clientId.ToString();
+        var className = cls?.Name ?? classId.ToString();
+
+        var item = new ActionItem
+        {
+            Type = ActionItemType.TryoutFollowup,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.CustomerService,
+            AssignedToUserId = null,
+            RelatedEntityId = clientId,
+            DeduplicationKey = dedupKey,
+            Description = $"מעקב ניסיון: יש ליצור קשר לגבי {clientName} (כיתה {className})."
+        };
+
+        _db.ActionItems.Add(item);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
 }
