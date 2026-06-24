@@ -13,6 +13,8 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<People.AcademicYear> AcademicYears => Set<People.AcademicYear>();
     public DbSet<People.School> Schools => Set<People.School>();
     public DbSet<People.Class> Classes => Set<People.Class>();
+    public DbSet<People.Client> Clients => Set<People.Client>();
+    public DbSet<People.Enrollment> Enrollments => Set<People.Enrollment>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -38,5 +40,18 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
         // Class name unique per school+year while Active (archived rows free the name).
         b.Entity<People.Class>().HasIndex(c => new { c.SchoolId, c.AcademicYearId, c.Name })
             .HasFilter("\"Status\" = 0").IsUnique();
+
+        // Client
+        b.Entity<People.Client>().Property(c => c.Name).HasMaxLength(200).IsRequired();
+
+        // Enrollment
+        b.Entity<People.Enrollment>().Property(e => e.Status).HasConversion<int>();
+        b.Entity<People.Enrollment>().HasOne(e => e.Client).WithMany(c => c.Enrollments)
+            .HasForeignKey(e => e.ClientId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<People.Enrollment>().HasOne(e => e.Class).WithMany(c => c.Enrollments)
+            .HasForeignKey(e => e.ClassId).OnDelete(DeleteBehavior.Restrict);
+        // One enrollment per (client, class) while not Dropped (Status 2 = Dropped → re-enroll allowed)
+        b.Entity<People.Enrollment>().HasIndex(e => new { e.ClientId, e.ClassId })
+            .HasFilter("\"Status\" <> 2").IsUnique();
     }
 }
