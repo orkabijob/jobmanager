@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Shared;
+using ActionHub = Orkabi.Web.Modules.ActionHub;
 using Curriculum = Orkabi.Web.Modules.Curriculum;
 using Operations = Orkabi.Web.Modules.Operations;
 using People = Orkabi.Web.Modules.People;
@@ -32,6 +33,9 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<Operations.ExtraHours> ExtraHours => Set<Operations.ExtraHours>();
     public DbSet<Operations.IncidentReport> IncidentReports => Set<Operations.IncidentReport>();
     public DbSet<Operations.VacationRequest> VacationRequests => Set<Operations.VacationRequest>();
+
+    public DbSet<ActionHub.ActionItem> ActionItems => Set<ActionHub.ActionItem>();
+    public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -201,5 +205,34 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
         b.Entity<Operations.VacationRequest>()
             .HasOne(v => v.ApprovedByUser).WithMany()
             .HasForeignKey(v => v.ApprovedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // ── ACTION HUB ───────────────────────────────────────────────────────
+        // NOT IArchivable — no query filter on ActionItem.
+
+        // ActionItem enum conversions
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Type).HasConversion<int>();
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Status).HasConversion<int>();
+
+        // ActionItem string lengths
+        b.Entity<ActionHub.ActionItem>().Property(a => a.AssignedToRole).HasMaxLength(50);
+        b.Entity<ActionHub.ActionItem>().Property(a => a.Description).HasMaxLength(1000).IsRequired();
+        b.Entity<ActionHub.ActionItem>().Property(a => a.DeduplicationKey).HasMaxLength(200);
+
+        // ActionItem FK → AspNetUsers (Restrict — user delete must be blocked)
+        b.Entity<ActionHub.ActionItem>()
+            .HasOne(a => a.AssignedToUser).WithMany()
+            .HasForeignKey(a => a.AssignedToUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // Partial unique index on DeduplicationKey: only non-null values must be unique
+        b.Entity<ActionHub.ActionItem>()
+            .HasIndex(a => a.DeduplicationKey)
+            .HasFilter("\"DeduplicationKey\" IS NOT NULL")
+            .IsUnique();
+
+        // ── OUTBOX ───────────────────────────────────────────────────────────
+        // NOT BaseEntity — infrastructure; audit interceptor does NOT touch OutboxEvent.
+
+        b.Entity<OutboxEvent>().Property(e => e.EventType).HasMaxLength(100).IsRequired();
+        b.Entity<OutboxEvent>().Property(e => e.Payload).IsRequired();
     }
 }
