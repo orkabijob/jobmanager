@@ -18,6 +18,11 @@ public class OperationsService
     public async Task<ExtraHours> SubmitExtraHoursAsync(
         int shiftInstanceId, int instructorId, decimal hours, string reason)
     {
+        var ownsShift = await _db.ShiftInstances.IgnoreQueryFilters()
+            .AnyAsync(i => i.Id == shiftInstanceId && i.ActualInstructorId == instructorId);
+        if (!ownsShift)
+            throw new InvalidOperationException("אין הרשאה לדווח עבור משמרת זו");
+
         var record = new ExtraHours
         {
             ShiftInstanceId = shiftInstanceId,
@@ -65,6 +70,11 @@ public class OperationsService
     public async Task<IncidentReport> SubmitIncidentReportAsync(
         int shiftInstanceId, int instructorId, IncidentSeverity severity, string description)
     {
+        var ownsShift = await _db.ShiftInstances.IgnoreQueryFilters()
+            .AnyAsync(i => i.Id == shiftInstanceId && i.ActualInstructorId == instructorId);
+        if (!ownsShift)
+            throw new InvalidOperationException("אין הרשאה לדווח עבור משמרת זו");
+
         var report = new IncidentReport
         {
             ShiftInstanceId = shiftInstanceId,

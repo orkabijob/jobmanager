@@ -187,4 +187,108 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => ops.ApproveVacationAsync(vac.Id, instructor.Id));
     }
+
+    // ── IDOR-lite ownership guards ────────────────────────────────────────────
+
+    /// <summary>
+    /// Seeds instructorA's shift and returns instructorB's Id alongside the
+    /// shared db + ops service, so we can verify the guard rejects the cross-owner call.
+    /// </summary>
+    private static async Task<(AppDbContext db, OperationsService ops, int shiftId, int instructorBId)>
+        SetupCrossOwnerAsync(SqliteFixture sqlite)
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var um = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+
+        // instructorA — owns the shift
+        var emailA = $"owner-a-{Guid.NewGuid():N}@test.test";
+        var instructorA = new AppUser { UserName = emailA, Email = emailA };
+        await um.CreateAsync(instructorA, "Passw0rd!");
+        await um.AddToRoleAsync(instructorA, AppRoles.Instructor);
+
+        // instructorB — will attempt to submit against A's shift
+        var emailB = $"intruder-b-{Guid.NewGuid():N}@test.test";
+        var instructorB = new AppUser { UserName = emailB, Email = emailB };
+        await um.CreateAsync(instructorB, "Passw0rd!");
+        await um.AddToRoleAsync(instructorB, AppRoles.Instructor);
+
+        var school = new Orkabi.Web.Modules.People.School { Name = "School-X", City = "Haifa" };
+        var year = new Orkabi.Web.Modules.People.AcademicYear
+        {
+            Label = $"Y-{Guid.NewGuid():N}"[..10],
+            StartDate = new DateOnly(2025, 9, 1),
+            EndDate = new DateOnly(2026, 6, 30)
+        };
+        db.Schools.Add(school);
+        db.AcademicYears.Add(year);
+        await db.SaveChangesAsync();
+
+        var cls = new Orkabi.Web.Modules.People.Class
+        {
+            Name = $"Cls-{Guid.NewGuid():N}"[..15],
+            SchoolId = school.Id,
+            AcademicYearId = year.Id,
+            Status = EntityStatus.Active
+        };
+        db.Classes.Add(cls);
+        await db.SaveChangesAsync();
+
+        var template = new ShiftTemplate
+        {
+            ClassId = cls.Id,
+            DefaultInstructorId = instructorA.Id,
+            DayOfWeek = DayOfWeek.Tuesday,
+            StartTime = new TimeOnly(8, 0),
+            EndTime = new TimeOnly(9, 0),
+            AcademicYearId = year.Id,
+            Status = EntityStatus.Active
+        };
+        db.ShiftTemplates.Add(template);
+        await db.SaveChangesAsync();
+
+        // shift belongs to instructorA
+        var shift = new ShiftInstance
+        {
+            TemplateId = template.Id,
+            ActualInstructorId = instructorA.Id,
+            Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)),
+            Status = ShiftInstanceStatus.Scheduled
+        };
+        db.ShiftInstances.Add(shift);
+        await db.SaveChangesAsync();
+
+        var opts = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(sqlite.ConnectionString)
+            .Options;
+        var freshDb = new AppDbContext(opts);
+        var ops = new OperationsService(freshDb);
+
+        return (freshDb, ops, shift.Id, instructorB.Id);
+    }
+
+    [Fact]
+    public async Task SubmitExtraHours_for_other_instructors_shift_throws()
+    {
+        var (db, ops, shiftId, instructorBId) = await SetupCrossOwnerAsync(_sqlite);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.SubmitExtraHoursAsync(shiftId, instructorBId, 1m, "ניסיון IDOR"));
+
+        var rowCount = await db.ExtraHours.CountAsync(e => e.ShiftInstanceId == shiftId);
+        Assert.Equal(0, rowCount);
+    }
+
+    [Fact]
+    public async Task SubmitIncident_for_other_instructors_shift_throws()
+    {
+        var (db, ops, shiftId, instructorBId) = await SetupCrossOwnerAsync(_sqlite);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.SubmitIncidentReportAsync(shiftId, instructorBId, IncidentSeverity.Low, "ניסיון IDOR"));
+
+        var rowCount = await db.IncidentReports.CountAsync(r => r.ShiftInstanceId == shiftId);
+        Assert.Equal(0, rowCount);
+    }
 }
