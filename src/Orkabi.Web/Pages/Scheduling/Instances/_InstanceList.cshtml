@@ -1,0 +1,65 @@
+@model Dictionary<DateOnly, List<Orkabi.Web.Modules.Scheduling.ShiftInstance>>
+@using Orkabi.Web.Modules.Scheduling
+
+<div id="instances-panel" class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+  @if (!Model.Any())
+  {
+    <div class="empty-state">
+      <p class="empty-state__title">אין מופעים בטווח זה</p>
+      <p class="empty-state__hint">לחצו על "צור מופעים" כדי לייצר מופעים מהתבניות הפעילות.</p>
+    </div>
+  }
+  else
+  {
+    @foreach (var group in Model)
+    {
+      <h3 class="date-group-head">@group.Key.ToString("dddd, d MMMM yyyy", new System.Globalization.CultureInfo("he-IL"))</h3>
+      <ul class="inst-list">
+        @foreach (var inst in group.Value)
+        {
+          <li class="inst-row">
+            <span class="inst-row__class">@inst.Template.Class.Name</span>
+            <span class="inst-row__time"><bdi class="num">@inst.Template.StartTime.ToString("HH:mm")–@inst.Template.EndTime.ToString("HH:mm")</bdi></span>
+            <span class="inst-row__who">
+              @if (inst.ActualInstructor is not null && inst.ActualInstructorId != inst.Template.DefaultInstructorId)
+              {
+                <span class="icon-directional" aria-hidden="true">⇄</span>
+                @(inst.ActualInstructor.FullName ?? inst.ActualInstructor.Email ?? "") <span style="color:var(--brand-ink-muted)">(החלפה)</span>
+              }
+              else if (inst.ActualInstructor is not null)
+              {
+                @(inst.ActualInstructor.FullName ?? inst.ActualInstructor.Email ?? "")
+              }
+              else
+              {
+                <span style="color:var(--brand-ink-muted)">—</span>
+              }
+            </span>
+            @if (inst.Status == ShiftInstanceStatus.Detached)
+            {
+              <span class="status-chip status-chip--muted">נערך ידנית</span>
+            }
+            else
+            {
+              var chipClass = inst.Status switch
+              {
+                ShiftInstanceStatus.Scheduled => "status-chip--active",
+                ShiftInstanceStatus.Completed => "status-chip--approved",
+                ShiftInstanceStatus.Cancelled => "status-chip--rejected",
+                _ => ""
+              };
+              var chipLabel = inst.Status switch
+              {
+                ShiftInstanceStatus.Scheduled => "מתוכנן",
+                ShiftInstanceStatus.Completed => "הושלם",
+                ShiftInstanceStatus.Cancelled => "בוטל",
+                _ => inst.Status.ToString()
+              };
+              <span class="status-chip @chipClass">@chipLabel</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>

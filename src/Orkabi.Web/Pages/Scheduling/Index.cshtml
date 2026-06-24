@@ -1,0 +1,53 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.IndexModel
+@{
+    ViewData["Title"] = "שיבוץ משמרות";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שיבוץ משמרות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט שיבוץ משמרות">
+      <a class="subnav__item is-active" href="/Scheduling">סקירה</a>
+      <a class="subnav__item" href="/Scheduling/Templates">תבניות</a>
+      <a class="subnav__item" href="/Scheduling/Instances">מופעים</a>
+      <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+    </nav>
+
+    <header class="page-head">
+      <div>
+        <h1 class="page-head__title">שיבוץ משמרות</h1>
+        <p class="page-head__sub">תבניות, מופעים והחלפות</p>
+      </div>
+    </header>
+
+    <div class="glass glass--tile people-panel hub-grid" style="--lg-tile-shadow: var(--lg-shadow);">
+      <a class="nav-card" href="/Scheduling/Templates">
+        <span class="nav-card__icon" aria-hidden="true">[T]</span>
+        <span class="nav-card__title">תבניות</span>
+        <span class="nav-card__desc">תבניות משמרות שבועיות חוזרות</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+      <a class="nav-card" href="/Scheduling/Instances">
+        <span class="nav-card__icon" aria-hidden="true">[I]</span>
+        <span class="nav-card__title">מופעים</span>
+        <span class="nav-card__desc">מופעי משמרות שנוצרו מתבניות</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+      <a class="nav-card" href="/Scheduling/Substitutions">
+        <span class="nav-card__icon" aria-hidden="true">[S]</span>
+        <span class="nav-card__title">החלפות</span>
+        <span class="nav-card__desc">בקשות החלפת מדריך הממתינות לאישור</span>
+        <span class="nav-card__count"><span class="icon-directional" aria-hidden="true">←</span></span>
+      </a>
+    </div>
+  </main>
+</div>

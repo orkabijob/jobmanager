@@ -1,0 +1,66 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.Substitutions.IndexModel
+@using Orkabi.Web.Modules.Scheduling
+@{
+    ViewData["Title"] = "בקשות החלפה";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שיבוץ משמרות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט שיבוץ משמרות">
+      <a class="subnav__item" href="/Scheduling">סקירה</a>
+      <a class="subnav__item" href="/Scheduling/Templates">תבניות</a>
+      <a class="subnav__item" href="/Scheduling/Instances">מופעים</a>
+      <a class="subnav__item is-active" href="/Scheduling/Substitutions">החלפות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">בקשות החלפה</h1>
+    </header>
+
+    @* Hidden form so antiforgery token is present in the DOM for HTMX requests *@
+    <form id="csrf-anchor" style="display:none">
+      @Html.AntiForgeryToken()
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Substitutions.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין בקשות החלפה ממתינות</p>
+          <p class="empty-state__hint">כל בקשות ההחלפה הפעילות יופיעו כאן.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">משמרת</th>
+              <th scope="col">תאריך</th>
+              <th scope="col">מבקש</th>
+              <th scope="col">מחליף</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var sub in Model.Substitutions)
+            {
+              @(await Html.PartialAsync("_SubRow", sub))
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

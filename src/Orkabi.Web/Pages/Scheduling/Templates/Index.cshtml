@@ -1,0 +1,84 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.Templates.IndexModel
+@using Orkabi.Web.Modules.Scheduling
+@using Orkabi.Web.Shared
+@{
+    ViewData["Title"] = "תבניות משמרות";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שיבוץ משמרות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט שיבוץ משמרות">
+      <a class="subnav__item" href="/Scheduling">סקירה</a>
+      <a class="subnav__item is-active" href="/Scheduling/Templates">תבניות</a>
+      <a class="subnav__item" href="/Scheduling/Instances">מופעים</a>
+      <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">תבניות משמרות</h1>
+      <a class="btn-primary" href="/Scheduling/Templates/Create">+ תבנית חדשה</a>
+    </header>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Templates.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין תבניות משמרת</p>
+          <p class="empty-state__hint">צרו תבנית כדי לייצר ממנה מופעים שבועיים.</p>
+          <a class="btn-primary" href="/Scheduling/Templates/Create">+ תבנית חדשה</a>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">כיתה</th>
+              <th scope="col">יום</th>
+              <th scope="col">שעות</th>
+              <th scope="col">מדריך קבוע</th>
+              <th scope="col">שנה</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var t in Model.Templates)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@t.Class.Name</td>
+                <td class="data-cell">@Orkabi.Web.Pages.Scheduling.Templates.IndexModel.DayName(t.DayOfWeek)</td>
+                <td class="data-cell"><bdi class="num">@t.StartTime.ToString("HH:mm")–@t.EndTime.ToString("HH:mm")</bdi></td>
+                <td class="data-cell">@(t.DefaultInstructor.FullName ?? t.DefaultInstructor.Email)</td>
+                <td class="data-cell">@t.AcademicYear.Label</td>
+                <td class="data-cell">
+                  @if (t.Status == EntityStatus.Active)
+                  {
+                    <span class="status-chip status-chip--active">פעיל</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--archived">ארכיון</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm" href="/Scheduling/Templates/Edit/@t.Id">עריכה</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

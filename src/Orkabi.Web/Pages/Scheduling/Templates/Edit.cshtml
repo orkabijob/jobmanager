@@ -1,0 +1,101 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.Scheduling.Templates.EditModel
+@{
+    ViewData["Title"] = "עריכת תבנית";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שיבוץ משמרות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט שיבוץ משמרות">
+      <a class="subnav__item" href="/Scheduling">סקירה</a>
+      <a class="subnav__item is-active" href="/Scheduling/Templates">תבניות</a>
+      <a class="subnav__item" href="/Scheduling/Instances">מופעים</a>
+      <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Scheduling/Templates">תבניות</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>עריכת תבנית</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">עריכת תבנית</h1>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="ClassId">כיתה <span class="req">*</span></label>
+          <select id="ClassId" asp-for="Input.ClassId" asp-items="Model.ClassItems">
+            <option value="">— בחרו כיתה —</option>
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.ClassId"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="DayOfWeek">יום בשבוע <span class="req">*</span></label>
+          <select id="DayOfWeek" asp-for="Input.DayOfWeek">
+            <option value="0">ראשון</option>
+            <option value="1">שני</option>
+            <option value="2">שלישי</option>
+            <option value="3">רביעי</option>
+            <option value="4">חמישי</option>
+            <option value="5">שישי</option>
+            <option value="6">שבת</option>
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.DayOfWeek"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="StartTime">שעת התחלה <span class="req">*</span></label>
+          <input id="StartTime" asp-for="Input.StartTime" type="time" />
+          <p class="form-field__error" asp-validation-for="Input.StartTime"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="EndTime">שעת סיום <span class="req">*</span></label>
+          <input id="EndTime" asp-for="Input.EndTime" type="time" />
+          <p class="form-field__error" asp-validation-for="Input.EndTime"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="DefaultInstructorId">מדריך קבוע <span class="req">*</span></label>
+          <select id="DefaultInstructorId" asp-for="Input.DefaultInstructorId" asp-items="Model.InstructorItems">
+            <option value="">— בחרו מדריך —</option>
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.DefaultInstructorId"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="AcademicYearId">שנת לימודים <span class="req">*</span></label>
+          <select id="AcademicYearId" asp-for="Input.AcademicYearId" asp-items="Model.AcademicYearItems">
+            <option value="">— בחרו שנה —</option>
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.AcademicYearId"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="StatusValue">סטטוס</label>
+          <select id="StatusValue" asp-for="Input.StatusValue">
+            <option value="Active">פעיל</option>
+            <option value="Archived">ארכיון</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Scheduling/Templates">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת שינויים</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
