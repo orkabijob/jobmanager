@@ -44,7 +44,10 @@ public class SupplyPacingService
         {
             // Check if a LessonLog exists for (classId, modelId).
             // LessonLog → ShiftInstance → Template → ClassId.
+            // IgnoreQueryFilters: ShiftTemplate has a global filter (Status == Active);
+            // without it, a LessonLog taught under a since-archived template is silently excluded.
             var hasLessonLog = await _db.LessonLogs
+                .IgnoreQueryFilters()
                 .AnyAsync(l => l.ModelId == sm.ModelId
                              && l.ShiftInstance.Template.ClassId == classId, ct);
 
@@ -133,9 +136,12 @@ public class SupplyPacingService
 
     /// <summary>
     /// Lists orders, optionally filtered by status and/or classId, with Class and Model included.
+    /// IgnoreQueryFilters: Class has a global filter (Status == Active); without it, the Class
+    /// navigation property is silently nulled for orders whose class has been archived.
     /// </summary>
     public Task<List<LogisticsOrder>> ListOrdersAsync(LogisticsOrderStatus? status, int? classId, CancellationToken ct = default) =>
         _db.LogisticsOrders
+            .IgnoreQueryFilters()
             .Where(o => (status == null || o.Status == status)
                      && (classId == null || o.ClassId == classId))
             .Include(o => o.Class)

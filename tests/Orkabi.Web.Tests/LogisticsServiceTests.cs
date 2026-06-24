@@ -221,6 +221,48 @@ public class LogisticsServiceTests : IClassFixture<SqliteFixture>
         Assert.Empty(created);
     }
 
+    [Fact]
+    public async Task SeedOrders_seeds_even_when_shift_template_archived()
+    {
+        // Arrange: build the full chain (class → syllabus → model → ShiftTemplate →
+        // ShiftInstance → LessonLog), then ARCHIVE the ShiftTemplate.
+        // Without IgnoreQueryFilters on the LessonLog check, the archived template
+        // causes the LessonLog to be silently excluded and zero orders are created.
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var syllabus = await SeedSyllabusWithModelAsync(db, model.Id);
+        cls.SyllabusId = syllabus.Id;
+        await db.SaveChangesAsync();
+
+        var instructor = await SeedInstructorAsync(sp);
+        // SeedLessonLogAsync creates an Active ShiftTemplate internally.
+        await SeedLessonLogAsync(db, cls.Id, model.Id, instructor.Id);
+
+        // Archive the ShiftTemplate so the global query filter (Status == Active) would
+        // hide it — and, by navigational inference, hide the LessonLog too.
+        var template = await db.ShiftTemplates.IgnoreQueryFilters()
+            .FirstAsync(t => t.ClassId == cls.Id);
+        template.Status = EntityStatus.Archived;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        // Act
+        var created = await svc.SeedOrdersForClassAsync(cls.Id);
+
+        // Assert: exactly one Pending order for (cls, model) — proving the archived
+        // template no longer hides the lesson log.
+        Assert.Single(created);
+        Assert.Equal(LogisticsOrderStatus.Pending, created[0].Status);
+        Assert.Equal(cls.Id, created[0].ClassId);
+        Assert.Equal(model.Id, created[0].ModelId);
+    }
+
     // ── MarkPackedAsync ───────────────────────────────────────────────────────
 
     [Fact]
