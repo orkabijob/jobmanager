@@ -133,23 +133,28 @@ app.UseAuthorization();
 // (the request scope — and its AppDbContext — is disposed once the response finishes, so the
 // drainer cannot borrow it). Errors are logged inside the drainer; the dedup-key index is the
 // backstop against a concurrent double-drain. The dedicated BackgroundService is Slice 4.
-var drainScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
-app.Use(async (ctx, next) =>
+// Skipped under Testing: tests call IOutboxDrainer.DrainAsync() directly; the detached Task.Run
+// would otherwise race SqliteFixture.Dispose() file-deletion causing intermittent IOException.
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    await next(ctx);
-    if (ctx.User.Identity?.IsAuthenticated == true)
+    var drainScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
+    app.Use(async (ctx, next) =>
     {
-        _ = Task.Run(async () =>
+        await next(ctx);
+        if (ctx.User.Identity?.IsAuthenticated == true)
         {
-            try
+            _ = Task.Run(async () =>
             {
-                using var scope = drainScopeFactory.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<IOutboxDrainer>().DrainAsync();
-            }
-            catch { /* already logged inside the drainer */ }
-        });
-    }
-});
+                try
+                {
+                    using var scope = drainScopeFactory.CreateScope();
+                    await scope.ServiceProvider.GetRequiredService<IOutboxDrainer>().DrainAsync();
+                }
+                catch { /* already logged inside the drainer */ }
+            });
+        }
+    });
+}
 
 app.MapRazorPages();
 
