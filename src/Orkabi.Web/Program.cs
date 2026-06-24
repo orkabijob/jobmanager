@@ -21,6 +21,7 @@ builder.Services.AddScoped<Orkabi.Web.Modules.People.ClientService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.People.EnrollmentService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.IShiftInstanceGenerator, Orkabi.Web.Modules.Scheduling.ShiftInstanceGenerator>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.SchedulingService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.Curriculum.CurriculumService>();
 
 var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
 builder.Services.AddDbContext<AppDbContext>((sp, o) =>
