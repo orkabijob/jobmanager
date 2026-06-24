@@ -14,6 +14,11 @@ builder.Services.AddRazorPages();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<AuditSaveChangesInterceptor>();
+builder.Services.AddScoped<Orkabi.Web.Modules.People.AcademicYearService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.People.SchoolService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.People.ClassService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.People.ClientService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.People.EnrollmentService>();
 
 var dbProvider = builder.Configuration["Database:Provider"] ?? "Npgsql";
 builder.Services.AddDbContext<AppDbContext>((sp, o) =>
