@@ -6,13 +6,14 @@ Orkabi (Hebrew: **עורקבי**) is a role-based, 100%-Hebrew RTL web app for a
 
 ---
 
-## ✅ Status: Slices 0 + 1 + 2 + 3 are COMPLETE, deployed, and LIVE. Slice 4 in progress.
+## ✅ Status: Slices 0 + 1 + 2 + 3 + 4 are COMPLETE, deployed, and LIVE. Slice 5 (final) in progress.
 
-- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`; CS/Admin manage People at `/People`, Curriculum at `/Curriculum`, Scheduling at `/Scheduling`, Operations at `/Operations`; instructors take attendance from `/Dashboard/Instructor`)
-- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`; Slice-3 merge `758a2a6`)
-- **Tests:** 134/134 green (`dotnet test`). Build clean.
-- **Slice 3 deploy verified:** anonymous `/Operations/Vacations` + `/Operations` → 302 → login, `/health` → ok. Boot `MigrateAsync` applied `AddOperations`/`AddActionHubAndOutbox`/`AddVacationReason` on real Neon.
-- **Slice 3 delivers:** Operations (Extra-Hours / Incident / Vacation, single-approval) + the **Outbox + Action-Item kernel** + the **Real-Gap monitor** (Lesson_Log save → same-transaction OutboxEvent → opportunistic drain → Admin Action_Item, dedup-keyed) + a minimal Admin Action-Items read page. Drain currently fires via an opportunistic middleware (gated off under Testing); the in-process **BackgroundService scheduler is Slice 4**.
+- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`; CS/Admin manage People at `/People`, Curriculum at `/Curriculum`, Scheduling at `/Scheduling`, Operations at `/Operations`, Logistics at `/Logistics/Orders`; instructors take attendance from `/Dashboard/Instructor`)
+- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`; Slice-4 merge `08ca895`)
+- **Tests:** 201/201 green (`dotnet test`). Build clean.
+- **Slice 4 deploy verified:** anonymous `/Logistics/Orders` → 302 → login, `/health` → ok. Boot `MigrateAsync` applied `AddLogistics`/`AddJobExecutionLog` on real Neon; the in-process **DailyJobScheduler** is running.
+- **Slice 4 delivers:** Logistics_Order + the **dispute loop** (`SupplyPacingService`: seed → Packed → Accepted/Disputed; Disputed → urgent Admin Action_Item) + Logistics pages; the in-process **`DailyJobScheduler` BackgroundService** (5-min PeriodicTimer Asia/Jerusalem, **catch-up-on-wake**, scope-per-run, Testing-gated, drains the outbox each tick) running **birthday + shift-gen** daily jobs via a timer-free `IDailyJobRunner`, with **`JobExecutionLog`** (unique `(JobName,ScheduledFor)`) exactly-once; **event-driven automations** — double-consecutive-absence + deferred tryout-followup (same-tx OutboxEvents + new drainer branches) and **mass-dropout** (`ClientService.DeactivateAsync`, wired from the Clients/Edit deactivation path); and **6 new dedup-keyed Action_Item creators**.
+- **Slice 3 delivers:** Operations (Extra-Hours / Incident / Vacation, single-approval) + the **Outbox + Action-Item kernel** + the **Real-Gap monitor** (Lesson_Log save → same-transaction OutboxEvent → drain → Admin Action_Item, dedup-keyed) + a minimal Admin Action-Items read page.
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.
@@ -50,9 +51,8 @@ See `docs/superpowers/plans/2026-06-23-orkabi-roadmap.md`.
 - **Slice 1 — People.** ✅ LIVE
 - **Slice 2 — Curriculum + Scheduling.** ✅ LIVE. Models, Syllabus (+ ordered Syllabus_Models), `Class.SyllabusId` FK, Shift_Template→Instance with `ShiftInstanceGenerator`, `Substitution_Request` + **date-scoped resource authorization** (service guard `CanAccessShiftAsync`), `Lesson_Log` (+ `expected_lessons_snapshot`), Attendance via optimistic `/api/attendance` (idempotency key) + lesson-log HTMX pacing; HTMX self-hosted + antiforgery-wired in `_Layout`; the signature instructor attendance surface (Blue-Jay monolith + tap-to-mark). `TimeOnly` shift times stored as `text` (EF9-SQLite value-converter parity — tech-debt only if time-range SQL is needed later).
 - **Slice 3 — Operations + Real-Gap.** ✅ LIVE. Extra_Hours, Incident_Report, Vacation_Request (single-approval), the **Outbox + Action_Item kernel**, and the Real-Gap pacing monitor.
-- **Slice 4 — Logistics + Automations.** 🔄 IN PROGRESS (branch `slice-4-logistics-automations`). Logistics_Order + dispute loop, `SupplyPacingService`, the in-process **`BackgroundService` scheduler with catch-up-on-wake** + `JobExecutionLog` (birthdays, shift-gen), event-driven absence/drop-out, deferred tryout follow-up.
-- **Slice 4 — Logistics + Automations.** Logistics_Order + dispute loop, `SupplyPacingService`, the in-process `BackgroundService` scheduler with catch-up-on-wake + `JobExecutionLog`.
-- **Slice 5 — Action Hub + real dashboards.** `Action_Item` ticketing + replace the **placeholder** Admin bento data with real metrics; Logistics packing list, CS surfaces, syllabus-management.
+- **Slice 4 — Logistics + Automations.** ✅ LIVE. Logistics_Order + dispute loop, `SupplyPacingService`, the in-process **`DailyJobScheduler` BackgroundService with catch-up-on-wake** + `JobExecutionLog` (birthdays, shift-gen), event-driven double-absence + mass-drop-out, deferred tryout follow-up, 6 dedup-keyed Action_Item creators.
+- **Slice 5 — Action Hub + real dashboards.** 🔄 IN PROGRESS (branch `slice-5-action-hub-dashboards`). `Action_Item` resolve flow (clears dedup key) + role-aware polling Action Hub; replace the **placeholder** Admin bento with real metrics; CS/Logistics/Instructor dashboard surfaces; Logistics master packing list; syllabus-management; carryover polish (shared shell partial, save-success toasts, dynamic greeting).
 
 ---
 
