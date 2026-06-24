@@ -49,6 +49,10 @@ public class GoogleSchemeTests
         }
         finally
         {
+            // Release pooled SQLite handles before deleting the file, or Windows throws
+            // "file in use" (the factory's DbContext connection is pooled, not closed).
+            // Mirrors SqliteFixture.Dispose(); fixes the intermittent file-lock flake.
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }
