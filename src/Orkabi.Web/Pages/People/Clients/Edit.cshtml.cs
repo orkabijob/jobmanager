@@ -69,14 +69,26 @@ public class EditModel : PageModel
         if (client is null)
             return NotFound();
 
+        var priorIsActive = client.IsActive;
+        var transitioningToInactive = priorIsActive && !Input.IsActive;
+
         client.Name = Input.Name;
         client.ParentPhone = string.IsNullOrWhiteSpace(Input.ParentPhone) ? null : Input.ParentPhone;
         client.Age = Input.Age;
         client.Birthday = Input.Birthday;
         client.Address = string.IsNullOrWhiteSpace(Input.Address) ? null : Input.Address;
-        client.IsActive = Input.IsActive;
+
+        // When transitioning active→inactive, do NOT set IsActive=false here.
+        // DeactivateAsync (called below) owns that transition and runs the mass-dropout check.
+        // Setting IsActive=false before calling DeactivateAsync would cause the idempotent
+        // guard in DeactivateAsync to see the client already inactive and skip the check.
+        if (!transitioningToInactive)
+            client.IsActive = Input.IsActive;
 
         await _clients.UpdateAsync(client);
+
+        if (transitioningToInactive)
+            await _clients.DeactivateAsync(client.Id);
 
         return RedirectToPage("Index");
     }
