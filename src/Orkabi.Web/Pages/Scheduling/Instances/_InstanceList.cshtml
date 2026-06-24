@@ -5,15 +5,18 @@
   @if (!Model.Any())
   {
     <div class="empty-state">
-      <p class="empty-state__title">אין מופעים בטווח זה</p>
-      <p class="empty-state__hint">לחצו על "צור מופעים" כדי לייצר מופעים מהתבניות הפעילות.</p>
+      <p class="empty-state__title">אין מופעים בטווח</p>
+      <p class="empty-state__hint">צרו מופעים מהתבניות הקיימות.</p>
     </div>
   }
   else
   {
     @foreach (var group in Model)
     {
-      <h3 class="date-group-head">@group.Key.ToString("dddd, d MMMM yyyy", new System.Globalization.CultureInfo("he-IL"))</h3>
+      var heCulture = new System.Globalization.CultureInfo("he-IL");
+      var weekday = group.Key.ToString("dddd", heCulture);
+      var dayMonth = group.Key.ToString("d MMMM", heCulture);
+      <h3 class="date-group-head">@weekday, <bdi class="num">@dayMonth</bdi></h3>
       <ul class="inst-list">
         @foreach (var inst in group.Value)
         {

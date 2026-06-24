@@ -1,5 +1,6 @@
 @model Orkabi.Web.Modules.Scheduling.SubstitutionRequest
 @using Orkabi.Web.Modules.Scheduling
+@using Orkabi.Web.Shared
 
 <tr class="data-row sub-row" id="sub-row-@Model.Id">
   <td class="data-cell data-cell--primary">
@@ -41,11 +42,22 @@
         דחה
       </button>
     }
+    else if (Model.Status == SubstitutionStatus.Approved)
+    {
+      var approverName = Model.ApprovedByUser?.FullName ?? "—";
+      var approvedLocal = Model.ApprovedAt.HasValue
+          ? TimeZoneInfo.ConvertTimeFromUtc(Model.ApprovedAt.Value, IsraelClock.IsraelTz)
+          : (DateTime?)null;
+      var approvedDate = approvedLocal.HasValue
+          ? approvedLocal.Value.ToString("dd.MM.yyyy")
+          : "—";
+      <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">
+        אושר ע״י @approverName · <bdi class="num">@approvedDate</bdi>
+      </span>
+    }
     else
     {
-      <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">
-        @(Model.Status == SubstitutionStatus.Approved ? "אושר" : "נדחה")
-      </span>
+      <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">נדחה</span>
     }
   </td>
 </tr>

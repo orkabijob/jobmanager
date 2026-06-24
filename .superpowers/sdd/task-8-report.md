@@ -71,3 +71,32 @@ tests/Orkabi.Web.Tests/SchedulingPagesTests.cs
 
 - Hidden `<form id="csrf-anchor">` on the Substitutions page exists to expose the antiforgery token for the `AntiForgery.Extract` test helper. In production HTMX reads from the `<meta name="htmx-csrf">` tag injected by `_Layout.cshtml`. The form is harmless.
 - `_InstanceList.cshtml` compares `inst.ActualInstructorId != inst.Template.DefaultInstructorId` (nullable int vs int) — works correctly; null produces false (no substitution indicator).
+
+---
+
+## Review Fix Pass — 2026-06-24
+
+### Finding 1 (Important): Approved-substitution audit meta — `_SubRow.cshtml`
+- Added `@using Orkabi.Web.Shared` to bring `IsraelClock` into scope.
+- In the `else if (Approved)` branch of the actions cell, replaced the plain "אושר" text span with the design §5 pattern: `אושר ע״י {name} · <bdi class="num">{dd.MM.yyyy}</bdi>`.
+- `ApprovedAt` (UTC `DateTime?`) is converted via `TimeZoneInfo.ConvertTimeFromUtc(..., IsraelClock.IsraelTz)` before formatting.
+- `ApprovedByUser?.FullName` falls back to `"—"` if nav not loaded; `ApprovedAt` null also falls back to `"—"`.
+- Denied/rejected row shows a plain `נדחה` text span (no change needed — status chip in the Status column already shows it).
+
+### Finding 2 (Important): Date-group header RTL numerals — `_InstanceList.cshtml`
+- Replaced the single `ToString("dddd, d MMMM yyyy", he-IL)` call with two calls: `"dddd"` for the Hebrew weekday name, and `"d MMMM"` for the day+month.
+- Only the day+month portion is wrapped in `<bdi class="num">` per design §0/§5.
+- Year is omitted from the group header (spec says weekday + day+month only).
+- Variable declarations placed inline inside the `@foreach` block (no nested `@{}` — Razor already in code context).
+
+### Finding 3 (Minor): Page title — `Instances/Index.cshtml`
+- Changed both `ViewData["Title"]` and `<h1>` from `מופעי משמרות` to `מופעי משמרת` (singular, per spec).
+
+### Finding 4 (Minor): Empty-state copy alignment
+- `_InstanceList.cshtml`: title `אין מופעים בטווח`, hint `צרו מופעים מהתבניות הקיימות.`
+- `Substitutions/Index.cshtml`: hint changed to `בקשות חדשות יופיעו כאן לאישור.` (title unchanged: `אין בקשות החלפה ממתינות`).
+
+### Test results
+- `dotnet build` — 0 warnings, 0 errors.
+- `dotnet test --filter SchedulingPagesTests` — Passed: 5/5.
+- `dotnet test` (full suite) — Passed: 78/78.
