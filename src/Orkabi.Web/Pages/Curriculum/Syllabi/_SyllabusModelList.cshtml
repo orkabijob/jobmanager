@@ -1,0 +1,52 @@
+@model Orkabi.Web.Modules.Curriculum.Syllabus
+@{
+    var items = Model?.SyllabusModels?.OrderBy(sm => sm.OrderIndex).ToList()
+                ?? new List<Orkabi.Web.Modules.Curriculum.SyllabusModel>();
+}
+<ul id="syllabus-models" class="syl-model-list" role="list">
+  @if (!items.Any())
+  {
+    <li style="list-style: none;">
+      <div class="empty-state" style="padding-block: var(--sp-8);">
+        <p class="empty-state__title">אין דגמים בסילבוס</p>
+        <p class="empty-state__hint">הוסיפו דגמים וקבעו את סדר ההוראה.</p>
+      </div>
+    </li>
+  }
+  else
+  {
+    @foreach (var sm in items)
+    {
+      <li class="syl-model-row">
+        <span class="syl-model-row__order" aria-hidden="true">⟨<bdi class="num">@sm.OrderIndex</bdi>⟩</span>
+        <span class="syl-model-row__name">@sm.Model.Name</span>
+        <span class="syl-model-row__lessons"><bdi class="num">@sm.Model.ExpectedLessonsToComplete</bdi> שיעורים</span>
+        <span class="syl-model-row__links">
+          @if (!string.IsNullOrWhiteSpace(sm.Model.MaterialLink))
+          {
+            <a class="link-chip" href="@sm.Model.MaterialLink" target="_blank" rel="noopener">
+              חומר <span class="icon-directional" aria-hidden="true">↗</span>
+            </a>
+          }
+          @if (!string.IsNullOrWhiteSpace(sm.Model.VideoLink))
+          {
+            <a class="link-chip" href="@sm.Model.VideoLink" target="_blank" rel="noopener">
+              וידאו <span class="icon-directional" aria-hidden="true">↗</span>
+            </a>
+          }
+        </span>
+        <span class="syl-model-row__ctl">
+          <button class="row-ctl" @(sm.OrderIndex == 1 ? "disabled" : "") aria-label="העבר מעלה"
+                  hx-post="?handler=MoveUp&modelId=@sm.ModelId"
+                  hx-target="#syllabus-models" hx-swap="outerHTML">▲</button>
+          <button class="row-ctl" @(sm.OrderIndex == items.Count ? "disabled" : "") aria-label="העבר מטה"
+                  hx-post="?handler=MoveDown&modelId=@sm.ModelId"
+                  hx-target="#syllabus-models" hx-swap="outerHTML">▼</button>
+          <button class="row-ctl row-ctl--remove" aria-label="הסר דגם מהסילבוס"
+                  hx-post="?handler=Remove&modelId=@sm.ModelId"
+                  hx-target="#syllabus-models" hx-swap="outerHTML">✕</button>
+        </span>
+      </li>
+    }
+  }
+</ul>

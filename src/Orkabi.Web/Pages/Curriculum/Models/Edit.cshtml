@@ -1,0 +1,76 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.Curriculum.Models.EditModel
+@{
+    ViewData["Title"] = "עריכת דגם";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">תכנית לימודים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תכנית לימודים">
+      <a class="subnav__item" href="/Curriculum">סקירה</a>
+      <a class="subnav__item" href="/Curriculum/Syllabi">סילבוסים</a>
+      <a class="subnav__item is-active" href="/Curriculum/Models">דגמים</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Curriculum/Models">דגמים</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>@Model.Input.Name</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">עריכת דגם</h1>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם הדגם <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="ExpectedLessons">
+            שיעורים צפויים <span class="req">*</span>
+          </label>
+          <input id="ExpectedLessons" asp-for="Input.ExpectedLessonsToComplete" type="number" min="1" />
+          <p class="form-field__error" asp-validation-for="Input.ExpectedLessonsToComplete"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="MaterialLink">
+            קישור לחומר <span class="opt">(לא חובה)</span>
+          </label>
+          <input id="MaterialLink" asp-for="Input.MaterialLink" type="url"
+                 inputmode="url" dir="ltr" placeholder="https://example.com/material" />
+          <p class="form-field__error" asp-validation-for="Input.MaterialLink"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="VideoLink">
+            קישור לוידאו <span class="opt">(לא חובה)</span>
+          </label>
+          <input id="VideoLink" asp-for="Input.VideoLink" type="url"
+                 inputmode="url" dir="ltr" placeholder="https://example.com/video" />
+          <p class="form-field__error" asp-validation-for="Input.VideoLink"></p>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Curriculum/Models">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת דגם</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

@@ -1,0 +1,141 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.Curriculum.Syllabi.EditModel
+@using Orkabi.Web.Shared
+@{
+    ViewData["Title"] = Model.SyllabusName;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">תכנית לימודים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט תכנית לימודים">
+      <a class="subnav__item" href="/Curriculum">סקירה</a>
+      <a class="subnav__item is-active" href="/Curriculum/Syllabi">סילבוסים</a>
+      <a class="subnav__item" href="/Curriculum/Models">דגמים</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Curriculum/Syllabi">סילבוסים</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>@Model.SyllabusName</span>
+    </nav>
+
+    <header class="page-head" style="margin-block-start: var(--sp-4);">
+      <div>
+        <h1 class="page-head__title">@Model.SyllabusName</h1>
+        <p class="page-head__sub">
+          @if (Model.SyllabusStatus == EntityStatus.Active)
+          {
+            <span class="status-chip status-chip--active">פעיל</span>
+          }
+          else
+          {
+            <span class="status-chip status-chip--archived">בארכיון</span>
+          }
+          <bdi class="num" style="margin-inline-start: var(--sp-2);">
+            @Model.Input.StartDate.ToString("dd.MM.yy")–@Model.Input.EndDate.ToString("dd.MM.yy")
+          </bdi>
+        </p>
+      </div>
+    </header>
+
+    <!-- Syllabus metadata form -->
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-end: var(--sp-6);">
+      <h2 class="form-panel__title" style="font-size: var(--t-admin-title);">פרטי הסילבוס</h2>
+      <form method="post" class="form-grid">
+        <div asp-validation-summary="ModelOnly" class="form-field__error"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Name">
+            שם הסילבוס <span class="req">*</span>
+          </label>
+          <input id="Name" asp-for="Input.Name" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.Name"></p>
+        </div>
+
+        <div class="form-grid--2col">
+          <div class="form-field">
+            <label class="form-field__label" for="StartDate">
+              תאריך התחלה <span class="req">*</span>
+            </label>
+            <input id="StartDate" asp-for="Input.StartDate" type="date" />
+            <p class="form-field__error" asp-validation-for="Input.StartDate"></p>
+          </div>
+
+          <div class="form-field">
+            <label class="form-field__label" for="EndDate">
+              תאריך סיום <span class="req">*</span>
+            </label>
+            <input id="EndDate" asp-for="Input.EndDate" type="date" />
+            <p class="form-field__error" asp-validation-for="Input.EndDate"></p>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label">סטטוס</label>
+          <div class="segment" role="radiogroup" aria-label="סטטוס סילבוס">
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.StatusValue" value="Active" />
+              <span>פעיל</span>
+            </label>
+            <label class="segment__opt">
+              <input type="radio" asp-for="Input.StatusValue" value="Archived" />
+              <span>בארכיון</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Curriculum/Syllabi">ביטול</a>
+          <button type="submit" class="btn-primary">שמירת פרטים</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Ordered model list -->
+    <div class="glass glass--tile curriculum-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      <div class="section-label">
+        דגמים בסדר ההוראה
+        @{
+          var items = Model.Syllabus?.SyllabusModels?.OrderBy(sm => sm.OrderIndex).ToList() ?? new();
+          var totalLessons = items.Sum(sm => sm.Model?.ExpectedLessonsToComplete ?? 0);
+        }
+        @if (items.Any())
+        {
+          <span class="list-summary">
+            <bdi class="num">@items.Count</bdi> דגמים · כ־<bdi class="num">@totalLessons</bdi> שיעורים
+          </span>
+        }
+      </div>
+
+      <partial name="_SyllabusModelList" model="Model.Syllabus" />
+
+      <!-- Add model form -->
+      @if (Model.AvailableModels.Any())
+      {
+        <form hx-post="?handler=AddModel" hx-target="#syllabus-models" hx-swap="outerHTML"
+              style="margin-block-start: var(--sp-4); display: flex; gap: var(--sp-3); align-items: flex-end; flex-wrap: wrap;">
+          <div class="form-field" style="flex: 1; min-inline-size: 200px;">
+            <label class="form-field__label" for="AddModelId">הוספת דגם</label>
+            <select id="AddModelId" name="addModelId" class="form-select">
+              <option value="">בחרו דגם להוספה…</option>
+              @foreach (var m in Model.AvailableModels)
+              {
+                <option value="@m.Id">@m.Name (<bdi class="num">@m.ExpectedLessonsToComplete</bdi> שיעורים)</option>
+              }
+            </select>
+          </div>
+          <button type="submit" class="btn-primary" style="margin-block-end: 0;">+ הוסף דגם</button>
+        </form>
+      }
+    </div>
+  </main>
+</div>

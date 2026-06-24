@@ -1218,6 +1218,48 @@ body { margin: 0; line-height: var(--lh-normal); }
 .status-pill--on:hover { background: var(--brand); color: #fff; }
 
 /* ============================================================
+   SLICE 2 §4 — Curriculum: ordered model rows, link chips, row controls
+   ============================================================ */
+.curriculum-panel { padding: var(--sp-6); }
+.list-summary { font-weight: var(--fw-regular); text-transform: none; letter-spacing: 0;
+  color: var(--brand-ink-muted); margin-inline-start: var(--sp-2); }
+.syl-model-list { list-style: none; margin: var(--sp-3) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--sp-2); }
+.syl-model-row { display: flex; align-items: center; gap: var(--sp-3);
+  padding-block: var(--sp-3); padding-inline: var(--sp-4);
+  background: rgba(var(--brand-rgb), .04); border: 1px solid rgba(var(--brand-rgb), .09);
+  border-radius: var(--radius-chip); }
+.syl-model-row__order { flex: 0 0 auto; font-family: var(--font-num); font-weight: var(--fw-bold);
+  color: var(--brand); font-size: var(--t-admin-body); }
+.syl-model-row__name { flex: 1; min-inline-size: 0; font-size: var(--t-admin-body);
+  font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.syl-model-row__lessons { flex: 0 0 auto; font-size: var(--t-admin-meta); color: var(--brand-ink-muted); }
+.syl-model-row__links { display: flex; gap: var(--sp-1); flex: 0 0 auto; }
+.syl-model-row__ctl { display: flex; gap: var(--sp-1); flex: 0 0 auto; }
+.link-chip { display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--t-admin-meta); font-weight: var(--fw-medium); color: var(--brand);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .16);
+  border-radius: var(--radius-pill); padding-block: 2px; padding-inline: var(--sp-2);
+  text-decoration: none; }
+.link-chip:hover { background: rgba(var(--brand-rgb), .12); }
+.row-ctl { inline-size: 28px; block-size: 28px; border-radius: 50%;
+  border: 1px solid rgba(var(--brand-rgb), .14); background: transparent;
+  color: var(--brand-ink-muted); cursor: pointer; line-height: 1; font-size: 12px;
+  transition: background var(--dur-fast) var(--ease-glass), color var(--dur-fast) var(--ease-glass); }
+.row-ctl:hover:not(:disabled) { background: rgba(var(--brand-rgb), .10); color: var(--brand); }
+.row-ctl:disabled { opacity: .35; cursor: default; }
+.row-ctl--remove:hover { background: var(--absent-soft); color: var(--absent); border-color: rgba(178,58,72,.3); }
+.htmx-indicator { opacity: 0; transition: opacity var(--dur-fast) var(--ease-glass); }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  #syllabus-models.htmx-settling { animation: lg-fade-up var(--dur-fast) var(--ease-glass) both; }
+}
+@media (max-width: 767px) {
+  .syl-model-row { flex-wrap: wrap; }
+  .syl-model-row__links, .syl-model-row__ctl { margin-inline-start: auto; }
+}
+
+/* ============================================================
    Universal fallback — @supports not backdrop-filter
    ============================================================ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -1225,6 +1267,8 @@ body { margin: 0; line-height: var(--lh-normal); }
   .auth-field input, .auth-card input { background: var(--lg-fill-solid); }
   .form-field input, .form-field select, .form-field textarea, .form-select { background: var(--lg-fill-solid); }
   .data-table thead th { background: var(--lg-fill-solid); }
+  .att-sheet, .attendance-panel { background: var(--lg-fill-solid); }
+  .att-sheet__header { background: transparent; }
 }
 
 /* ============================================================
