@@ -39,6 +39,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
 
     public DbSet<Logistics.LogisticsOrder> LogisticsOrders => Set<Logistics.LogisticsOrder>();
+    public DbSet<JobExecutionLog> JobExecutionLogs => Set<JobExecutionLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -254,5 +255,14 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 
         b.Entity<OutboxEvent>().Property(e => e.EventType).HasMaxLength(100).IsRequired();
         b.Entity<OutboxEvent>().Property(e => e.Payload).IsRequired();
+
+        // ── JOB EXECUTION LOG ────────────────────────────────────────────────
+        // NOT BaseEntity — infrastructure; audit interceptor does NOT touch JobExecutionLog.
+        // Unique (JobName, ScheduledFor) is the idempotency gate: duplicate insert → DbUpdateException.
+
+        b.Entity<JobExecutionLog>().Property(j => j.JobName).HasMaxLength(100).IsRequired();
+        b.Entity<JobExecutionLog>().Property(j => j.Status).HasConversion<int>();
+        b.Entity<JobExecutionLog>()
+            .HasIndex(j => new { j.JobName, j.ScheduledFor }).IsUnique();
     }
 }
