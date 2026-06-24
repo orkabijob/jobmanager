@@ -1,0 +1,151 @@
+@page
+@model Orkabi.Web.Pages.People.Clients.IndexModel
+@{
+    ViewData["Title"] = "לקוחות";
+    var activeOnly = Model.ActiveOnly ?? true;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item is-active" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">לקוחות</h1>
+      <a class="btn-primary" href="/People/Clients/Create">+ לקוח חדש</a>
+    </header>
+
+    <form class="search-bar" method="get" role="search">
+      <input class="search-bar__input" name="q" type="search" value="@Model.Q"
+             placeholder="חיפוש לפי שם או טלפון…" aria-label="חיפוש לקוחות">
+      <input type="hidden" name="activeOnly" value="@(activeOnly ? "true" : "false")" />
+    </form>
+
+    <form class="clients-filter-rail" method="get">
+      <input type="hidden" name="q" value="@Model.Q" />
+      <div class="status-pill-rail">
+        <button type="submit" name="activeOnly" value="true"
+                class="status-pill @(activeOnly ? "status-pill--on" : "")">
+          פעילים
+        </button>
+        <button type="submit" name="activeOnly" value="false"
+                class="status-pill @(!activeOnly ? "status-pill--on" : "")">
+          כולם
+        </button>
+      </div>
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Clients.Any())
+      {
+        @if (!string.IsNullOrWhiteSpace(Model.Q))
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🔍</span>
+            <p class="empty-state__title">לא נמצאו תוצאות</p>
+            <p class="empty-state__hint">נסו מונח חיפוש אחר.</p>
+          </div>
+        }
+        else
+        {
+          <div class="empty-state">
+            <span class="empty-state__icon" aria-hidden="true">🎓</span>
+            <p class="empty-state__title">אין לקוחות עדיין</p>
+            <p class="empty-state__hint">הוסיפו תלמיד כדי לשבץ אותו לכיתות.</p>
+            <a class="btn-primary" href="/People/Clients/Create">+ לקוח חדש</a>
+          </div>
+        }
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">שם</th>
+              <th scope="col">טלפון הורה</th>
+              <th scope="col">גיל</th>
+              <th scope="col">יום הולדת</th>
+              <th scope="col">כתובת</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var c in Model.Clients)
+            {
+              <tr class="data-row @(!c.IsActive ? "data-row--muted" : "")">
+                <td class="data-cell data-cell--primary">@c.Name</td>
+                <td class="data-cell">
+                  @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
+                  {
+                    <bdi class="num">@c.ParentPhone</bdi>
+                  }
+                  else
+                  {
+                    <span>—</span>
+                  }
+                </td>
+                <td class="data-cell">
+                  @if (c.Age.HasValue)
+                  {
+                    <bdi class="num">@c.Age</bdi>
+                  }
+                  else
+                  {
+                    <span>—</span>
+                  }
+                </td>
+                <td class="data-cell">
+                  @if (c.Birthday.HasValue)
+                  {
+                    <bdi class="num">@c.Birthday.Value.ToString("dd.MM.yyyy")</bdi>
+                  }
+                  else
+                  {
+                    <span>—</span>
+                  }
+                </td>
+                <td class="data-cell">
+                  @if (!string.IsNullOrWhiteSpace(c.Address))
+                  {
+                    @c.Address
+                  }
+                  else
+                  {
+                    <span>—</span>
+                  }
+                </td>
+                <td class="data-cell">
+                  @if (c.IsActive)
+                  {
+                    <span class="status-chip status-chip--active">פעיל</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--off">לא פעיל</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm" href="/People/Clients/Edit/@c.Id">עריכה</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>
