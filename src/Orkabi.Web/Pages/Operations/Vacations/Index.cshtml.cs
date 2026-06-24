@@ -75,6 +75,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostApproveAsync(int id)
     {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _ops.ApproveVacationAsync(id, userId);
         var vac = await LoadVacationRecordAsync(id);
@@ -84,6 +85,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostRejectAsync(int id)
     {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _ops.DenyVacationAsync(id, userId, null);
         var vac = await LoadVacationRecordAsync(id);

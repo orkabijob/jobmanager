@@ -197,18 +197,125 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
-    public async Task Instructor_403_on_approve_extrahours_handler()
+    public async Task Instructor_cannot_approve_extrahours_via_handler()
     {
-        var (factory, client, _) = await CreateInstructorClientAsync(_sqlite, "_403_xh");
-        var getResp = await client.GetAsync("/Operations/ExtraHours");
-        // Instructor sees submit form (OK), but if they try to POST Approve...
-        // The page handler is on the same page but only admin can see it effectively.
-        // Test: instructor GETs the page — OK; they don't see the approval table
+        var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_403_xh");
+        var (adminFactory, _, adminUserId) = await CreateAdminClientAsync(_sqlite, "_403_xh_admin");
+
+        int xhId;
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var school = new School { Name = $"Sch-403xh-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+            var year = new AcademicYear { Label = $"Y-403xh-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school);
+            db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+
+            var cls = new Class { Name = $"C-403xh-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.Classes.Add(cls);
+            await db.SaveChangesAsync();
+
+            var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = instrUserId, DayOfWeek = DayOfWeek.Thursday, StartTime = new TimeOnly(8, 0), EndTime = new TimeOnly(9, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.ShiftTemplates.Add(template);
+            await db.SaveChangesAsync();
+
+            var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instrUserId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)), Status = ShiftInstanceStatus.Scheduled };
+            db.ShiftInstances.Add(shift);
+            await db.SaveChangesAsync();
+
+            var xh = new Orkabi.Web.Modules.Operations.ExtraHours { ShiftInstanceId = shift.Id, InstructorId = instrUserId, Hours = 1m, Reason = "הכנה", Status = ExtraHoursStatus.Pending };
+            db.ExtraHours.Add(xh);
+            await db.SaveChangesAsync();
+            xhId = xh.Id;
+        }
+
+        // GET the page as instructor to obtain antiforgery token
+        var getResp = await instrClient.GetAsync("/Operations/ExtraHours");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
-        var body = System.Net.WebUtility.HtmlDecode(await getResp.Content.ReadAsStringAsync());
-        Assert.DoesNotContain("אישור שעות נוספות", body); // admin heading
-        Assert.Contains("דיווח שעות נוספות", body); // instructor heading
-        factory.Dispose();
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        // Instructor attempts to POST to the Approve handler
+        var postResp = await instrClient.PostAsync($"/Operations/ExtraHours?handler=Approve&id={xhId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+
+        // Cookie auth redirects Forbid() to AccessDenied — assert denied (not 200 success)
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.Contains("AccessDenied", postResp.Headers.Location?.ToString());
+
+        // Record must still be Pending — not approved
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var record = await db.ExtraHours.FindAsync(xhId);
+            Assert.Equal(ExtraHoursStatus.Pending, record!.Status);
+        }
+
+        instrFactory.Dispose();
+        adminFactory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_cannot_approve_or_reject_vacation_via_handler()
+    {
+        var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_403_vac");
+        var (adminFactory, _, _) = await CreateAdminClientAsync(_sqlite, "_403_vac_admin");
+
+        int vacId;
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+            var vac = new VacationRequest
+            {
+                InstructorId = instrUserId,
+                StartDate = today.AddDays(3),
+                EndDate = today.AddDays(7),
+                Status = VacationStatus.Pending
+            };
+            db.VacationRequests.Add(vac);
+            await db.SaveChangesAsync();
+            vacId = vac.Id;
+        }
+
+        // GET the vacations page as instructor to obtain antiforgery token
+        var getResp = await instrClient.GetAsync("/Operations/Vacations");
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        // Instructor attempts to POST to the Approve handler — cookie auth redirects Forbid() to AccessDenied
+        var approveResp = await instrClient.PostAsync($"/Operations/Vacations?handler=Approve&id={vacId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, approveResp.StatusCode);
+        Assert.Contains("AccessDenied", approveResp.Headers.Location?.ToString());
+
+        // Record must still be Pending after attempted approval
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var record = await db.VacationRequests.FindAsync(vacId);
+            Assert.Equal(VacationStatus.Pending, record!.Status);
+        }
+
+        // Instructor attempts to POST to the Reject handler (fresh token)
+        var getResp2 = await instrClient.GetAsync("/Operations/Vacations");
+        var token2 = AntiForgery.Extract(await getResp2.Content.ReadAsStringAsync());
+        var rejectResp = await instrClient.PostAsync($"/Operations/Vacations?handler=Reject&id={vacId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token2 }));
+        Assert.Equal(HttpStatusCode.Redirect, rejectResp.StatusCode);
+        Assert.Contains("AccessDenied", rejectResp.Headers.Location?.ToString());
+
+        // Record must still be Pending after attempted rejection
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var record = await db.VacationRequests.FindAsync(vacId);
+            Assert.Equal(VacationStatus.Pending, record!.Status);
+        }
+
+        instrFactory.Dispose();
+        adminFactory.Dispose();
     }
 
     [Fact]

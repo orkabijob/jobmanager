@@ -67,6 +67,7 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostApproveAsync(int id)
     {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await _ops.ApproveExtraHoursAsync(id, userId);
         var record = await LoadExtraHoursRecordAsync(id);
