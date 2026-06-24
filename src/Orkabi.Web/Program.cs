@@ -25,6 +25,7 @@ builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.SchedulingService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Curriculum.CurriculumService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.ActionHub.ActionItemService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Operations.OperationsService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.Logistics.SupplyPacingService>();
 builder.Services.AddScoped<IOutboxDrainer, OutboxDrainer>();
 builder.Services.AddScoped<Orkabi.Web.Jobs.IDailyJobRunner, Orkabi.Web.Jobs.DailyJobService>();
 builder.Services.AddHostedService<Orkabi.Web.Jobs.DailyJobScheduler>();
