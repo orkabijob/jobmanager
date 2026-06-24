@@ -129,7 +129,7 @@
               <option value="">בחרו דגם להוספה…</option>
               @foreach (var m in Model.AvailableModels)
               {
-                <option value="@m.Id">@m.Name (<bdi class="num">@m.ExpectedLessonsToComplete</bdi> שיעורים)</option>
+                <option value="@m.Id">@m.Name (@m.ExpectedLessonsToComplete שיעורים)</option>
               }
             </select>
           </div>
