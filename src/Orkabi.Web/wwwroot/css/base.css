@@ -1708,3 +1708,39 @@ body { margin: 0; line-height: var(--lh-normal); }
   align-items: start;
 }
 .dash-grid__wide { grid-column: 1 / -1; }   /* a tile that should span the row */
+
+/* ---- §4 Packing list — grouped print-friendly sheet ---- */
+.pack-group { margin-block-end: var(--sp-6); }
+.pack-group:last-child { margin-block-end: 0; }
+.pack-group__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
+  padding-block-end: var(--sp-2); margin-block-end: var(--sp-3);
+  border-block-end: 1px solid rgba(var(--brand-rgb), .14);
+}
+.pack-group__title { margin: 0; font-size: var(--t-admin-title); font-weight: var(--fw-bold); color: var(--brand-ink); }
+.pack-group__total {
+  font-size: var(--t-admin-label); font-weight: var(--fw-semibold); color: var(--brand);
+  white-space: nowrap;
+}
+.pack-table { max-inline-size: 480px; }   /* a packing table is narrow (label + qty) */
+
+/* ---- §4 Print stylesheet — the packing list prints clean (the one justified
+        print block in the app). Strips glass/blur/chrome → black-on-white. ---- */
+@media print {
+  body { background: #fff !important; }
+  body::before { display: none !important; }                 /* kill the photo/mesh scrim */
+  .dash-topbar, .subnav, .page-head .segment, .page-head .btn-primary,
+  .hub-poll, .htmx-indicator { display: none !important; }   /* chrome + controls off */
+  .glass, .glass--tile, .pack-sheet {
+    background: #fff !important; box-shadow: none !important; border: 0 !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  .glass::before, .glass__lens, .glass--lensed::after { display: none !important; }
+  .page-head__title { color: #000 !important; }
+  .pack-group { break-inside: avoid; page-break-inside: avoid; }
+  .pack-group__head { border-block-end: 1px solid #000 !important; }
+  .pack-group__title, .pack-group__total { color: #000 !important; }
+  .data-table thead th { background: #fff !important; color: #000 !important; border-block-end: 1px solid #000 !important; }
+  .data-cell { color: #000 !important; }
+  .data-row + .data-row .data-cell { border-block-start: 1px solid #ccc !important; }
+}

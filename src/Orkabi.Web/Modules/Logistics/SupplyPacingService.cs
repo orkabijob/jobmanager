@@ -135,6 +135,23 @@ public class SupplyPacingService
     }
 
     /// <summary>
+    /// Returns all Pending and Packed orders for the master packing list, grouped by
+    /// School → Class → Status. Includes Class → School and Model navigations.
+    /// IgnoreQueryFilters: Class has a global filter (Status == Active); archived classes
+    /// must still be reachable so historic Pending/Packed orders are not silently dropped.
+    /// </summary>
+    public Task<List<LogisticsOrder>> GetPackingListAsync(CancellationToken ct = default) =>
+        _db.LogisticsOrders
+            .IgnoreQueryFilters()
+            .Where(o => o.Status == LogisticsOrderStatus.Pending || o.Status == LogisticsOrderStatus.Packed)
+            .Include(o => o.Class).ThenInclude(c => c.School)
+            .Include(o => o.Model)
+            .OrderBy(o => o.Class.School.Name)
+            .ThenBy(o => o.Class.Name)
+            .ThenBy(o => o.Status)
+            .ToListAsync(ct);
+
+    /// <summary>
     /// Lists orders, optionally filtered by status and/or classId, with Class and Model included.
     /// IgnoreQueryFilters: Class has a global filter (Status == Active); without it, the Class
     /// navigation property is silently nulled for orders whose class has been archived.

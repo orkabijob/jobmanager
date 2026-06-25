@@ -1,0 +1,136 @@
+@page
+@model Orkabi.Web.Pages.Logistics.PackingList.IndexModel
+@using Orkabi.Web.Modules.Logistics
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "רשימת אריזה";
+    var isAdmin = User.IsInRole(AppRoles.Admin);
+    var isInstructor = User.IsInRole(AppRoles.Instructor);
+    var isLogistics = User.IsInRole(AppRoles.Logistics);
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">לוגיסטיקה</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט לוגיסטיקה">
+      <a class="subnav__item" href="/Logistics/Orders">הזמנות</a>
+      @if (isAdmin || isInstructor)
+      {
+        <a class="subnav__item" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
+      }
+      @if (isAdmin || isLogistics)
+      {
+        <a class="subnav__item is-active" href="/Logistics/PackingList">רשימת אריזה</a>
+      }
+    </nav>
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">רשימת אריזה</h1>
+        <p class="page-head__sub">כל ההזמנות הממתינות לאריזה, מקובצות לאיסוף</p>
+      </div>
+      <div style="display:flex;gap:var(--sp-3);align-items:center;">
+        <form method="get" class="segment" role="radiogroup" aria-label="קיבוץ לפי">
+          <label class="segment__opt">
+            <input type="radio" name="groupBy" value="model"
+                   @(Model.GroupBy == "model" ? "checked" : "")
+                   onchange="this.form.submit()">
+            <span>דגם</span>
+          </label>
+          <label class="segment__opt">
+            <input type="radio" name="groupBy" value="class"
+                   @(Model.GroupBy == "class" ? "checked" : "")
+                   onchange="this.form.submit()">
+            <span>כיתה</span>
+          </label>
+        </form>
+        <form id="csrf-anchor" style="display:none">
+          @Html.AntiForgeryToken()
+        </form>
+        <button type="button" class="btn-primary" onclick="window.print()">
+          <span aria-hidden="true">🖨</span> הדפסה
+        </button>
+      </div>
+    </div>
+
+    <div class="glass glass--tile people-panel pack-sheet" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Groups.Any())
+      {
+        <div class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">📦</span>
+          <p class="empty-state__title">אין הזמנות ממתינות לאריזה</p>
+          <p class="empty-state__hint">כל ההזמנות נארזו או טרם נוצרו.</p>
+        </div>
+      }
+      else
+      {
+        @foreach (var g in Model.Groups)
+        {
+          <section class="pack-group">
+            <header class="pack-group__head">
+              <h2 class="pack-group__title">
+                @(Model.GroupBy == "model" ? "דגם" : "כיתה") "@g.Name"
+              </h2>
+              <span class="pack-group__total">סה״כ: <bdi class="num">@g.TotalQuantity</bdi> ערכות</span>
+            </header>
+            <table class="data-table pack-table">
+              <thead>
+                <tr>
+                  <th scope="col">@(Model.GroupBy == "model" ? "כיתה" : "דגם")</th>
+                  <th scope="col">כמות</th>
+                  <th scope="col">סטטוס</th>
+                  <th scope="col" class="data-table__actions-col">פעולות</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var line in g.Lines)
+                {
+                  <tr class="data-row" id="pack-row-@line.OrderId">
+                    <td class="data-cell data-cell--primary">@line.Label</td>
+                    <td class="data-cell"><bdi class="num">@line.Quantity</bdi></td>
+                    <td class="data-cell">
+                      @switch (line.Status)
+                      {
+                        case LogisticsOrderStatus.Pending:
+                          <span class="status-chip status-chip--pending">ממתין</span>
+                          break;
+                        case LogisticsOrderStatus.Packed:
+                          <span class="status-chip status-chip--packed">נארז</span>
+                          break;
+                        default:
+                          <span class="status-chip status-chip--muted">@line.Status</span>
+                          break;
+                      }
+                    </td>
+                    <td class="data-cell data-cell--actions">
+                      @if (line.Status == LogisticsOrderStatus.Pending)
+                      {
+                        <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
+                                hx-post="?handler=Pack&id=@line.OrderId"
+                                hx-target="#pack-row-@line.OrderId"
+                                hx-swap="outerHTML"
+                                hx-include="#csrf-anchor">ארוז</button>
+                      }
+                      else
+                      {
+                        <span style="color:var(--brand-ink-muted);">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+      }
+    </div>
+  </main>
+</div>
