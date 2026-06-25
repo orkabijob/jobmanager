@@ -424,4 +424,209 @@ public class DashboardMetricsTests : IClassFixture<SqliteFixture>
         for (int i = 0; i < metrics.RecentOpenItems.Count - 1; i++)
             Assert.True(metrics.RecentOpenItems[i].CreatedAt >= metrics.RecentOpenItems[i + 1].CreatedAt);
     }
+
+    // ─── CS Metrics ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CsMetrics_CsTicketCount_equals_open_CS_role_action_items()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var before = await db.ActionItems.CountAsync(a =>
+            a.Status == ActionItemStatus.Open && a.AssignedToRole == AppRoles.CustomerService);
+
+        const int N = 3;
+        for (int i = 0; i < N; i++)
+            db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.TryoutFollowup,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.CustomerService,
+                Description = $"cs-ticket-{i}"
+            });
+        await db.SaveChangesAsync();
+
+        var metrics = await svc.GetCsMetricsAsync();
+
+        Assert.Equal(before + N, metrics.CsTickets.Count);
+    }
+
+    [Fact]
+    public async Task CsMetrics_TryoutsThisMonth_counts_Tryout_status_enrollments_enrolled_this_month()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var nowUtc = DateTime.UtcNow;
+        var firstOfMonthUtc = new DateTime(nowUtc.Year, nowUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastMonthUtc = firstOfMonthUtc.AddMonths(-1);
+
+        var (school, year) = await SeedSchoolAndYearAsync(db);
+        var cls = await SeedClassAsync(db, school, year);
+        var client1 = new Client { Name = $"tryout-{Guid.NewGuid():N}", IsActive = true };
+        var client2 = new Client { Name = $"tryout-{Guid.NewGuid():N}", IsActive = true };
+        var client3 = new Client { Name = $"tryout-{Guid.NewGuid():N}", IsActive = true };
+        db.Clients.AddRange(client1, client2, client3);
+        await db.SaveChangesAsync();
+
+        // 2 tryouts this month, 1 tryout last month, 1 active (not tryout) this month
+        var e1 = new Enrollment { ClientId = client1.Id, ClassId = cls.Id, Status = EnrollmentStatus.Tryout, EnrolledAt = firstOfMonthUtc.AddDays(1) };
+        var e2 = new Enrollment { ClientId = client2.Id, ClassId = cls.Id, Status = EnrollmentStatus.Tryout, EnrolledAt = firstOfMonthUtc.AddDays(2) };
+        var e3 = new Enrollment { ClientId = client3.Id, ClassId = cls.Id, Status = EnrollmentStatus.Tryout, EnrolledAt = lastMonthUtc.AddDays(1) };
+        db.Enrollments.AddRange(e1, e2, e3);
+        await db.SaveChangesAsync();
+
+        var before = await db.Enrollments.CountAsync(e =>
+            e.Status == EnrollmentStatus.Tryout && e.EnrolledAt >= firstOfMonthUtc);
+
+        var metrics = await svc.GetCsMetricsAsync();
+
+        // before already includes e1 and e2 (they were seeded above)
+        Assert.Equal(before, metrics.TryoutsThisMonth);
+    }
+
+    [Fact]
+    public async Task CsMetrics_ActiveClientsCount_matches_IsActive_count()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var before = await db.Clients.CountAsync(c => c.IsActive);
+
+        db.Clients.AddRange(
+            new Client { Name = $"active-cs-{Guid.NewGuid():N}", IsActive = true },
+            new Client { Name = $"active-cs-{Guid.NewGuid():N}", IsActive = true },
+            new Client { Name = $"inactive-cs-{Guid.NewGuid():N}", IsActive = false }
+        );
+        await db.SaveChangesAsync();
+
+        var metrics = await svc.GetCsMetricsAsync();
+
+        Assert.Equal(before + 2, metrics.ActiveClientsCount);
+    }
+
+    [Fact]
+    public async Task CsMetrics_NewClientsThisMonth_counts_active_clients_created_this_month()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var now = DateTime.UtcNow;
+        var thisMonthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var lastMonth = thisMonthStart.AddMonths(-1);
+
+        var beforeCount = await db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= thisMonthStart);
+
+        var c1 = new Client { Name = $"new-cs-{Guid.NewGuid():N}", IsActive = true };
+        var c2 = new Client { Name = $"new-cs-{Guid.NewGuid():N}", IsActive = true };
+        var c3 = new Client { Name = $"old-cs-{Guid.NewGuid():N}", IsActive = true };
+        db.Clients.AddRange(c1, c2, c3);
+        await db.SaveChangesAsync();
+
+#pragma warning disable EF1002
+        await db.Database.ExecuteSqlRawAsync(
+            $"UPDATE \"Clients\" SET \"CreatedAt\" = '{thisMonthStart:yyyy-MM-dd HH:mm:ss}' WHERE \"Id\" IN ({c1.Id},{c2.Id})");
+        await db.Database.ExecuteSqlRawAsync(
+            $"UPDATE \"Clients\" SET \"CreatedAt\" = '{lastMonth:yyyy-MM-dd HH:mm:ss}' WHERE \"Id\" IN ({c3.Id})");
+#pragma warning restore EF1002
+
+        var metrics = await svc.GetCsMetricsAsync();
+
+        Assert.Equal(beforeCount + 2, metrics.NewClientsThisMonth);
+    }
+
+    // ─── Logistics Metrics ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task LogisticsMetrics_LogisticsTicketCount_equals_open_Logistics_role_action_items()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var before = await db.ActionItems.CountAsync(a =>
+            a.Status == ActionItemStatus.Open && a.AssignedToRole == AppRoles.Logistics);
+
+        const int N = 4;
+        for (int i = 0; i < N; i++)
+            db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.Dispute,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.Logistics,
+                Description = $"logistics-ticket-{i}"
+            });
+        await db.SaveChangesAsync();
+
+        var metrics = await svc.GetLogisticsMetricsAsync();
+
+        Assert.Equal(before + N, metrics.LogisticsTickets.Count);
+    }
+
+    [Fact]
+    public async Task LogisticsMetrics_PendingOrders_counts_Pending_status_orders()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var (school, year) = await SeedSchoolAndYearAsync(db);
+        var cls = await SeedClassAsync(db, school, year);
+        var model = await SeedModelAsync(db);
+
+        var before = await db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Pending);
+
+        db.LogisticsOrders.AddRange(
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Pending },
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 2, Status = LogisticsOrderStatus.Pending },
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 3, Status = LogisticsOrderStatus.Packed }
+        );
+        await db.SaveChangesAsync();
+
+        var metrics = await svc.GetLogisticsMetricsAsync();
+
+        Assert.Equal(before + 2, metrics.PendingOrders);
+    }
+
+    [Fact]
+    public async Task LogisticsMetrics_OrdersByStatus_groups_correctly()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var (school, year) = await SeedSchoolAndYearAsync(db);
+        var cls = await SeedClassAsync(db, school, year);
+        var model = await SeedModelAsync(db);
+
+        var beforePending = await db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Pending);
+        var beforePacked = await db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Packed);
+        var beforeDisputed = await db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Disputed);
+
+        db.LogisticsOrders.AddRange(
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Pending },
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 2, Status = LogisticsOrderStatus.Packed },
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 3, Status = LogisticsOrderStatus.Packed },
+            new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 4, Status = LogisticsOrderStatus.Disputed }
+        );
+        await db.SaveChangesAsync();
+
+        var metrics = await svc.GetLogisticsMetricsAsync();
+
+        Assert.Equal(beforePending + 1, metrics.PendingOrders);
+        Assert.Equal(beforePacked + 2, metrics.PackedOrders);
+        Assert.Equal(beforeDisputed + 1, metrics.DisputedOrders);
+    }
 }

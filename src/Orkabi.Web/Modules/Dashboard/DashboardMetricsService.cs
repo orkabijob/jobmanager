@@ -4,6 +4,7 @@ using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.Logistics;
 using Orkabi.Web.Modules.Operations;
+using Orkabi.Web.Modules.People;
 using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Modules.Dashboard;
@@ -96,6 +97,54 @@ public class DashboardMetricsService
             RecentOpenItems = await recentOpenTask,
         };
     }
+
+    public async Task<CsMetrics> GetCsMetricsAsync()
+    {
+        // Israel time for month boundary
+        var nowUtc = DateTime.UtcNow;
+        var nowIsrael = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, IsraelClock.IsraelTz);
+        var firstOfMonthIsrael = new DateTime(nowIsrael.Year, nowIsrael.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
+        var firstOfMonthUtc = TimeZoneInfo.ConvertTimeToUtc(firstOfMonthIsrael, IsraelClock.IsraelTz);
+
+        var csTicketsTask = _actionItemService.ListOpenForRoleAsync(AppRoles.CustomerService);
+        var activeClientsTask = _db.Clients.CountAsync(c => c.IsActive);
+        var newClientsTask = _db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= firstOfMonthUtc);
+        var tryoutsThisMonthTask = _db.Enrollments.CountAsync(e =>
+            e.Status == EnrollmentStatus.Tryout && e.EnrolledAt >= firstOfMonthUtc);
+
+        await Task.WhenAll(csTicketsTask, activeClientsTask, newClientsTask, tryoutsThisMonthTask);
+
+        return new CsMetrics
+        {
+            CsTickets = await csTicketsTask,
+            ActiveClientsCount = await activeClientsTask,
+            NewClientsThisMonth = await newClientsTask,
+            TryoutsThisMonth = await tryoutsThisMonthTask,
+        };
+    }
+
+    public async Task<LogisticsMetrics> GetLogisticsMetricsAsync()
+    {
+        var logisticsTicketsTask = _actionItemService.ListOpenForRoleAsync(AppRoles.Logistics);
+        var ordersByStatusTask = _db.LogisticsOrders
+            .GroupBy(o => o.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var pendingOrdersTask = _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Pending);
+
+        await Task.WhenAll(logisticsTicketsTask, ordersByStatusTask, pendingOrdersTask);
+
+        var byStatus = (await ordersByStatusTask).ToDictionary(x => x.Status, x => x.Count);
+
+        return new LogisticsMetrics
+        {
+            LogisticsTickets = await logisticsTicketsTask,
+            PendingOrders = await pendingOrdersTask,
+            PackedOrders = byStatus.TryGetValue(LogisticsOrderStatus.Packed, out var p) ? p : 0,
+            DisputedOrders = byStatus.TryGetValue(LogisticsOrderStatus.Disputed, out var d) ? d : 0,
+            OrdersByStatus = byStatus,
+        };
+    }
 }
 
 /// <summary>
@@ -138,4 +187,43 @@ public sealed record AdminMetrics
 
     /// <summary>Top 5 Open items across all roles/users, newest first — for the alerts feed tile.</summary>
     public List<ActionItem> RecentOpenItems { get; init; } = new();
+}
+
+/// <summary>
+/// DTO returned by GetCsMetricsAsync. Real data from ActionItems + Clients + Enrollments.
+/// </summary>
+public sealed record CsMetrics
+{
+    /// <summary>All Open ActionItems assigned to CustomerService role.</summary>
+    public List<ActionItem> CsTickets { get; init; } = new();
+
+    /// <summary>Clients with IsActive == true.</summary>
+    public int ActiveClientsCount { get; init; }
+
+    /// <summary>Active clients created since first of the current month (Israel time → UTC boundary).</summary>
+    public int NewClientsThisMonth { get; init; }
+
+    /// <summary>Enrollments with Status == Tryout whose EnrolledAt is >= first of the current month.</summary>
+    public int TryoutsThisMonth { get; init; }
+}
+
+/// <summary>
+/// DTO returned by GetLogisticsMetricsAsync. Real data from ActionItems + LogisticsOrders.
+/// </summary>
+public sealed record LogisticsMetrics
+{
+    /// <summary>All Open ActionItems assigned to Logistics role.</summary>
+    public List<ActionItem> LogisticsTickets { get; init; } = new();
+
+    /// <summary>LogisticsOrders with Status == Pending.</summary>
+    public int PendingOrders { get; init; }
+
+    /// <summary>LogisticsOrders with Status == Packed.</summary>
+    public int PackedOrders { get; init; }
+
+    /// <summary>LogisticsOrders with Status == Disputed.</summary>
+    public int DisputedOrders { get; init; }
+
+    /// <summary>All orders grouped by status → count (for future extensibility).</summary>
+    public Dictionary<LogisticsOrderStatus, int> OrdersByStatus { get; init; } = new();
 }

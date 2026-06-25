@@ -1,21 +1,95 @@
 @page
 @model CsModel
+@using Orkabi.Web.Modules.ActionHub
 @{
     ViewData["Title"] = "לוח בקרה — שירות לקוחות";
 }
 
 <div class="dash-shell">
+
+  <!-- Sticky glass topbar -->
   <header class="glass glass--nav dash-topbar">
     <a href="/" class="dash-topbar__wordmark">עורקבי</a>
     <span class="dash-topbar__title">שירות לקוחות</span>
     <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
       <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
     </nav>
   </header>
+
   <main class="dash-body">
-    <div class="glass glass--tile dash-stub">
-      <span class="dash-stub__title">שירות לקוחות</span>
-      <p class="dash-stub__text">כאן יוצגו לשון הלקוחות, בקשות שירות וניהול פניות. הממשק בפיתוח.</p>
-    </div>
+    <div class="dash-grid">
+
+      <!-- [1] Tickets tile (wide) — CS open action items -->
+      <div class="glass glass--tile dash-grid__wide">
+        <div class="tile-head">
+          <span class="tile-head__label">המשימות שלי</span>
+          <a href="/Operations/ActionItems" class="tile-head__action">פתח את המרכז</a>
+        </div>
+        @if (Model.CsTickets.Count == 0)
+        {
+          <div class="focal-tile__empty">
+            <div class="focal-tile__icon" aria-hidden="true">✓</div>
+            <p class="focal-tile__hint">אין משימות פתוחות. מעקבי ניסיון והתראות יופיעו כאן.</p>
+          </div>
+        }
+        else
+        {
+          <ul class="hub-mini" role="list">
+            @foreach (var item in Model.CsTickets.Take(5))
+            {
+              <li class="hub-mini__item">
+                <span class="action-type @CsModel.TypeToCssModifier(item.Type)">
+                  <span class="action-type__dot" aria-hidden="true"></span>@CsModel.TypeToHebrew(item.Type)
+                </span>
+                <a href="/Operations/ActionItems" class="hub-mini__desc">@item.Description</a>
+              </li>
+            }
+          </ul>
+          @if (Model.CsTickets.Count > 5)
+          {
+            <a href="/Operations/ActionItems" class="hub-mini__more">
+              עוד <bdi class="num">@(Model.CsTickets.Count - 5)</bdi> משימות פתוחות ←
+            </a>
+          }
+        }
+      </div>
+
+      <!-- [2] Stats tile — client data -->
+      <div class="glass glass--tile">
+        <div class="tile-head">
+          <span class="tile-head__label">נתוני לקוחות</span>
+        </div>
+        <ul class="stat-list" role="list">
+          <li class="stat-row">
+            <span class="stat-row__label">לקוחות פעילים</span>
+            <a class="stat-row__value" href="/People/Clients"><bdi class="num">@Model.ActiveClients</bdi></a>
+          </li>
+          <li class="stat-row">
+            <span class="stat-row__label">ניסיונות החודש</span>
+            <span class="stat-row__value"><bdi class="num">@Model.TryoutsThisMonth</bdi></span>
+          </li>
+          <li class="stat-row">
+            <span class="stat-row__label">לקוחות חדשים החודש</span>
+            <span class="stat-row__value"><bdi class="num">@Model.NewClientsThisMonth</bdi></span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- [3] Quick links hub-grid (wide) -->
+      <div class="dash-grid__wide hub-grid">
+        <a href="/People/Clients" class="nav-card">
+          <span class="nav-card__title">לקוחות</span>
+        </a>
+        <a href="/People/Classes" class="nav-card">
+          <span class="nav-card__title">כיתות</span>
+        </a>
+        <a href="/Operations/ActionItems" class="nav-card">
+          <span class="nav-card__title">מרכז הפעולות</span>
+        </a>
+      </div>
+
+    </div><!-- /dash-grid -->
   </main>
-</div>
+
+</div><!-- /dash-shell -->

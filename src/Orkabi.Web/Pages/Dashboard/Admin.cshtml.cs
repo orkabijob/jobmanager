@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Dashboard;
@@ -10,13 +12,18 @@ namespace Orkabi.Web.Pages.Dashboard;
 public class AdminModel : PageModel
 {
     private readonly DashboardMetricsService _metrics;
+    private readonly UserManager<AppUser> _users;
 
-    public AdminModel(DashboardMetricsService metrics)
+    public AdminModel(DashboardMetricsService metrics, UserManager<AppUser> users)
     {
         _metrics = metrics;
+        _users = users;
     }
 
-    // ── Metrics loaded in OnGetAsync ───────────���─────────────────────────────
+    // ── Metrics loaded in OnGetAsync ──────────────────────────────────────────
+
+    /// <summary>Resolved greeting name from UserManager.</summary>
+    public string Greeting { get; private set; } = "";
 
     /// <summary>Active clients (IsActive == true).</summary>
     public int ActiveClients { get; private set; }
@@ -53,6 +60,10 @@ public class AdminModel : PageModel
 
     public async Task OnGetAsync()
     {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var me = await _users.FindByIdAsync(userId.ToString());
+        Greeting = !string.IsNullOrWhiteSpace(me?.FullName) ? me!.FullName! : "מנהל";
+
         var m = await _metrics.GetAdminMetricsAsync();
 
         ActiveClients = m.ActiveClientsCount;
