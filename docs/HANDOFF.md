@@ -6,12 +6,13 @@ Orkabi (Hebrew: **עורקבי**) is a role-based, 100%-Hebrew RTL web app for a
 
 ---
 
-## ✅ Status: Slices 0 + 1 + 2 + 3 + 4 are COMPLETE, deployed, and LIVE. Slice 5 (final) in progress.
+## ✅ Status: PROJECT FEATURE-COMPLETE — all 5 slices (0–5) are COMPLETE, deployed, and LIVE.
 
-- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`; CS/Admin manage People at `/People`, Curriculum at `/Curriculum`, Scheduling at `/Scheduling`, Operations at `/Operations`, Logistics at `/Logistics/Orders`; instructors take attendance from `/Dashboard/Instructor`)
-- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`; Slice-4 merge `08ca895`)
-- **Tests:** 201/201 green (`dotnet test`). Build clean.
-- **Slice 4 deploy verified:** anonymous `/Logistics/Orders` → 302 → login, `/health` → ok. Boot `MigrateAsync` applied `AddLogistics`/`AddJobExecutionLog` on real Neon; the in-process **DailyJobScheduler** is running.
+- **Live:** https://orkabi.onrender.com (login works; admin lands on `/Dashboard/Admin`; CS/Admin manage People at `/People`, Curriculum at `/Curriculum`, Scheduling at `/Scheduling`, Operations at `/Operations`, Logistics at `/Logistics/Orders` + packing list at `/Logistics/PackingList`; the **Action Hub** is at `/Operations/ActionItems` for all roles; instructors take attendance from `/Dashboard/Instructor`)
+- **Repo:** https://github.com/orkabijob/jobmanager (branch `master`; Slice-5 merge `f91e94c`)
+- **Tests:** 251/251 green (`dotnet test`). Build clean.
+- **Slice 5 deploy verified:** anonymous `/Logistics/PackingList` + `/Operations/ActionItems` → 302 → login, `/health` → ok. Boot `MigrateAsync` applied `AddActionItemResolvedFields` on real Neon.
+- **Slice 5 delivers:** the Action_Item **resolve flow** (`ResolveActionItemAsync` nulls the dedup key so recurrences re-fire), the role-aware **polling Action Hub** (resolve + 25s refresh), a **`DashboardMetricsService`** with **real Admin bento + CS/Logistics dashboards** (placeholders gone) + dynamic greeting, the Logistics **master packing list** (print-friendly), syllabus→class assignment, and polish (save-success toasts via an ASCII-safe `HX-Trigger`, a `_PageShell` partial for new pages, a CSS-completeness sweep).
 - **Slice 4 delivers:** Logistics_Order + the **dispute loop** (`SupplyPacingService`: seed → Packed → Accepted/Disputed; Disputed → urgent Admin Action_Item) + Logistics pages; the in-process **`DailyJobScheduler` BackgroundService** (5-min PeriodicTimer Asia/Jerusalem, **catch-up-on-wake**, scope-per-run, Testing-gated, drains the outbox each tick) running **birthday + shift-gen** daily jobs via a timer-free `IDailyJobRunner`, with **`JobExecutionLog`** (unique `(JobName,ScheduledFor)`) exactly-once; **event-driven automations** — double-consecutive-absence + deferred tryout-followup (same-tx OutboxEvents + new drainer branches) and **mass-dropout** (`ClientService.DeactivateAsync`, wired from the Clients/Edit deactivation path); and **6 new dedup-keyed Action_Item creators**.
 - **Slice 3 delivers:** Operations (Extra-Hours / Incident / Vacation, single-approval) + the **Outbox + Action-Item kernel** + the **Real-Gap monitor** (Lesson_Log save → same-transaction OutboxEvent → drain → Admin Action_Item, dedup-keyed) + a minimal Admin Action-Items read page.
 
@@ -52,13 +53,21 @@ See `docs/superpowers/plans/2026-06-23-orkabi-roadmap.md`.
 - **Slice 2 — Curriculum + Scheduling.** ✅ LIVE. Models, Syllabus (+ ordered Syllabus_Models), `Class.SyllabusId` FK, Shift_Template→Instance with `ShiftInstanceGenerator`, `Substitution_Request` + **date-scoped resource authorization** (service guard `CanAccessShiftAsync`), `Lesson_Log` (+ `expected_lessons_snapshot`), Attendance via optimistic `/api/attendance` (idempotency key) + lesson-log HTMX pacing; HTMX self-hosted + antiforgery-wired in `_Layout`; the signature instructor attendance surface (Blue-Jay monolith + tap-to-mark). `TimeOnly` shift times stored as `text` (EF9-SQLite value-converter parity — tech-debt only if time-range SQL is needed later).
 - **Slice 3 — Operations + Real-Gap.** ✅ LIVE. Extra_Hours, Incident_Report, Vacation_Request (single-approval), the **Outbox + Action_Item kernel**, and the Real-Gap pacing monitor.
 - **Slice 4 — Logistics + Automations.** ✅ LIVE. Logistics_Order + dispute loop, `SupplyPacingService`, the in-process **`DailyJobScheduler` BackgroundService with catch-up-on-wake** + `JobExecutionLog` (birthdays, shift-gen), event-driven double-absence + mass-drop-out, deferred tryout follow-up, 6 dedup-keyed Action_Item creators.
-- **Slice 5 — Action Hub + real dashboards.** 🔄 IN PROGRESS (branch `slice-5-action-hub-dashboards`). `Action_Item` resolve flow (clears dedup key) + role-aware polling Action Hub; replace the **placeholder** Admin bento with real metrics; CS/Logistics/Instructor dashboard surfaces; Logistics master packing list; syllabus-management; carryover polish (shared shell partial, save-success toasts, dynamic greeting).
+- **Slice 5 — Action Hub + real dashboards.** ✅ LIVE. `Action_Item` resolve flow (clears dedup key) + role-aware polling Action Hub; real Admin bento + CS/Logistics dashboards (placeholders gone); Logistics master packing list; syllabus→class assignment; carryover polish (`_PageShell` for new pages, save-success toasts, dynamic greeting).
+
+**🎉 The roadmap is complete — Orkabi is feature-complete and fully live.**
 
 ---
 
 ## ⚠️ Known issues / tech debt (deferred, non-blocking)
 
-- **Admin dashboard data is placeholder** (mock) until Slice 5.
+- ~~Admin dashboard data is placeholder~~ — **DONE in Slice 5** (real `DashboardMetricsService` metrics).
+- **Deferred from Slice 5 (non-blocking, for a future pass):**
+  - **`_PageShell` migration:** the 20 existing Slice-0..4 pages still inline their topbar+subnav (the shared `_PageShell` partial is used only by new Slice-5 pages — extracting the rest was deferred to avoid risk).
+  - **Real-time Action Hub:** currently polling (25s); SignalR push is a later phase per spec §3.
+  - **Multi-role hub scoping:** a user holding two *non-Admin* roles (e.g. CS+Logistics) sees only the first role's hub items (not a leak — resolve authz re-checks `IsInRole`; a completeness gap).
+  - **Latent date-window mismatch (observed, not a live bug):** `ShiftInstanceGenerator` uses Israel-date while the Scheduling Instances page filters by UTC-date — cannot drop a row in practice; worth aligning later.
+  - Minor test-quality items (some indirect assertions; a naive-UTC month boundary in one *test* while the service is Israel-TZ-correct).
 - **Hebrew Identity errors:** Identity validation messages render in English — add a Hebrew `IdentityErrorDescriber`.
 - **Open self-registration:** anyone can hit `/Account/Register` (gets no role → AccessDenied). Decide if it should be admin-only.
 - **Google OAuth not wired:** create a Google OAuth client, set `Authentication__Google__ClientId`/`Secret` in Render, add redirect URI `https://orkabi.onrender.com/signin-google`. Button then appears automatically.
