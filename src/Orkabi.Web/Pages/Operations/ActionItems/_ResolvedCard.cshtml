@@ -1,0 +1,36 @@
+@model Orkabi.Web.Modules.ActionHub.ActionItem
+@using Orkabi.Web.Modules.ActionHub
+
+@functions {
+    static string TypeToHebrew(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "חריגת קצב",
+        ActionItemType.Absence        => "היעדרות",
+        ActionItemType.Dispute        => "מחלוקת",
+        ActionItemType.Task           => "משימה",
+        ActionItemType.Birthday       => "יום הולדת",
+        ActionItemType.TryoutFollowup => "מעקב ניסיון",
+        _                             => t.ToString()
+    };
+
+    static string TypeToCssModifier(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "action-type--gap",
+        ActionItemType.Absence        => "action-type--absence",
+        ActionItemType.Dispute        => "action-type--dispute",
+        ActionItemType.Birthday       => "action-type--birthday",
+        ActionItemType.TryoutFollowup => "action-type--tryout",
+        _                             => ""
+    };
+}
+
+<article class="action-card is-resolved" id="action-@Model.Id" data-type="@Model.Type">
+  <div class="action-card__top">
+    <span class="action-type @TypeToCssModifier(Model.Type)">
+      <span class="action-type__dot" aria-hidden="true"></span>@TypeToHebrew(Model.Type)
+    </span>
+    <span class="status-chip status-chip--muted">טופל</span>
+  </div>
+  <p class="action-card__desc">@Model.Description</p>
+  <span class="action-card__resolved-meta">✓ טופל</span>
+</article>

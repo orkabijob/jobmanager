@@ -114,6 +114,13 @@ public class ActionItemService
             .ToListAsync();
 
     /// <summary>
+    /// Finds an Open action item by id for the resolve handler authz check.
+    /// Returns null if not found or already resolved.
+    /// </summary>
+    public Task<ActionItem?> FindOpenAsync(int id) =>
+        _db.ActionItems.FirstOrDefaultAsync(a => a.Id == id && a.Status == ActionItemStatus.Open);
+
+    /// <summary>
     /// Returns all Open action items user-assigned to the given user (dashboard badge query).
     /// </summary>
     public Task<List<ActionItem>> ListOpenForUserAsync(int userId) =>
