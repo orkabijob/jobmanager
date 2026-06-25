@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.Logistics;
+using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Pages.Logistics.PackingList;
 
@@ -47,7 +48,8 @@ public class IndexModel : PageModel
         if (order is null) return NotFound();
 
         // Save-success toast: HTMX reads this header and dispatches a `showToast` event.
-        Response.Headers["HX-Trigger"] = "{\"showToast\":{\"msg\":\"ההזמנה סומנה כנארזה\"}}";
+        // ASCII-safe via HxTrigger (raw Hebrew in a header is mangled to '?' by Kestrel's Latin-1 encoding).
+        Response.Headers["HX-Trigger"] = HxTrigger.ShowToast("ההזמנה סומנה כנארזה");
 
         return Partial("_PackRow", order);
     }

@@ -130,6 +130,10 @@ public class ToastAndShellTests : IClassFixture<SqliteFixture>
         Assert.True(postResp.Headers.Contains("HX-Trigger"), "Response is missing HX-Trigger header.");
         var trigger = string.Join(" ", postResp.Headers.GetValues("HX-Trigger"));
         Assert.Contains("showToast", trigger);
+        // Header must be pure ASCII (Kestrel serializes header values as Latin-1; raw Hebrew → '?').
+        Assert.True(trigger.All(c => c < 128), $"HX-Trigger value is not ASCII-safe: {trigger}");
+        // …and must decode back to the correct Hebrew message HTMX will show.
+        Assert.Equal("הפריט סומן כטופל", AssertToastMsg(trigger));
 
         factory.Dispose();
     }
@@ -158,8 +162,19 @@ public class ToastAndShellTests : IClassFixture<SqliteFixture>
         Assert.True(postResp.Headers.Contains("HX-Trigger"), "Response is missing HX-Trigger header.");
         var trigger = string.Join(" ", postResp.Headers.GetValues("HX-Trigger"));
         Assert.Contains("showToast", trigger);
+        // Header must be pure ASCII (Kestrel serializes header values as Latin-1; raw Hebrew → '?').
+        Assert.True(trigger.All(c => c < 128), $"HX-Trigger value is not ASCII-safe: {trigger}");
+        // …and must decode back to the correct Hebrew message HTMX will show.
+        Assert.Equal("ההזמנה סומנה כנארזה", AssertToastMsg(trigger));
 
         factory.Dispose();
+    }
+
+    /// <summary>Parses an HX-Trigger value of the form {"showToast":{"msg":"…"}} and returns msg.</summary>
+    private static string AssertToastMsg(string hxTrigger)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(hxTrigger);
+        return doc.RootElement.GetProperty("showToast").GetProperty("msg").GetString()!;
     }
 
     // ── C. Page-shell renders title + active subnav on packing list ──────────────
