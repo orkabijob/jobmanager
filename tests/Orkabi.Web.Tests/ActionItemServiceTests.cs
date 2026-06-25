@@ -431,6 +431,194 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
         Assert.Equal(1, await db.ActionItems.CountAsync(a => a.DeduplicationKey == adminKey));
     }
 
+    // ─── ResolveActionItemAsync ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task Resolve_sets_status_resolvedByUserId_resolvedAt_and_nulls_dedupKey()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+        var um = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var (cls, model) = await SeedClassAndModelAsync(db);
+        var resolver = await SeedInstructorAsync(db, um);
+
+        await svc.EnsureGapActionItemAsync(cls.Id, model.Id, expected: 10, spent: 12);
+        var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"gap_{cls.Id}_{model.Id}");
+
+        await svc.ResolveActionItemAsync(item.Id, resolver.Id);
+
+        await db.Entry(item).ReloadAsync();
+        Assert.Equal(ActionItemStatus.Resolved, item.Status);
+        Assert.Equal(resolver.Id, item.ResolvedByUserId);
+        Assert.NotNull(item.ResolvedAt);
+        Assert.Null(item.DeduplicationKey);
+    }
+
+    [Fact]
+    public async Task Resolve_lynchpin_after_resolve_ensure_gap_creates_new_open_ticket()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+        var um = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var (cls, model) = await SeedClassAndModelAsync(db);
+        var resolver = await SeedInstructorAsync(db, um);
+
+        // Create a gap ticket, then resolve it.
+        await svc.EnsureGapActionItemAsync(cls.Id, model.Id, expected: 10, spent: 12);
+        var original = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"gap_{cls.Id}_{model.Id}");
+        var originalId = original.Id;
+
+        await svc.ResolveActionItemAsync(originalId, resolver.Id);
+
+        // Now call EnsureGap again for the SAME (classId, modelId) — must create a NEW open ticket.
+        await svc.EnsureGapActionItemAsync(cls.Id, model.Id, expected: 10, spent: 15);
+
+        var openItems = await db.ActionItems
+            .Where(a => a.Status == ActionItemStatus.Open && a.RelatedEntityId == cls.Id
+                        && a.Type == ActionItemType.Gap)
+            .ToListAsync();
+
+        Assert.Single(openItems);
+        Assert.NotEqual(originalId, openItems[0].Id);
+        Assert.Equal($"gap_{cls.Id}_{model.Id}", openItems[0].DeduplicationKey);
+    }
+
+    [Fact]
+    public async Task Resolve_double_resolve_is_noop_no_throw_fields_unchanged()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+        var um = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var (cls, model) = await SeedClassAndModelAsync(db);
+        var resolver = await SeedInstructorAsync(db, um);
+        var resolver2 = await SeedInstructorAsync(db, um);
+
+        await svc.EnsureGapActionItemAsync(cls.Id, model.Id, expected: 10, spent: 12);
+        var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"gap_{cls.Id}_{model.Id}");
+
+        await svc.ResolveActionItemAsync(item.Id, resolver.Id);
+        await db.Entry(item).ReloadAsync();
+        var firstResolvedAt = item.ResolvedAt;
+        var firstResolverId = item.ResolvedByUserId;
+
+        // Second resolve with different user — should be no-op.
+        var ex = await Record.ExceptionAsync(() => svc.ResolveActionItemAsync(item.Id, resolver2.Id));
+        Assert.Null(ex);
+
+        await db.Entry(item).ReloadAsync();
+        Assert.Equal(firstResolverId, item.ResolvedByUserId);
+        Assert.Equal(firstResolvedAt, item.ResolvedAt);
+    }
+
+    // ─── ListOpenForUserAndRoleAsync ─────────────────────────────────────────
+
+    [Fact]
+    public async Task ListOpenForUserAndRoleAsync_returns_role_and_user_assigned_excludes_resolved_and_other_users()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+        var um = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var user1 = await SeedInstructorAsync(db, um);
+        var user2 = await SeedInstructorAsync(db, um);
+        var role = AppRoles.Admin;
+
+        // Role-assigned open item (should be returned).
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = role,
+            Description = "role item"
+        });
+        // User1-assigned open item (should be returned).
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = user1.Id,
+            Description = "user1 item"
+        });
+        // Resolved role item (should be EXCLUDED).
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Resolved,
+            AssignedToRole = role,
+            Description = "resolved role item"
+        });
+        // User2-assigned open item (should be EXCLUDED — different user).
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = user2.Id,
+            Description = "user2 item"
+        });
+        await db.SaveChangesAsync();
+
+        var results = await svc.ListOpenForUserAndRoleAsync(user1.Id, role);
+
+        Assert.All(results, i => Assert.Equal(ActionItemStatus.Open, i.Status));
+        Assert.Contains(results, i => i.AssignedToRole == role);
+        Assert.Contains(results, i => i.AssignedToUserId == user1.Id);
+        Assert.DoesNotContain(results, i => i.Status == ActionItemStatus.Resolved);
+        Assert.DoesNotContain(results, i => i.AssignedToUserId == user2.Id);
+    }
+
+    // ─── ListAllOpenAsync ────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ListAllOpenAsync_returns_all_open_regardless_of_assignee()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+        var um = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var user = await SeedInstructorAsync(db, um);
+        var countBefore = (await svc.ListAllOpenAsync()).Count;
+
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            Description = "open admin"
+        });
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = user.Id,
+            Description = "open user"
+        });
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Resolved,
+            AssignedToRole = AppRoles.Admin,
+            Description = "resolved — excluded"
+        });
+        await db.SaveChangesAsync();
+
+        var results = await svc.ListAllOpenAsync();
+        Assert.Equal(countBefore + 2, results.Count);
+        Assert.All(results, i => Assert.Equal(ActionItemStatus.Open, i.Status));
+    }
+
     // ─── EnsureTryoutFollowupActionItemAsync ─────────────────────────────────
 
     [Fact]
