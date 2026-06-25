@@ -1657,3 +1657,45 @@ body { margin: 0; line-height: var(--lh-normal); }
 .form-panel--instructor .action-card__desc       { font-size: var(--t-body); }
 .form-panel--instructor .action-card__class       { font-size: var(--t-label); }
 .form-panel--instructor .action-card__resolved-meta { font-size: var(--t-label); }
+
+/* ============================================================
+   SLICE 5 — Admin bento dashboard: hub-mini + stat-list/stat-row
+   §2/§3 Action-Hub mini-list (dashboard tile preview; opaque, zero blur)
+   §2/§3 Stat-list primitive (label ↔ value-link rows in dashboard tiles)
+   Replaces the Admin mock's inline-styled flex divs. Opaque, zero blur.
+   ============================================================ */
+.hub-mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.hub-mini__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding-block: var(--sp-2); padding-inline: var(--sp-3);
+  border-radius: var(--radius-chip);
+  background: rgba(var(--brand-rgb), .04);
+  border: 1px solid rgba(var(--brand-rgb), .08);
+}
+.hub-mini__desc {
+  flex: 1; min-inline-size: 0;
+  font-size: var(--t-admin-body); color: var(--brand-ink); text-decoration: none;
+  line-height: var(--lh-snug);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  /* one line in a tile */
+}
+.hub-mini__desc:hover { color: var(--brand); }
+.hub-mini__more {
+  display: inline-block; margin-block-start: var(--sp-3);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  color: var(--brand); text-decoration: none;
+}
+.hub-mini__more:hover { text-decoration: underline; }
+/* instructor scale lift inside .form-panel--instructor (reused modifier) */
+.form-panel--instructor .hub-mini__desc { font-size: var(--t-body); }
+
+.stat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.stat-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.stat-row__label { font-size: var(--t-admin-body); color: var(--brand-ink); }
+.stat-row__value {
+  font-family: var(--font-num); font-size: var(--t-admin-title); font-weight: var(--fw-bold);
+  color: var(--brand); text-decoration: none;
+  font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums;
+}
+.stat-row__value:hover { color: var(--brand-tint); text-decoration: underline; }
+.stat-row--alert .stat-row__value { color: var(--absent); }
+.stat-row--alert .stat-row__value:hover { color: var(--absent); }
