@@ -1,5 +1,6 @@
 @page
 @model AdminModel
+@using Orkabi.Web.Modules.ActionHub
 @{
     ViewData["Title"] = "לוח בקרה — מנהל";
 }
@@ -21,7 +22,7 @@
   <main class="dash-body">
     <div class="bento">
 
-      <!-- [1] Metric tile — total clients, top-start.
+      <!-- [1] Metric tile — active clients, top-start.
            glass--lensed: refraction lives on .glass__lens (backdrop only — text is immune). -->
       <div class="glass glass--tile glass--lensed bento__tile bento__metric" data-glint>
         <div class="glass__lens" aria-hidden="true"></div>
@@ -29,133 +30,124 @@
           <span class="tile-head__label">לקוחות פעילים</span>
         </div>
         <div>
-          <div class="metric-value num">847</div>
-          <div style="display:flex;align-items:center;gap:var(--sp-2);margin-block-start:var(--sp-2);">
-            <span class="metric-delta">+12 החודש</span>
-          </div>
-          <p class="metric-sublabel">סך הלקוחות הרשומים במערכת</p>
+          <div class="metric-value num"><bdi class="num">@Model.ActiveClients</bdi></div>
+          @if (Model.ClientsDeltaThisMonth != 0)
+          {
+            <div style="display:flex;align-items:center;gap:var(--sp-2);margin-block-start:var(--sp-2);">
+              <span class="metric-delta @(Model.ClientsDeltaThisMonth < 0 ? "metric-delta--down" : "")">
+                @(Model.ClientsDeltaThisMonth >= 0 ? "+" : "")<bdi class="num">@Model.ClientsDeltaThisMonth</bdi> החודש
+              </span>
+            </div>
+          }
+          <p class="metric-sublabel">סך הלקוחות הפעילים במערכת</p>
         </div>
       </div>
 
-      <!-- [2] Focal / Command center tile — center, spans all rows.
-           glass--lensed: refraction lives on .glass__lens (backdrop only — text is immune). -->
+      <!-- [2] Focal tile — Action-Hub preview (top open admin items).
+           glass--lensed: refraction on .glass__lens (text immune via z-index). -->
       <div class="glass glass--tile glass--lensed bento__tile bento__focal focal-tile" data-glint>
         <div class="glass__lens" aria-hidden="true"></div>
         <div class="tile-head">
-          <span class="tile-head__label">מרכז פעילות</span>
-          <a href="#" class="tile-head__action">הצג הכל</a>
+          <span class="tile-head__label">מרכז הפעולות</span>
+          <a href="/Operations/ActionItems" class="tile-head__action">פתח את המרכז</a>
         </div>
-        <div class="focal-tile__empty">
-          <div class="focal-tile__icon" aria-hidden="true">⌘</div>
-          <p class="focal-tile__hint">
-            כאן יוצגו פעולות מהירות, סטטוס מפגשים פעילים ונתוני ליבה בזמן אמת.
-          </p>
-          <a href="#" class="btn-ghost">הוספת פעולה</a>
-        </div>
+        @if (Model.HubPreview.Count == 0)
+        {
+          <div class="focal-tile__empty">
+            <div class="focal-tile__icon" aria-hidden="true">✓</div>
+            <p class="focal-tile__hint">אין משימות פתוחות. התראות חדשות יופיעו כאן.</p>
+          </div>
+        }
+        else
+        {
+          <ul class="hub-mini" role="list">
+            @foreach (var item in Model.HubPreview)
+            {
+              <li class="hub-mini__item">
+                <span class="action-type @AdminModel.TypeToCssModifier(item.Type)">
+                  <span class="action-type__dot" aria-hidden="true"></span>@AdminModel.TypeToHebrew(item.Type)
+                </span>
+                <a href="/Operations/ActionItems" class="hub-mini__desc">@item.Description</a>
+              </li>
+            }
+          </ul>
+          @if (Model.OpenAdminCount > Model.HubPreview.Count)
+          {
+            <a href="/Operations/ActionItems" class="hub-mini__more">
+              עוד <bdi class="num">@(Model.OpenAdminCount - Model.HubPreview.Count)</bdi> משימות פתוחות ←
+            </a>
+          }
+        }
       </div>
 
-      <!-- [3] Open tasks tile — start column, row 2 -->
+      <!-- [3] Approvals queue tile — start column, row 2 -->
       <div class="glass glass--tile bento__tile bento__feed" style="--lg-tile-shadow: var(--lg-shadow);">
         <div class="tile-head">
-          <span class="tile-head__label">משימות פתוחות</span>
-          <a href="#" class="tile-head__action">הוספה</a>
+          <span class="tile-head__label">אישורים ממתינים</span>
         </div>
-        <ul class="task-list" role="list">
-          <li class="task-item">
-            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
-            <span class="task-item__text">עדכון תוכנית לימודים — מחזור ב׳</span>
-            <span class="task-item__badge">דחוף</span>
+        <ul class="stat-list" role="list">
+          <li class="stat-row">
+            <span class="stat-row__label">שעות נוספות</span>
+            <a class="stat-row__value" href="/Operations/ExtraHours"><bdi class="num">@Model.PendingExtraHours</bdi></a>
           </li>
-          <li class="task-item">
-            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
-            <span class="task-item__text">אישור בקשות חופשה — מדריכים</span>
-            <span class="task-item__badge task-item__badge--ok">רגיל</span>
-          </li>
-          <li class="task-item">
-            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
-            <span class="task-item__text">בדיקת דוח גבייה חודשי</span>
-            <span class="task-item__badge">דחוף</span>
-          </li>
-          <li class="task-item">
-            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
-            <span class="task-item__text">עדכון פרטי קשר — לקוחות חדשים</span>
-            <span class="task-item__badge task-item__badge--ok">רגיל</span>
-          </li>
-          <li class="task-item">
-            <input type="checkbox" class="task-item__check" aria-label="סמן כהושלם" />
-            <span class="task-item__text">הכנת דוח נוכחות — שבוע שעבר</span>
-            <span class="task-item__badge task-item__badge--ok">רגיל</span>
+          <li class="stat-row">
+            <span class="stat-row__label">בקשות חופשה</span>
+            <a class="stat-row__value" href="/Operations/Vacations"><bdi class="num">@Model.PendingVacations</bdi></a>
           </li>
         </ul>
-        <button type="button" class="btn-ghost" style="margin-block-start:auto;align-self:flex-start;">
-          + משימה חדשה
-        </button>
+        <a href="/Operations" class="tile-head__action" style="margin-block-start:auto;">כל האישורים ←</a>
       </div>
 
-      <!-- [4] Alerts / feed tile — end column, row 1-2 -->
+      <!-- [4] Alerts feed tile — end column, rows 1–2 -->
       <div class="glass glass--tile bento__tile bento__tasks">
         <div class="tile-head">
           <span class="tile-head__label">התראות</span>
-          <a href="#" class="tile-head__action">כל ההתראות</a>
+          <a href="/Operations/ActionItems" class="tile-head__action">כל ההתראות</a>
         </div>
-        <ul class="feed-list" role="list">
-          <li class="feed-item">
-            <span class="feed-dot feed-dot--alert" aria-hidden="true"></span>
-            <div class="feed-item__content">
-              <p class="feed-item__text">לקוח חדש נרשם: דוד כהן</p>
-              <bdi class="feed-item__time num">09:14</bdi>
-            </div>
-          </li>
-          <li class="feed-item">
-            <span class="feed-dot feed-dot--warn" aria-hidden="true"></span>
-            <div class="feed-item__content">
-              <p class="feed-item__text">תשלום ממתין — ישראל ישראלי</p>
-              <bdi class="feed-item__time num">08:52</bdi>
-            </div>
-          </li>
-          <li class="feed-item">
-            <span class="feed-dot" aria-hidden="true"></span>
-            <div class="feed-item__content">
-              <p class="feed-item__text">מפגש הסתיים — קבוצה א׳</p>
-              <bdi class="feed-item__time num">08:30</bdi>
-            </div>
-          </li>
-          <li class="feed-item">
-            <span class="feed-dot feed-dot--ok" aria-hidden="true"></span>
-            <div class="feed-item__content">
-              <p class="feed-item__text">גבייה אושרה — שרה לוי</p>
-              <bdi class="feed-item__time num">07:45</bdi>
-            </div>
-          </li>
-          <li class="feed-item">
-            <span class="feed-dot feed-dot--alert" aria-hidden="true"></span>
-            <div class="feed-item__content">
-              <p class="feed-item__text">מדריך ביקש חופשה — 27.06</p>
-              <bdi class="feed-item__time num">אתמול</bdi>
-            </div>
-          </li>
-        </ul>
+        @if (Model.RecentOpenItems.Count == 0)
+        {
+          <p style="font-size:var(--t-admin-meta);color:var(--brand-ink-muted);padding:var(--sp-2) 0;">אין התראות פתוחות</p>
+        }
+        else
+        {
+          <ul class="feed-list" role="list">
+            @foreach (var item in Model.RecentOpenItems)
+            {
+              <li class="feed-item">
+                <span class="feed-dot @AdminModel.TypeToFeedDot(item.Type)" aria-hidden="true"></span>
+                <div class="feed-item__content">
+                  <a class="feed-item__text" href="/Operations/ActionItems">@item.Description</a>
+                  <bdi class="feed-item__time num">@item.CreatedAt.ToString("HH:mm")</bdi>
+                </div>
+              </li>
+            }
+          </ul>
+        }
       </div>
 
-      <!-- [5] Quick stats — end column, row 3 -->
+      <!-- [5] Quick stats tile — end column, row 3 -->
       <div class="glass glass--tile bento__tile bento__alerts">
         <div class="tile-head">
           <span class="tile-head__label">סטטוס מהיר</span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">מפגשים היום</span>
-            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--brand);">6</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">לקוחות נוכחים</span>
-            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--ok);">34</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:var(--t-admin-body);color:var(--brand-ink);">תשלומים פתוחים</span>
-            <span class="num" style="font-size:var(--t-admin-title);font-weight:var(--fw-bold);color:var(--warn);">3</span>
-          </div>
-        </div>
+        <ul class="stat-list" role="list">
+          <li class="stat-row">
+            <span class="stat-row__label">מפגשים היום</span>
+            <a class="stat-row__value" href="/Scheduling/Instances"><bdi class="num">@Model.SessionsToday</bdi></a>
+          </li>
+          <li class="stat-row">
+            <span class="stat-row__label">כיתות פעילות</span>
+            <a class="stat-row__value" href="/People/Classes"><bdi class="num">@Model.ActiveClasses</bdi></a>
+          </li>
+          <li class="stat-row">
+            <span class="stat-row__label">הזמנות פתוחות</span>
+            <a class="stat-row__value" href="/Logistics/Orders"><bdi class="num">@Model.OpenOrders</bdi></a>
+          </li>
+          <li class="stat-row stat-row--alert">
+            <span class="stat-row__label">במחלוקת</span>
+            <a class="stat-row__value" href="/Logistics/Orders?status=Disputed"><bdi class="num">@Model.DisputedOrders</bdi></a>
+          </li>
+        </ul>
       </div>
 
     </div><!-- /bento -->

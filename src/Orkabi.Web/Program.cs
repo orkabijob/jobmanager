@@ -24,6 +24,7 @@ builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.IShiftInstanceGenerator
 builder.Services.AddScoped<Orkabi.Web.Modules.Scheduling.SchedulingService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Curriculum.CurriculumService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.ActionHub.ActionItemService>();
+builder.Services.AddScoped<Orkabi.Web.Modules.Dashboard.DashboardMetricsService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Operations.OperationsService>();
 builder.Services.AddScoped<Orkabi.Web.Modules.Logistics.SupplyPacingService>();
 builder.Services.AddScoped<IOutboxDrainer, OutboxDrainer>();
