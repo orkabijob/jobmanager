@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Shared;
@@ -14,12 +15,14 @@ public class EditModel : PageModel
     private readonly ClassService _classes;
     private readonly SchoolService _schools;
     private readonly AcademicYearService _years;
+    private readonly CurriculumService _curriculum;
 
-    public EditModel(ClassService classes, SchoolService schools, AcademicYearService years)
+    public EditModel(ClassService classes, SchoolService schools, AcademicYearService years, CurriculumService curriculum)
     {
         _classes = classes;
         _schools = schools;
         _years = years;
+        _curriculum = curriculum;
     }
 
     [BindProperty]
@@ -28,6 +31,7 @@ public class EditModel : PageModel
     public int ClassId { get; private set; }
     public List<School> Schools { get; private set; } = new();
     public List<AcademicYear> Years { get; private set; } = new();
+    public List<Syllabus> Syllabi { get; private set; } = new();
 
     public class InputModel
     {
@@ -44,12 +48,15 @@ public class EditModel : PageModel
         public int AcademicYearId { get; set; }
 
         public EntityStatus Status { get; set; } = EntityStatus.Active;
+
+        public int? SyllabusId { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(int id)
     {
         Schools = await _schools.ListAsync();
         Years = await _years.ListAsync();
+        Syllabi = await _curriculum.ListSyllabiAsync();
 
         var cls = await _classes.GetAsync(id);
         if (cls is null)
@@ -61,7 +68,8 @@ public class EditModel : PageModel
             Name = cls.Name,
             SchoolId = cls.SchoolId,
             AcademicYearId = cls.AcademicYearId,
-            Status = cls.Status
+            Status = cls.Status,
+            SyllabusId = cls.SyllabusId
         };
         return Page();
     }
@@ -70,6 +78,7 @@ public class EditModel : PageModel
     {
         Schools = await _schools.ListAsync();
         Years = await _years.ListAsync();
+        Syllabi = await _curriculum.ListSyllabiAsync();
         ClassId = id;
 
         if (!ModelState.IsValid)
@@ -83,6 +92,7 @@ public class EditModel : PageModel
         cls.SchoolId = Input.SchoolId;
         cls.AcademicYearId = Input.AcademicYearId;
         cls.Status = Input.Status;
+        cls.SyllabusId = Input.SyllabusId;
 
         await _classes.UpdateAsync(cls);
 

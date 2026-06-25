@@ -25,6 +25,10 @@
       {
         <a class="subnav__item" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
       }
+      @if (isAdmin || User.IsInRole(AppRoles.Logistics))
+      {
+        <a class="subnav__item" href="/Logistics/PackingList">רשימת אריזה</a>
+      }
     </nav>
 
     <div class="page-head">

@@ -71,11 +71,61 @@ public class ActionItemService
     }
 
     /// <summary>
+    /// Resolves an action item. Idempotent: no-op if item is null or already Resolved.
+    /// LYNCHPIN: DeduplicationKey is nulled so the unique-index slot is freed and automation
+    /// can create a fresh recurrence for the same entity after resolution.
+    /// </summary>
+    public async Task ResolveActionItemAsync(int actionItemId, int resolvedByUserId)
+    {
+        var item = await _db.ActionItems.FirstOrDefaultAsync(a => a.Id == actionItemId);
+        if (item is null || item.Status == ActionItemStatus.Resolved) return;   // double-resolve no-op
+        item.Status = ActionItemStatus.Resolved;
+        item.ResolvedByUserId = resolvedByUserId;
+        item.ResolvedAt = DateTime.UtcNow;
+        item.DeduplicationKey = null;                                            // LYNCHPIN — frees the slot
+        await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
     /// Returns all Open action items assigned to the given role, ordered by CreatedAt ascending.
     /// </summary>
     public Task<List<ActionItem>> ListOpenForRoleAsync(string role) =>
         _db.ActionItems
             .Where(a => a.Status == ActionItemStatus.Open && a.AssignedToRole == role)
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync();
+
+    /// <summary>
+    /// Hub query: a user's open queue = role-assigned to their role OR user-assigned to them.
+    /// </summary>
+    public Task<List<ActionItem>> ListOpenForUserAndRoleAsync(int userId, string role) =>
+        _db.ActionItems
+            .Where(a => a.Status == ActionItemStatus.Open && (a.AssignedToRole == role || a.AssignedToUserId == userId))
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync();
+
+    /// <summary>
+    /// Admin "everything open" — returns all Open action items regardless of assignee.
+    /// </summary>
+    public Task<List<ActionItem>> ListAllOpenAsync() =>
+        _db.ActionItems
+            .Where(a => a.Status == ActionItemStatus.Open)
+            .OrderBy(a => a.CreatedAt)
+            .ToListAsync();
+
+    /// <summary>
+    /// Finds an Open action item by id for the resolve handler authz check.
+    /// Returns null if not found or already resolved.
+    /// </summary>
+    public Task<ActionItem?> FindOpenAsync(int id) =>
+        _db.ActionItems.FirstOrDefaultAsync(a => a.Id == id && a.Status == ActionItemStatus.Open);
+
+    /// <summary>
+    /// Returns all Open action items user-assigned to the given user (dashboard badge query).
+    /// </summary>
+    public Task<List<ActionItem>> ListOpenForUserAsync(int userId) =>
+        _db.ActionItems
+            .Where(a => a.Status == ActionItemStatus.Open && a.AssignedToUserId == userId)
             .OrderBy(a => a.CreatedAt)
             .ToListAsync();
 

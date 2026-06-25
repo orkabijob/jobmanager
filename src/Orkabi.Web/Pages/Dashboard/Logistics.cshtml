@@ -1,21 +1,106 @@
 @page
 @model LogisticsModel
+@using Orkabi.Web.Modules.ActionHub
 @{
     ViewData["Title"] = "לוח בקרה — לוגיסטיקה";
 }
 
 <div class="dash-shell">
+
+  <!-- Sticky glass topbar -->
   <header class="glass glass--nav dash-topbar">
     <a href="/" class="dash-topbar__wordmark">עורקבי</a>
     <span class="dash-topbar__title">לוגיסטיקה</span>
     <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
       <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
     </nav>
   </header>
+
   <main class="dash-body">
-    <div class="glass glass--tile dash-stub">
-      <span class="dash-stub__title">לוגיסטיקה</span>
-      <p class="dash-stub__text">כאן יוצגו לוח זמנים, ניהול חדרים וציוד. הממשק בפיתוח.</p>
-    </div>
+    <div class="dash-grid">
+
+      <!-- [1] Metric tile — pending orders -->
+      <div class="glass glass--tile">
+        <div class="tile-head">
+          <span class="tile-head__label">הזמנות לאריזה</span>
+        </div>
+        <div>
+          <div class="metric-value num"><bdi class="num">@Model.PendingOrders</bdi></div>
+          <p class="metric-sublabel">ממתינות לאריזה כעת</p>
+        </div>
+      </div>
+
+      <!-- [2] Stats tile — order status breakdown -->
+      <div class="glass glass--tile">
+        <div class="tile-head">
+          <span class="tile-head__label">סטטוס הזמנות</span>
+        </div>
+        <ul class="stat-list" role="list">
+          <li class="stat-row">
+            <span class="stat-row__label">ממתין לאריזה</span>
+            <a class="stat-row__value" href="/Logistics/Orders"><bdi class="num">@Model.PendingOrders</bdi></a>
+          </li>
+          <li class="stat-row">
+            <span class="stat-row__label">נארז</span>
+            <span class="stat-row__value"><bdi class="num">@Model.PackedOrders</bdi></span>
+          </li>
+          <li class="stat-row stat-row--alert">
+            <span class="stat-row__label">במחלוקת</span>
+            <span class="stat-row__value"><bdi class="num">@Model.DisputedOrders</bdi></span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- [3] Tickets tile (wide) — Logistics open action items -->
+      <div class="glass glass--tile dash-grid__wide">
+        <div class="tile-head">
+          <span class="tile-head__label">המשימות שלי</span>
+          <a href="/Operations/ActionItems" class="tile-head__action">פתח את המרכז</a>
+        </div>
+        @if (Model.LogisticsTickets.Count == 0)
+        {
+          <div class="focal-tile__empty">
+            <div class="focal-tile__icon" aria-hidden="true">✓</div>
+            <p class="focal-tile__hint">אין משימות פתוחות.</p>
+          </div>
+        }
+        else
+        {
+          <ul class="hub-mini" role="list">
+            @foreach (var item in Model.LogisticsTickets.Take(5))
+            {
+              <li class="hub-mini__item">
+                <span class="action-type @LogisticsModel.TypeToCssModifier(item.Type)">
+                  <span class="action-type__dot" aria-hidden="true"></span>@LogisticsModel.TypeToHebrew(item.Type)
+                </span>
+                <a href="/Operations/ActionItems" class="hub-mini__desc">@item.Description</a>
+              </li>
+            }
+          </ul>
+          @if (Model.LogisticsTickets.Count > 5)
+          {
+            <a href="/Operations/ActionItems" class="hub-mini__more">
+              עוד <bdi class="num">@(Model.LogisticsTickets.Count - 5)</bdi> משימות פתוחות ←
+            </a>
+          }
+        }
+      </div>
+
+      <!-- [4] Quick links hub-grid (wide) -->
+      <div class="dash-grid__wide hub-grid">
+        <a href="/Logistics/Orders" class="nav-card">
+          <span class="nav-card__title">הזמנות</span>
+        </a>
+        <a href="/Logistics/PackingList" class="nav-card">
+          <span class="nav-card__title">רשימת אריזה</span>
+        </a>
+        <a href="/Operations/ActionItems" class="nav-card">
+          <span class="nav-card__title">מרכז הפעולות</span>
+        </a>
+      </div>
+
+    </div><!-- /dash-grid -->
   </main>
-</div>
+
+</div><!-- /dash-shell -->

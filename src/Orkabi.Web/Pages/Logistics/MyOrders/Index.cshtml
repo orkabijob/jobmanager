@@ -23,6 +23,10 @@
         <a class="subnav__item" href="/Logistics/Orders">הזמנות</a>
       }
       <a class="subnav__item is-active" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
+      @if (isAdmin || User.IsInRole(AppRoles.Logistics))
+      {
+        <a class="subnav__item" href="/Logistics/PackingList">רשימת אריזה</a>
+      }
     </nav>
 
     <form id="csrf-anchor" style="display:none">

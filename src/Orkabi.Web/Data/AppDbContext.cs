@@ -244,6 +244,11 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
             .HasOne(a => a.AssignedToUser).WithMany()
             .HasForeignKey(a => a.AssignedToUserId).OnDelete(DeleteBehavior.Restrict);
 
+        // ActionItem resolved-by FK → AspNetUsers (SetNull — user delete NULLs the resolver reference)
+        b.Entity<ActionHub.ActionItem>()
+            .HasOne<AppUser>().WithMany()
+            .HasForeignKey(a => a.ResolvedByUserId).OnDelete(DeleteBehavior.SetNull);
+
         // Partial unique index on DeduplicationKey: only non-null values must be unique
         b.Entity<ActionHub.ActionItem>()
             .HasIndex(a => a.DeduplicationKey)

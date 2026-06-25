@@ -321,18 +321,21 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
 
     // ── Task 6: Minimal Action-Items read page ──────────────────────────────
 
+    /// <summary>
+    /// Slice-5 Task 2: page is now open to all authenticated users.
+    /// Instructor gets 200 (sees their own queue, not the Admin-only items).
+    /// Adapted from the Slice-3 "Instructor_redirected_from_action_items_page" test which
+    /// asserted 302/403 — that was correct for the old [Authorize(Roles = Admin)] gate.
+    /// </summary>
     [Fact]
-    public async Task Instructor_redirected_from_action_items_page()
+    public async Task Instructor_can_access_action_items_page_as_all_roles_hub()
     {
         var (factory, client, _) = await CreateInstructorClientAsync(_sqlite, "_ai_403");
         var resp = await client.GetAsync("/Operations/ActionItems");
-        // Cookie auth redirects Forbid() to AccessDenied (not a hard 403)
-        Assert.True(
-            resp.StatusCode == HttpStatusCode.Redirect ||
-            resp.StatusCode == HttpStatusCode.Forbidden,
-            $"Expected redirect or 403, got {resp.StatusCode}");
-        if (resp.StatusCode == HttpStatusCode.Redirect)
-            Assert.Contains("AccessDenied", resp.Headers.Location?.ToString() ?? "");
+        // Page is now role-aware and open to ALL authenticated users (Slice-5 Task 2)
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+        Assert.Contains("מרכז הפעולות", body);
         factory.Dispose();
     }
 
@@ -353,8 +356,9 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
 
-        // The page must contain the scope note
-        Assert.Contains("תצוגה מצומצמת", body);
+        // The scope-note placeholder was removed in Slice-5 Task 2 (page is now the full Action Hub)
+        // The page title is now מרכז הפעולות
+        Assert.Contains("מרכז הפעולות", body);
         // The card must contain the Hebrew description seeded above (partial match on the description pattern)
         Assert.Contains("חריגת קצב", body);
         // Status chip for open item

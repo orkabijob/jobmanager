@@ -1,0 +1,27 @@
+@* _PageShell.cshtml — shared topbar + subnav partial for Slice-5 new pages.
+   Contract: Model is PageShellVm. Visual output is byte-identical to inline markup.
+   SCOPE: NEW Slice-5 pages only — do NOT apply to existing Slice-0..4 pages. *@
+@model Orkabi.Web.Pages.Shared.PageShellVm
+
+<header class="glass glass--nav dash-topbar">
+  <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+  <span class="dash-topbar__title">@Model.Title</span>
+  <nav class="dash-topbar__user">
+    @if (!string.IsNullOrEmpty(Model.Greeting))
+    {
+      <span>שלום, @Model.Greeting</span>
+    }
+    <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+  </nav>
+</header>
+
+@if (Model.ShowSubnav && Model.Section != Orkabi.Web.Pages.Shared.NavSection.None)
+{
+  var items = Model.SubnavOverride ?? Orkabi.Web.Pages.Shared.PageShellVm.SubnavFor(Model.Section);
+  <nav class="subnav" aria-label="@Orkabi.Web.Pages.Shared.PageShellVm.SectionAria(Model.Section)">
+    @foreach (var (label, href) in items)
+    {
+      <a class="subnav__item @(href == Model.ActiveKey ? "is-active" : "")" href="@href">@label</a>
+    }
+  </nav>
+}

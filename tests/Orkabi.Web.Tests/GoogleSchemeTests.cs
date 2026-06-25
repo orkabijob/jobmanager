@@ -27,7 +27,10 @@ public class GoogleSchemeTests
     {
         // Use a temp SQLite file so the DbContext can start up (challenge won't actually hit DB).
         var dbPath = Path.Combine(Path.GetTempPath(), $"orkabi_google_{Guid.NewGuid():N}.db");
-        var cs = $"Data Source={dbPath}";
+        // Pooling=False so the native sqlite3 handle (and the file lock) is released on close —
+        // no need for the process-global SqliteConnection.ClearAllPools(), which would race the
+        // live pooled connections of other xUnit test classes running in parallel. See SqliteFixture.
+        var cs = $"Data Source={dbPath};Pooling=False";
         try
         {
             using var factory = new OrkabiAppFactory { ConnectionString = cs }
@@ -49,10 +52,9 @@ public class GoogleSchemeTests
         }
         finally
         {
-            // Release pooled SQLite handles before deleting the file, or Windows throws
-            // "file in use" (the factory's DbContext connection is pooled, not closed).
-            // Mirrors SqliteFixture.Dispose(); fixes the intermittent file-lock flake.
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            // Pooling=False (in the connection string above) means the native handle is already
+            // released on close, so the file can be deleted directly — no process-global
+            // ClearAllPools() that would clobber other parallel test classes' live connections.
             if (File.Exists(dbPath)) File.Delete(dbPath);
         }
     }

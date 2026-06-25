@@ -26,11 +26,37 @@
   <!-- Specular glint pointer tracking (§8 — reduced-motion + battery gated) -->
   <script src="~/js/glass-glint.js" defer asp-append-version="true"></script>
   <script src="~/js/htmx.min.js" defer asp-append-version="true"></script>
+  <!-- Toast host: HTMX dispatches `showToast` (from an HX-Trigger response header) and the
+       listener below renders a save-success toast here. role/aria-live announces it politely. -->
+  <div id="toast-container" aria-live="polite"></div>
   <script>
     document.body.addEventListener('htmx:configRequest', function (evt) {
       evt.detail.headers['RequestVerificationToken'] =
         document.querySelector('meta[name="htmx-csrf"]')?.content ?? '';
     });
+    // ---- Toast: listens for the HTMX `showToast` event (raised from the HX-Trigger header) ----
+    document.body.addEventListener('showToast', function (evt) {
+      var msg = (evt.detail && evt.detail.msg) ? evt.detail.msg : 'הפעולה הושלמה';
+      var container = document.getElementById('toast-container');
+      if (!container) return;
+      var toast = document.createElement('div');
+      toast.className = 'toast toast--success';
+      toast.setAttribute('role', 'status');
+      var icon = document.createElement('span');
+      icon.className = 'toast__icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = '✓';
+      var msgEl = document.createElement('span');
+      msgEl.className = 'toast__msg'; msgEl.textContent = msg;
+      var close = document.createElement('button');
+      close.type = 'button'; close.className = 'toast__close'; close.setAttribute('aria-label', 'סגירה'); close.textContent = '×';
+      toast.append(icon, msgEl, close);
+      container.appendChild(toast);
+      toast.querySelector('.toast__close').addEventListener('click', function () { dismissToast(toast); });
+      setTimeout(function () { dismissToast(toast); }, 3200);
+    });
+    function dismissToast(t) {
+      t.classList.add('toast--leaving');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 250);
+    }
   </script>
 </body>
 </html>

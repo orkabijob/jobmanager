@@ -1162,6 +1162,14 @@ body { margin: 0; line-height: var(--lh-normal); }
   .roster-row--enter { animation: roster-row-enter var(--dur-mid) var(--ease-spring) both; }
 }
 
+/* ---- Toast container: fixed anchor for stacking multiple toasts ---- */
+#toast-container {
+  position: fixed; inset-block-end: var(--sp-6); inset-inline: 0;
+  display: flex; flex-direction: column-reverse; align-items: center;
+  gap: var(--sp-2); z-index: 200; pointer-events: none;
+}
+#toast-container .toast { position: relative; inset: unset; margin-inline: 0; pointer-events: auto; }
+
 /* ---- Undo toast (un-enroll safety) ---- */
 .toast {
   position: fixed; inset-block-end: var(--sp-6); inset-inline: 0; margin-inline: auto;
@@ -1523,6 +1531,10 @@ body { margin: 0; line-height: var(--lh-normal); }
               background var(--dur-fast) var(--ease-glass);
 }
 .action-card + .action-card { margin-block-start: var(--sp-3); }
+/* Card-stack container (Action-Hub list). Gap drives spacing; the adjacent-sibling
+   margin above is neutralized inside the list so the gap isn't doubled. */
+.action-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.action-list .action-card + .action-card { margin-block-start: 0; }
 .action-card__top {
   display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
 }
@@ -1657,3 +1669,149 @@ body { margin: 0; line-height: var(--lh-normal); }
 .form-panel--instructor .action-card__desc       { font-size: var(--t-body); }
 .form-panel--instructor .action-card__class       { font-size: var(--t-label); }
 .form-panel--instructor .action-card__resolved-meta { font-size: var(--t-label); }
+
+/* ============================================================
+   SLICE 5 — Admin bento dashboard: hub-mini + stat-list/stat-row
+   §2/§3 Action-Hub mini-list (dashboard tile preview; opaque, zero blur)
+   §2/§3 Stat-list primitive (label ↔ value-link rows in dashboard tiles)
+   Replaces the Admin mock's inline-styled flex divs. Opaque, zero blur.
+   ============================================================ */
+.hub-mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.hub-mini__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding-block: var(--sp-2); padding-inline: var(--sp-3);
+  border-radius: var(--radius-chip);
+  background: rgba(var(--brand-rgb), .04);
+  border: 1px solid rgba(var(--brand-rgb), .08);
+}
+.hub-mini__desc {
+  flex: 1; min-inline-size: 0;
+  font-size: var(--t-admin-body); color: var(--brand-ink); text-decoration: none;
+  line-height: var(--lh-snug);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;  /* one line in a tile */
+}
+.hub-mini__desc:hover { color: var(--brand); }
+.hub-mini__more {
+  display: inline-block; margin-block-start: var(--sp-3);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  color: var(--brand); text-decoration: none;
+}
+.hub-mini__more:hover { text-decoration: underline; }
+/* instructor scale lift inside .form-panel--instructor (reused modifier) */
+.form-panel--instructor .hub-mini__desc { font-size: var(--t-body); }
+
+.stat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.stat-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.stat-row__label { font-size: var(--t-admin-body); color: var(--brand-ink); }
+.stat-row__value {
+  font-family: var(--font-num); font-size: var(--t-admin-title); font-weight: var(--fw-bold);
+  color: var(--brand); text-decoration: none;
+  font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums;
+}
+.stat-row__value:hover { color: var(--brand-tint); text-decoration: underline; }
+.stat-row--alert .stat-row__value { color: var(--absent); }
+.stat-row--alert .stat-row__value:hover { color: var(--absent); }
+
+/* ---- §3 Simple role-dashboard grid (CS/Logistics — lighter than the Admin bento).
+        Auto-fit tiles; collapses naturally; NOT the asymmetric bento. ---- */
+.dash-grid {
+  display: grid; gap: var(--bento-gap);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;
+}
+.dash-grid__wide { grid-column: 1 / -1; }   /* a tile that should span the row */
+
+/* ---- §4 Packing list — grouped print-friendly sheet ---- */
+.pack-group { margin-block-end: var(--sp-6); }
+.pack-group:last-child { margin-block-end: 0; }
+.pack-group__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3);
+  padding-block-end: var(--sp-2); margin-block-end: var(--sp-3);
+  border-block-end: 1px solid rgba(var(--brand-rgb), .14);
+}
+.pack-group__title { margin: 0; font-size: var(--t-admin-title); font-weight: var(--fw-bold); color: var(--brand-ink); }
+.pack-group__total {
+  font-size: var(--t-admin-label); font-weight: var(--fw-semibold); color: var(--brand);
+  white-space: nowrap;
+}
+.pack-table { max-inline-size: 480px; }   /* a packing table is narrow (label + qty) */
+
+/* ---- §4 Print stylesheet — the packing list prints clean (the one justified
+        print block in the app). Strips glass/blur/chrome → black-on-white. ---- */
+@media print {
+  body { background: #fff !important; }
+  body::before { display: none !important; }                 /* kill the photo/mesh scrim */
+  .dash-topbar, .subnav, .page-head .segment, .page-head .btn-primary,
+  .hub-poll, .htmx-indicator { display: none !important; }   /* chrome + controls off */
+  .glass, .glass--tile, .pack-sheet {
+    background: #fff !important; box-shadow: none !important; border: 0 !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  .glass::before, .glass__lens, .glass--lensed::after { display: none !important; }
+  .page-head__title { color: #000 !important; }
+  .pack-group { break-inside: avoid; page-break-inside: avoid; }
+  .pack-group__head { border-block-end: 1px solid #000 !important; }
+  .pack-group__title, .pack-group__total { color: #000 !important; }
+  .data-table thead th { background: #fff !important; color: #000 !important; border-block-end: 1px solid #000 !important; }
+  .data-cell { color: #000 !important; }
+  .data-row + .data-row .data-cell { border-block-start: 1px solid #ccc !important; }
+}
+
+/* ---- §1 Action-Hub polling indicator (page-head, steady dot + label) ---- */
+.hub-poll {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding-block: var(--sp-1); padding-inline: var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .16);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-medium); color: var(--brand-ink-muted);
+}
+.hub-poll__dot {
+  inline-size: 7px; block-size: 7px; border-radius: 50%;
+  background: var(--ok); flex: 0 0 auto;
+  box-shadow: 0 0 0 0 rgba(46,125,91,.40);
+}
+#hub-list.htmx-request ~ * .hub-poll__dot,
+.hub-poll.is-polling .hub-poll__dot { background: var(--brand-tint); }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes hub-poll-ping { 0% { box-shadow: 0 0 0 0 rgba(46,125,91,.40); }
+                             100% { box-shadow: 0 0 0 6px rgba(46,125,91,0); } }
+  .hub-poll.is-polling .hub-poll__dot { animation: hub-poll-ping var(--dur-slow) var(--ease-out-expo); }
+}
+
+/* ---- §1 Action-Hub list entrance/leave (confirmations only, gated) ---- */
+@media (prefers-reduced-motion: no-preference) {
+  #hub-list.htmx-settling { animation: lg-fade-up var(--dur-fast) var(--ease-glass) both; }
+  .action-card[data-new] { animation: hub-card-enter var(--dur-mid) var(--ease-spring) both; }
+  @keyframes hub-card-enter { from { opacity: 0; transform: translateY(8px) scale(.99); }
+                              to   { opacity: 1; transform: translateY(0)   scale(1);  } }
+  .action-card.is-leaving { animation: hub-card-leave var(--dur-fast) var(--ease-glass) both; }
+  @keyframes hub-card-leave { from { opacity: 1; transform: none; }
+                              to   { opacity: 0; transform: translateY(-4px) scale(.98); } }
+}
+
+/* ---- §5b Save-success toast upgrades (icon + accent + motion + close) ---- */
+.toast--success { border-inline-start: 3px solid var(--ok); }
+.toast__icon {
+  flex: 0 0 auto; inline-size: 22px; block-size: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ok-soft); color: var(--ok);
+  font-weight: var(--fw-bold); font-size: 13px; line-height: 1;
+}
+.toast__msg { flex: 1; min-inline-size: 0; }
+.toast__close {
+  flex: 0 0 auto; background: none; border: 0; cursor: pointer;
+  color: var(--brand-ink-faint); font-size: 20px; line-height: 1;
+  padding: 0 var(--sp-1); transition: color var(--dur-fast) var(--ease-glass);
+}
+.toast__close:hover { color: var(--brand-ink-muted); }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes toast-in  { from { opacity: 0; transform: translateY(12px) scale(.98); }
+                         to   { opacity: 1; transform: translateY(0)    scale(1);  } }
+  @keyframes toast-out { from { opacity: 1; transform: translateY(0); }
+                         to   { opacity: 0; transform: translateY(8px); } }
+  .toast { animation: toast-in var(--dur-mid) var(--ease-spring) both; }
+  .toast.toast--leaving { animation: toast-out var(--dur-fast) var(--ease-glass) both; }
+}
+
+/* ---- §4 Data-table actions column width (packing list + future tables) ---- */
+.data-table__actions-col { inline-size: 100px; }

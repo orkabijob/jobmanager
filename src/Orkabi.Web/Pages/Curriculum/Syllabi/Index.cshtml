@@ -62,6 +62,7 @@
               <th scope="col">שם</th>
               <th scope="col">תאריכים</th>
               <th scope="col">דגמים</th>
+              <th scope="col">כיתות מקושרות</th>
               <th scope="col">סטטוס</th>
               <th scope="col" class="data-table__actions-col">פעולות</th>
             </tr>
@@ -70,12 +71,14 @@
             @foreach (var syl in Model.Syllabi)
             {
               var count = Model.ModelCounts.TryGetValue(syl.Id, out var c) ? c : 0;
+              var classCount = Model.ClassCounts.TryGetValue(syl.Id, out var cc) ? cc : 0;
               <tr class="data-row">
                 <td class="data-cell data-cell--primary">@syl.Name</td>
                 <td class="data-cell">
                   <bdi class="num">@syl.StartDate.ToString("dd.MM.yy")–@syl.EndDate.ToString("dd.MM.yy")</bdi>
                 </td>
                 <td class="data-cell"><bdi class="num">@count</bdi></td>
+                <td class="data-cell"><bdi class="num">@classCount</bdi></td>
                 <td class="data-cell">
                   @if (syl.Status == EntityStatus.Active)
                   {

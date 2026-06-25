@@ -1,0 +1,20 @@
+@model Orkabi.Web.Modules.Logistics.LogisticsOrder
+@using Orkabi.Web.Modules.Logistics
+
+@{
+    // After Pack the order is always Packed; determine label from model/class grouping context.
+    // The partial is returned by the Pack handler and replaces the <tr id="pack-row-{id}">.
+    // Since grouping is server-side, we render the relevant counterpart label:
+    // the handler re-fetches with Include(Class) and Include(Model), so both are available.
+}
+
+<tr class="data-row" id="pack-row-@Model.Id">
+  <td class="data-cell data-cell--primary">@(Model.Class?.Name ?? Model.Model?.Name ?? "")</td>
+  <td class="data-cell"><bdi class="num">@Model.Quantity</bdi></td>
+  <td class="data-cell">
+    <span class="status-chip status-chip--packed">נארז</span>
+  </td>
+  <td class="data-cell data-cell--actions">
+    <span style="color:var(--brand-ink-muted);">—</span>
+  </td>
+</tr>

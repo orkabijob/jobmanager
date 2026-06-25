@@ -26,6 +26,7 @@ public class IndexModel : PageModel
 
     public List<Syllabus> Syllabi { get; private set; } = new();
     public Dictionary<int, int> ModelCounts { get; private set; } = new();
+    public Dictionary<int, int> ClassCounts { get; private set; } = new();
 
     public async Task OnGetAsync()
     {
@@ -38,6 +39,13 @@ public class IndexModel : PageModel
             ModelCounts = await _db.SyllabusModels
                 .Where(sm => ids.Contains(sm.SyllabusId))
                 .GroupBy(sm => sm.SyllabusId)
+                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+            ClassCounts = await _db.Classes
+                .IgnoreQueryFilters()
+                .Where(c => c.SyllabusId.HasValue && ids.Contains(c.SyllabusId.Value)
+                            && c.Status == EntityStatus.Active)
+                .GroupBy(c => c.SyllabusId!.Value)
                 .ToDictionaryAsync(g => g.Key, g => g.Count());
         }
     }
