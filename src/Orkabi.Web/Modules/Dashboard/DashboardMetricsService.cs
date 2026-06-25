@@ -37,64 +37,62 @@ public class DashboardMetricsService
         var firstOfMonthIsrael = new DateTime(nowIsrael.Year, nowIsrael.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         var firstOfMonthUtc = TimeZoneInfo.ConvertTimeToUtc(firstOfMonthIsrael, IsraelClock.IsraelTz);
 
-        // Run all COUNT queries concurrently (independent reads)
-        var activeClientsTask = _db.Clients.CountAsync(c => c.IsActive);
-        var newClientsTask = _db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= firstOfMonthUtc);
-        var sessionsTodayTask = _db.ShiftInstances.CountAsync(i => i.Date == todayIsrael);
-        var pendingVacationsTask = _db.VacationRequests.CountAsync(v => v.Status == VacationStatus.Pending);
-        var pendingExtraHoursTask = _db.ExtraHours.CountAsync(e => e.Status == ExtraHoursStatus.Pending);
-        var disputedOrdersTask = _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Disputed);
-        var openOrdersTask = _db.LogisticsOrders.CountAsync(o =>
+        // Sequential awaits — a single AppDbContext does NOT support concurrent operations.
+        // EF Core throws InvalidOperationException ("a second operation was started on this
+        // context...") when ops overlap; Task.WhenAll over one context is a race that SQLite
+        // (in-process, fast) tolerates in tests but Npgsql/Neon (network latency) does not.
+        // These are cheap COUNT/aggregate reads — sequential is correct and adequate.
+        var activeClients = await _db.Clients.CountAsync(c => c.IsActive);
+        var newClients = await _db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= firstOfMonthUtc);
+        var sessionsToday = await _db.ShiftInstances.CountAsync(i => i.Date == todayIsrael);
+        var pendingVacations = await _db.VacationRequests.CountAsync(v => v.Status == VacationStatus.Pending);
+        var pendingExtraHours = await _db.ExtraHours.CountAsync(e => e.Status == ExtraHoursStatus.Pending);
+        var disputedOrders = await _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Disputed);
+        var openOrders = await _db.LogisticsOrders.CountAsync(o =>
             o.Status == LogisticsOrderStatus.Pending || o.Status == LogisticsOrderStatus.Disputed);
         // Class global query filter = Active only → direct CountAsync = active classes
-        var activeClassesTask = _db.Classes.CountAsync();
+        var activeClasses = await _db.Classes.CountAsync();
 
         // GroupBy open action items by type
-        var byTypeTask = _db.ActionItems
+        var byTypeList = await _db.ActionItems
             .Where(a => a.Status == ActionItemStatus.Open)
             .GroupBy(a => a.Type)
             .Select(g => new { Type = g.Key, Count = g.Count() })
             .ToListAsync();
+        var byTypeDict = byTypeList.ToDictionary(x => x.Type, x => x.Count);
 
         // Top-5 Open items for Admin role (focal tile)
-        var hubPreviewTask = _db.ActionItems
+        var hubPreview = await _db.ActionItems
             .Where(a => a.Status == ActionItemStatus.Open && a.AssignedToRole == AppRoles.Admin)
             .OrderBy(a => a.CreatedAt)
             .Take(5)
             .ToListAsync();
 
         // Total open Admin-role items count (for "עוד N משימות")
-        var openCountTask = _db.ActionItems.CountAsync(a =>
+        var openCount = await _db.ActionItems.CountAsync(a =>
             a.Status == ActionItemStatus.Open && a.AssignedToRole == AppRoles.Admin);
 
         // Top-5 recent open items across ALL roles/users (alerts feed tile)
-        var recentOpenTask = _db.ActionItems
+        var recentOpen = await _db.ActionItems
             .Where(a => a.Status == ActionItemStatus.Open)
             .OrderByDescending(a => a.CreatedAt)
             .Take(5)
             .ToListAsync();
 
-        await Task.WhenAll(
-            activeClientsTask, newClientsTask, sessionsTodayTask,
-            pendingVacationsTask, pendingExtraHoursTask, disputedOrdersTask,
-            openOrdersTask, activeClassesTask, byTypeTask, hubPreviewTask, openCountTask, recentOpenTask);
-
-        var byTypeDict = (await byTypeTask).ToDictionary(x => x.Type, x => x.Count);
-
         return new AdminMetrics
         {
-            ActiveClientsCount = await activeClientsTask,
-            NewClientsThisMonth = await newClientsTask,
-            SessionsToday = await sessionsTodayTask,
-            PendingVacations = await pendingVacationsTask,
-            PendingExtraHours = await pendingExtraHoursTask,
-            OpenDisputedOrders = await disputedOrdersTask,
-            OpenLogisticsOrders = await openOrdersTask,
-            ActiveClassesCount = await activeClassesTask,
+            ActiveClientsCount = activeClients,
+            NewClientsThisMonth = newClients,
+            SessionsToday = sessionsToday,
+            PendingVacations = pendingVacations,
+            PendingExtraHours = pendingExtraHours,
+            OpenDisputedOrders = disputedOrders,
+            OpenLogisticsOrders = openOrders,
+            ActiveClassesCount = activeClasses,
             OpenActionItemsByType = byTypeDict,
-            HubPreview = await hubPreviewTask,
-            OpenCount = await openCountTask,
-            RecentOpenItems = await recentOpenTask,
+            HubPreview = hubPreview,
+            OpenCount = openCount,
+            RecentOpenItems = recentOpen,
         };
     }
 
@@ -106,40 +104,38 @@ public class DashboardMetricsService
         var firstOfMonthIsrael = new DateTime(nowIsrael.Year, nowIsrael.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         var firstOfMonthUtc = TimeZoneInfo.ConvertTimeToUtc(firstOfMonthIsrael, IsraelClock.IsraelTz);
 
-        var csTicketsTask = _actionItemService.ListOpenForRoleAsync(AppRoles.CustomerService);
-        var activeClientsTask = _db.Clients.CountAsync(c => c.IsActive);
-        var newClientsTask = _db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= firstOfMonthUtc);
-        var tryoutsThisMonthTask = _db.Enrollments.CountAsync(e =>
+        // Sequential awaits — single AppDbContext; ListOpenForRoleAsync shares it (no concurrent ops).
+        var csTickets = await _actionItemService.ListOpenForRoleAsync(AppRoles.CustomerService);
+        var activeClients = await _db.Clients.CountAsync(c => c.IsActive);
+        var newClients = await _db.Clients.CountAsync(c => c.IsActive && c.CreatedAt >= firstOfMonthUtc);
+        var tryoutsThisMonth = await _db.Enrollments.CountAsync(e =>
             e.Status == EnrollmentStatus.Tryout && e.EnrolledAt >= firstOfMonthUtc);
-
-        await Task.WhenAll(csTicketsTask, activeClientsTask, newClientsTask, tryoutsThisMonthTask);
 
         return new CsMetrics
         {
-            CsTickets = await csTicketsTask,
-            ActiveClientsCount = await activeClientsTask,
-            NewClientsThisMonth = await newClientsTask,
-            TryoutsThisMonth = await tryoutsThisMonthTask,
+            CsTickets = csTickets,
+            ActiveClientsCount = activeClients,
+            NewClientsThisMonth = newClients,
+            TryoutsThisMonth = tryoutsThisMonth,
         };
     }
 
     public async Task<LogisticsMetrics> GetLogisticsMetricsAsync()
     {
-        var logisticsTicketsTask = _actionItemService.ListOpenForRoleAsync(AppRoles.Logistics);
-        var ordersByStatusTask = _db.LogisticsOrders
+        // Sequential awaits — single AppDbContext; ListOpenForRoleAsync shares it (no concurrent ops).
+        var logisticsTickets = await _actionItemService.ListOpenForRoleAsync(AppRoles.Logistics);
+        var ordersByStatusList = await _db.LogisticsOrders
             .GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() })
             .ToListAsync();
-        var pendingOrdersTask = _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Pending);
+        var pendingOrders = await _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Pending);
 
-        await Task.WhenAll(logisticsTicketsTask, ordersByStatusTask, pendingOrdersTask);
-
-        var byStatus = (await ordersByStatusTask).ToDictionary(x => x.Status, x => x.Count);
+        var byStatus = ordersByStatusList.ToDictionary(x => x.Status, x => x.Count);
 
         return new LogisticsMetrics
         {
-            LogisticsTickets = await logisticsTicketsTask,
-            PendingOrders = await pendingOrdersTask,
+            LogisticsTickets = logisticsTickets,
+            PendingOrders = pendingOrders,
             PackedOrders = byStatus.TryGetValue(LogisticsOrderStatus.Packed, out var p) ? p : 0,
             DisputedOrders = byStatus.TryGetValue(LogisticsOrderStatus.Disputed, out var d) ? d : 0,
             OrdersByStatus = byStatus,
