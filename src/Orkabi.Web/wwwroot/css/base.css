@@ -1523,6 +1523,10 @@ body { margin: 0; line-height: var(--lh-normal); }
               background var(--dur-fast) var(--ease-glass);
 }
 .action-card + .action-card { margin-block-start: var(--sp-3); }
+/* Card-stack container (Action-Hub list). Gap drives spacing; the adjacent-sibling
+   margin above is neutralized inside the list so the gap isn't doubled. */
+.action-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.action-list .action-card + .action-card { margin-block-start: 0; }
 .action-card__top {
   display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
 }
@@ -1744,3 +1748,62 @@ body { margin: 0; line-height: var(--lh-normal); }
   .data-cell { color: #000 !important; }
   .data-row + .data-row .data-cell { border-block-start: 1px solid #ccc !important; }
 }
+
+/* ---- §1 Action-Hub polling indicator (page-head, steady dot + label) ---- */
+.hub-poll {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding-block: var(--sp-1); padding-inline: var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .16);
+  font-size: var(--t-admin-meta); font-weight: var(--fw-medium); color: var(--brand-ink-muted);
+}
+.hub-poll__dot {
+  inline-size: 7px; block-size: 7px; border-radius: 50%;
+  background: var(--ok); flex: 0 0 auto;
+  box-shadow: 0 0 0 0 rgba(46,125,91,.40);
+}
+#hub-list.htmx-request ~ * .hub-poll__dot,
+.hub-poll.is-polling .hub-poll__dot { background: var(--brand-tint); }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes hub-poll-ping { 0% { box-shadow: 0 0 0 0 rgba(46,125,91,.40); }
+                             100% { box-shadow: 0 0 0 6px rgba(46,125,91,0); } }
+  .hub-poll.is-polling .hub-poll__dot { animation: hub-poll-ping var(--dur-slow) var(--ease-out-expo); }
+}
+
+/* ---- §1 Action-Hub list entrance/leave (confirmations only, gated) ---- */
+@media (prefers-reduced-motion: no-preference) {
+  #hub-list.htmx-settling { animation: lg-fade-up var(--dur-fast) var(--ease-glass) both; }
+  .action-card[data-new] { animation: hub-card-enter var(--dur-mid) var(--ease-spring) both; }
+  @keyframes hub-card-enter { from { opacity: 0; transform: translateY(8px) scale(.99); }
+                              to   { opacity: 1; transform: translateY(0)   scale(1);  } }
+  .action-card.is-leaving { animation: hub-card-leave var(--dur-fast) var(--ease-glass) both; }
+  @keyframes hub-card-leave { from { opacity: 1; transform: none; }
+                              to   { opacity: 0; transform: translateY(-4px) scale(.98); } }
+}
+
+/* ---- §5b Save-success toast upgrades (icon + accent + motion + close) ---- */
+.toast--success { border-inline-start: 3px solid var(--ok); }
+.toast__icon {
+  flex: 0 0 auto; inline-size: 22px; block-size: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ok-soft); color: var(--ok);
+  font-weight: var(--fw-bold); font-size: 13px; line-height: 1;
+}
+.toast__msg { flex: 1; min-inline-size: 0; }
+.toast__close {
+  flex: 0 0 auto; background: none; border: 0; cursor: pointer;
+  color: var(--brand-ink-faint); font-size: 20px; line-height: 1;
+  padding: 0 var(--sp-1); transition: color var(--dur-fast) var(--ease-glass);
+}
+.toast__close:hover { color: var(--brand-ink-muted); }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes toast-in  { from { opacity: 0; transform: translateY(12px) scale(.98); }
+                         to   { opacity: 1; transform: translateY(0)    scale(1);  } }
+  @keyframes toast-out { from { opacity: 1; transform: translateY(0); }
+                         to   { opacity: 0; transform: translateY(8px); } }
+  .toast { animation: toast-in var(--dur-mid) var(--ease-spring) both; }
+  .toast.toast--leaving { animation: toast-out var(--dur-fast) var(--ease-glass) both; }
+}
+
+/* ---- §4 Data-table actions column width (packing list + future tables) ---- */
+.data-table__actions-col { inline-size: 100px; }

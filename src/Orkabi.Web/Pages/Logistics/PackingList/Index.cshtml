@@ -2,35 +2,34 @@
 @model Orkabi.Web.Pages.Logistics.PackingList.IndexModel
 @using Orkabi.Web.Modules.Logistics
 @using Orkabi.Web.Modules.Identity
+@using Orkabi.Web.Pages.Shared
 @{
     ViewData["Title"] = "רשימת אריזה";
     var isAdmin = User.IsInRole(AppRoles.Admin);
     var isInstructor = User.IsInRole(AppRoles.Instructor);
     var isLogistics = User.IsInRole(AppRoles.Logistics);
+
+    // Build role-aware subnav (Logistics section: MyOrders is gated to Admin+Instructor)
+    var logisticsSubnav = new List<(string Label, string Href)>
+    {
+        ("הזמנות", "/Logistics/Orders"),
+    };
+    if (isAdmin || isInstructor)
+        logisticsSubnav.Add(("ההזמנות של הכיתה שלי", "/Logistics/MyOrders"));
+    if (isAdmin || isLogistics)
+        logisticsSubnav.Add(("רשימת אריזה", "/Logistics/PackingList"));
 }
 
 <div class="dash-shell">
-  <header class="glass glass--nav dash-topbar">
-    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
-    <span class="dash-topbar__title">לוגיסטיקה</span>
-    <nav class="dash-topbar__user">
-      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
-      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
-    </nav>
-  </header>
+  <partial name="_PageShell" model="@(new PageShellVm {
+      Section   = NavSection.Logistics,
+      Title     = "לוגיסטיקה",
+      ActiveKey = "/Logistics/PackingList",
+      Greeting  = User.Identity?.Name?.Split('@')[0] ?? "",
+      SubnavOverride = logisticsSubnav
+  })" />
 
   <main class="dash-body">
-    <nav class="subnav" aria-label="ניווט לוגיסטיקה">
-      <a class="subnav__item" href="/Logistics/Orders">הזמנות</a>
-      @if (isAdmin || isInstructor)
-      {
-        <a class="subnav__item" href="/Logistics/MyOrders">ההזמנות של הכיתה שלי</a>
-      }
-      @if (isAdmin || isLogistics)
-      {
-        <a class="subnav__item is-active" href="/Logistics/PackingList">רשימת אריזה</a>
-      }
-    </nav>
 
     <div class="page-head">
       <div>

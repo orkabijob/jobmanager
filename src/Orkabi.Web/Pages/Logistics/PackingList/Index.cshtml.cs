@@ -46,6 +46,9 @@ public class IndexModel : PageModel
             .FirstOrDefaultAsync(o => o.Id == id);
         if (order is null) return NotFound();
 
+        // Save-success toast: HTMX reads this header and dispatches a `showToast` event.
+        Response.Headers["HX-Trigger"] = "{\"showToast\":{\"msg\":\"ההזמנה סומנה כנארזה\"}}";
+
         return Partial("_PackRow", order);
     }
 

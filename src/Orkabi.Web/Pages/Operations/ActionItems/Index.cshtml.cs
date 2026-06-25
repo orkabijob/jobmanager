@@ -66,6 +66,9 @@ public class IndexModel : PageModel
 
         await _svc.ResolveActionItemAsync(id, userId);
 
+        // Save-success toast: HTMX reads this header and dispatches a `showToast` event.
+        Response.Headers["HX-Trigger"] = "{\"showToast\":{\"msg\":\"הפריט סומן כטופל\"}}";
+
         // Return the resolved-state fragment (card replaced with resolved view)
         return Partial("_ResolvedCard", item);
     }
