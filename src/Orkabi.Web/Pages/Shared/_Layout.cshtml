@@ -42,10 +42,13 @@
       var toast = document.createElement('div');
       toast.className = 'toast toast--success';
       toast.setAttribute('role', 'status');
-      toast.innerHTML =
-        '<span class="toast__icon" aria-hidden="true">&#x2713;</span>' +
-        '<span class="toast__msg">' + msg + '</span>' +
-        '<button type="button" class="toast__close" aria-label="סגירה">&#xD7;</button>';
+      var icon = document.createElement('span');
+      icon.className = 'toast__icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = '✓';
+      var msgEl = document.createElement('span');
+      msgEl.className = 'toast__msg'; msgEl.textContent = msg;
+      var close = document.createElement('button');
+      close.type = 'button'; close.className = 'toast__close'; close.setAttribute('aria-label', 'סגירה'); close.textContent = '×';
+      toast.append(icon, msgEl, close);
       container.appendChild(toast);
       toast.querySelector('.toast__close').addEventListener('click', function () { dismissToast(toast); });
       setTimeout(function () { dismissToast(toast); }, 3200);
