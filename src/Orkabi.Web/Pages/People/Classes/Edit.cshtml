@@ -71,6 +71,19 @@
           <p class="form-field__error" asp-validation-for="Input.AcademicYearId"></p>
         </div>
 
+        <div class="form-field">
+          <label class="form-field__label" for="SyllabusId">
+            סילבוס
+          </label>
+          <select id="SyllabusId" asp-for="Input.SyllabusId" class="form-select">
+            <option value="">— ללא —</option>
+            @foreach (var syl in Model.Syllabi)
+            {
+              <option value="@syl.Id">@syl.Name</option>
+            }
+          </select>
+        </div>
+
         <fieldset class="form-field">
           <legend class="form-field__label">סטטוס</legend>
           <div class="segment" role="radiogroup" aria-label="סטטוס כיתה">
