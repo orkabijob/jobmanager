@@ -32,5 +32,5 @@
     <span class="status-chip status-chip--muted">טופל</span>
   </div>
   <p class="action-card__desc">@Model.Description</p>
-  <span class="action-card__resolved-meta">✓ טופל</span>
+  <span class="action-card__resolved-meta">✓ טופל@(string.IsNullOrWhiteSpace(Model.ResolvedByUser?.FullName) ? "" : $" · ע״י {Model.ResolvedByUser!.FullName}")</span>
 </article>

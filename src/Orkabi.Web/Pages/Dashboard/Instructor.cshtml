@@ -1,5 +1,6 @@
 @page
 @model InstructorModel
+@using Orkabi.Web.Modules.ActionHub
 @{
     ViewData["Title"] = "מדריך";
 }
@@ -89,6 +90,26 @@
       {
         <p class="today-foot">אין עוד מפגשים היום</p>
       }
+    }
+
+    @* "My tickets" strip — rendered only when the instructor has open items (design §3.4). *@
+    @if (Model.Tickets.Count > 0)
+    {
+      <div class="section-label">המשימות שלי</div>
+      <div class="glass glass--tile form-panel--instructor" style="--lg-tile-shadow: var(--lg-shadow);">
+        <ul class="hub-mini" role="list">
+          @foreach (var t in Model.Tickets.Take(5))
+          {
+            <li class="hub-mini__item">
+              <span class="action-type @InstructorModel.TypeToCssModifier(t.Type)">
+                <span class="action-type__dot" aria-hidden="true"></span>@InstructorModel.TypeToHebrew(t.Type)
+              </span>
+              <a href="/Operations/ActionItems" class="hub-mini__desc">@t.Description</a>
+            </li>
+          }
+        </ul>
+        <a href="/Operations/ActionItems" class="hub-mini__more">פתח את מרכז הפעולות ←</a>
+      </div>
     }
   </main>
 </div>

@@ -19,8 +19,13 @@
 {
   var items = Model.SubnavOverride ?? Orkabi.Web.Pages.Shared.PageShellVm.SubnavFor(Model.Section);
   <nav class="subnav" aria-label="@Orkabi.Web.Pages.Shared.PageShellVm.SectionAria(Model.Section)">
-    @foreach (var (label, href) in items)
+    @foreach (var (label, href, roles) in items)
     {
+      @* Role-gated items are hidden from users not in any of the allowed (comma-separated) roles. *@
+      if (roles is not null && !Array.Exists(roles.Split(','), r => User.IsInRole(r)))
+      {
+        continue;
+      }
       <a class="subnav__item @(href == Model.ActiveKey ? "is-active" : "")" href="@href">@label</a>
     }
   </nav>

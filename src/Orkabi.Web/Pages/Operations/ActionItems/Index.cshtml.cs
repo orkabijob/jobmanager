@@ -65,14 +65,14 @@ public class IndexModel : PageModel
         if (!allowed)
             return Forbid();
 
-        await _svc.ResolveActionItemAsync(id, userId);
+        var resolved = await _svc.ResolveActionItemAsync(id, userId);
 
         // Save-success toast: HTMX reads this header and dispatches a `showToast` event.
         // ASCII-safe via HxTrigger (raw Hebrew in a header is mangled to '?' by Kestrel's Latin-1 encoding).
         Response.Headers["HX-Trigger"] = HxTrigger.ShowToast("הפריט סומן כטופל");
 
         // Return the resolved-state fragment (card replaced with resolved view)
-        return Partial("_ResolvedCard", item);
+        return Partial("_ResolvedCard", resolved ?? item);
     }
 
     // ── helpers ────────────────────────────────────────────────────────────

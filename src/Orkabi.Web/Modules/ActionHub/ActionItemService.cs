@@ -75,15 +75,21 @@ public class ActionItemService
     /// LYNCHPIN: DeduplicationKey is nulled so the unique-index slot is freed and automation
     /// can create a fresh recurrence for the same entity after resolution.
     /// </summary>
-    public async Task ResolveActionItemAsync(int actionItemId, int resolvedByUserId)
+    public async Task<ActionItem?> ResolveActionItemAsync(int actionItemId, int resolvedByUserId)
     {
         var item = await _db.ActionItems.FirstOrDefaultAsync(a => a.Id == actionItemId);
-        if (item is null || item.Status == ActionItemStatus.Resolved) return;   // double-resolve no-op
-        item.Status = ActionItemStatus.Resolved;
-        item.ResolvedByUserId = resolvedByUserId;
-        item.ResolvedAt = DateTime.UtcNow;
-        item.DeduplicationKey = null;                                            // LYNCHPIN — frees the slot
-        await _db.SaveChangesAsync();
+        if (item is null) return null;
+        if (item.Status != ActionItemStatus.Resolved)                           // double-resolve no-op
+        {
+            item.Status = ActionItemStatus.Resolved;
+            item.ResolvedByUserId = resolvedByUserId;
+            item.ResolvedAt = DateTime.UtcNow;
+            item.DeduplicationKey = null;                                        // LYNCHPIN — frees the slot
+            await _db.SaveChangesAsync();
+        }
+        // Load the resolver for the "✓ טופל · ע״י {name}" meta (no-op if no resolver / already loaded).
+        await _db.Entry(item).Reference(a => a.ResolvedByUser).LoadAsync();
+        return item;
     }
 
     /// <summary>

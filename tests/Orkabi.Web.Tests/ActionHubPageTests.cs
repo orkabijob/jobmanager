@@ -386,4 +386,55 @@ public class ActionHubPageTests : IClassFixture<SqliteFixture>
 
         factory.Dispose();
     }
+
+    // ── test 9: resolved card names the resolver when they have a FullName ────
+
+    [Fact]
+    public async Task Resolved_card_shows_resolver_name_when_resolver_has_fullname()
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var fullName = $"מנהלבדיקה{Guid.NewGuid():N}"[..16];
+        var email = $"admin.resolver.{Guid.NewGuid():N}@test.test";
+
+        int itemId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var um = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var u = new AppUser { UserName = email, Email = email, FullName = fullName };
+            await um.CreateAsync(u, "Passw0rd!");
+            await um.AddToRoleAsync(u, AppRoles.Admin);
+
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var item = new ActionItem
+            {
+                Type = ActionItemType.Gap,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.Admin,
+                AssignedToUserId = null,
+                Description = "חריגת קצב: כיתה טסט · דגם טסט — בוצעו 9 שיעורים מתוך 8 צפויים."
+            };
+            db.ActionItems.Add(item);
+            await db.SaveChangesAsync();
+            itemId = item.Id;
+        }
+
+        var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+        var getResp = await client.GetAsync("/Operations/ActionItems");
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        var postResp = await client.PostAsync(
+            $"/Operations/ActionItems?handler=Resolve&id={itemId}",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.OK, postResp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await postResp.Content.ReadAsStringAsync());
+        // Resolved meta must name the resolver: "✓ טופל · ע״י {name}"
+        Assert.Contains($"ע״י {fullName}", body);
+
+        factory.Dispose();
+    }
 }
