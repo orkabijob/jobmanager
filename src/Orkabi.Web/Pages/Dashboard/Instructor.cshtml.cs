@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
@@ -19,19 +20,22 @@ public class InstructorModel : PageModel
     private readonly CurriculumService _curriculum;
     private readonly ClassService _classes;
     private readonly UserManager<AppUser> _users;
+    private readonly ActionItemService _actionItems;
 
     public InstructorModel(
         SchedulingService scheduling,
         EnrollmentService enrollments,
         CurriculumService curriculum,
         ClassService classes,
-        UserManager<AppUser> users)
+        UserManager<AppUser> users,
+        ActionItemService actionItems)
     {
         _scheduling = scheduling;
         _enrollments = enrollments;
         _curriculum = curriculum;
         _classes = classes;
         _users = users;
+        _actionItems = actionItems;
     }
 
     /// <summary>One openable/locked shift row on the "today" home.</summary>
@@ -47,6 +51,9 @@ public class InstructorModel : PageModel
     public string Greeting { get; private set; } = "";
     public string TodayLine { get; private set; } = "";
     public List<ShiftCardVm> Shifts { get; private set; } = new();
+
+    /// <summary>The instructor's open action items (user-assigned + Instructor-role) — the "my tickets" strip.</summary>
+    public List<ActionItem> Tickets { get; private set; } = new();
 
     public async Task OnGetAsync()
     {
@@ -88,7 +95,33 @@ public class InstructorModel : PageModel
                 RosterCount: roster.Count,
                 IsLocked: locked));
         }
+
+        // Open tickets for this instructor (user-assigned + Instructor-role) — mirrors the hub queue.
+        Tickets = await _actionItems.ListOpenForUserAndRoleAsync(userId, AppRoles.Instructor);
     }
+
+    // ── Action-item type → Hebrew label + badge CSS (mirrors the dashboard convention) ──
+
+    public static string TypeToHebrew(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "חריגת קצב",
+        ActionItemType.Absence        => "היעדרות",
+        ActionItemType.Dispute        => "מחלוקת",
+        ActionItemType.Task           => "משימה",
+        ActionItemType.Birthday       => "יום הולדת",
+        ActionItemType.TryoutFollowup => "מעקב ניסיון",
+        _                             => t.ToString()
+    };
+
+    public static string TypeToCssModifier(ActionItemType t) => t switch
+    {
+        ActionItemType.Gap            => "action-type--gap",
+        ActionItemType.Absence        => "action-type--absence",
+        ActionItemType.Dispute        => "action-type--dispute",
+        ActionItemType.Birthday       => "action-type--birthday",
+        ActionItemType.TryoutFollowup => "action-type--tryout",
+        _                             => ""
+    };
 
     private string FirstNameFromIdentity()
     {

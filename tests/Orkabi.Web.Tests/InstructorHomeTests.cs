@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Modules.Scheduling;
@@ -134,6 +135,66 @@ public class InstructorHomeTests : IClassFixture<SqliteFixture>
 
         Assert.Contains("אין לך מפגשים היום", body);   // empty-state title
         Assert.DoesNotContain("קח נוכחות", body);        // no monolith when empty
+
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_home_shows_tickets_strip_when_open_item_exists()
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+
+        string email;
+        string desc = $"יום_הולדת_מחר_{Guid.NewGuid():N}"[..30];
+        using (var s = factory.Services.CreateScope())
+        {
+            var sp = s.ServiceProvider;
+            var me = await SeedInstructorAsync(sp, "רון");
+            email = me.Email!;
+
+            var db = sp.GetRequiredService<AppDbContext>();
+            db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.Birthday,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = null,
+                AssignedToUserId = me.Id,
+                Description = desc,
+                DueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1))
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+        var resp = await client.GetAsync("/Dashboard/Instructor");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+
+        Assert.Contains("המשימות שלי", body);          // tickets section label
+        Assert.Contains(desc, body);                    // the ticket itself
+        Assert.Contains("פתח את מרכז הפעולות", body);   // link to the hub
+
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_home_omits_tickets_strip_when_no_open_items()
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+
+        string email;
+        using (var s = factory.Services.CreateScope())
+        {
+            email = (await SeedInstructorAsync(s.ServiceProvider)).Email!;
+        }
+
+        var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+        var resp = await client.GetAsync("/Dashboard/Instructor");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+
+        // No open tickets → the whole strip is omitted (deliberate per design §3.4).
+        Assert.DoesNotContain("המשימות שלי", body);
 
         factory.Dispose();
     }

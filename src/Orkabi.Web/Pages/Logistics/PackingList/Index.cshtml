@@ -1,32 +1,18 @@
 @page
 @model Orkabi.Web.Pages.Logistics.PackingList.IndexModel
 @using Orkabi.Web.Modules.Logistics
-@using Orkabi.Web.Modules.Identity
 @using Orkabi.Web.Pages.Shared
 @{
     ViewData["Title"] = "רשימת אריזה";
-    var isAdmin = User.IsInRole(AppRoles.Admin);
-    var isInstructor = User.IsInRole(AppRoles.Instructor);
-    var isLogistics = User.IsInRole(AppRoles.Logistics);
-
-    // Build role-aware subnav (Logistics section: MyOrders is gated to Admin+Instructor)
-    var logisticsSubnav = new List<(string Label, string Href)>
-    {
-        ("הזמנות", "/Logistics/Orders"),
-    };
-    if (isAdmin || isInstructor)
-        logisticsSubnav.Add(("ההזמנות של הכיתה שלי", "/Logistics/MyOrders"));
-    if (isAdmin || isLogistics)
-        logisticsSubnav.Add(("רשימת אריזה", "/Logistics/PackingList"));
 }
 
 <div class="dash-shell">
+  @* Subnav comes from the role-aware default (Logistics): MyOrders is auto-gated to Instructor/Admin. *@
   <partial name="_PageShell" model="@(new PageShellVm {
       Section   = NavSection.Logistics,
       Title     = "לוגיסטיקה",
       ActiveKey = "/Logistics/PackingList",
-      Greeting  = User.Identity?.Name?.Split('@')[0] ?? "",
-      SubnavOverride = logisticsSubnav
+      Greeting  = User.Identity?.Name?.Split('@')[0] ?? ""
   })" />
 
   <main class="dash-body">

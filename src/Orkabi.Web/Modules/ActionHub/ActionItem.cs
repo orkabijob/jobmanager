@@ -39,6 +39,7 @@ public class ActionItem : BaseEntity
 
     /// <summary>FK → AspNetUsers; SetNull on user delete. Set when Status=Resolved.</summary>
     public int? ResolvedByUserId { get; set; }
+    public AppUser? ResolvedByUser { get; set; }
 
     /// <summary>UTC timestamp when the item was resolved. Set when Status=Resolved.</summary>
     public DateTime? ResolvedAt { get; set; }
