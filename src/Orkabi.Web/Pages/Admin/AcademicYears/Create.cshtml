@@ -1,0 +1,55 @@
+@page
+@model Orkabi.Web.Pages.Admin.AcademicYears.CreateModel
+@{
+    ViewData["Title"] = "שנה חדשה";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שנות לימוד</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Admin/AcademicYears">שנות לימוד</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>שנה חדשה</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">שנה חדשה</h1>
+      <form method="post" class="form-grid form-grid--2col">
+        <div asp-validation-summary="All" class="form-field__error" style="grid-column: 1 / -1;"></div>
+
+        <div class="form-field form-field--full">
+          <label class="form-field__label" for="Label">שם השנה <span class="req">*</span></label>
+          <input id="Label" asp-for="Input.Label" maxlength="20" placeholder="לדוגמה: תשפ&quot;ז" />
+          <p class="form-field__error" asp-validation-for="Input.Label"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="StartDate">תאריך התחלה <span class="req">*</span></label>
+          <input id="StartDate" asp-for="Input.StartDate" type="date" />
+          <p class="form-field__error" asp-validation-for="Input.StartDate"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="EndDate">תאריך סיום <span class="req">*</span></label>
+          <input id="EndDate" asp-for="Input.EndDate" type="date" />
+          <p class="form-field__error" asp-validation-for="Input.EndDate"></p>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Admin/AcademicYears">ביטול</a>
+          <button type="submit" class="btn-primary">יצירת שנה</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

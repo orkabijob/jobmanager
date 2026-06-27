@@ -1,0 +1,96 @@
+@page
+@model Orkabi.Web.Pages.Admin.AcademicYears.IndexModel
+@{
+    ViewData["Title"] = "שנות לימוד";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">שנות לימוד</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/">לוח בקרה</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>שנות לימוד</span>
+    </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+      <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+      <div class="toast" role="alert">@TempData["ErrorMessage"]</div>
+    }
+
+    <header class="list-head">
+      <h1 class="page-head__title">שנות לימוד</h1>
+      <a class="btn-primary" href="/Admin/AcademicYears/Create">+ שנה חדשה</a>
+    </header>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Years.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין שנות לימוד עדיין</p>
+          <p class="empty-state__hint">הוסיפו שנת לימודים וקבעו אותה כשנה הנוכחית.</p>
+          <a class="btn-primary" href="/Admin/AcademicYears/Create">+ שנה חדשה</a>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">שם</th>
+              <th scope="col">טווח תאריכים</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var y in Model.Years)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@y.Label</td>
+                <td class="data-cell">
+                  <bdi class="num">@y.StartDate.ToString("dd/MM/yyyy")</bdi> – <bdi class="num">@y.EndDate.ToString("dd/MM/yyyy")</bdi>
+                </td>
+                <td class="data-cell">
+                  @if (y.IsCurrent)
+                  {
+                    <span class="status-chip status-chip--active">נוכחית</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--off">לא פעילה</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  @if (!y.IsCurrent)
+                  {
+                    <form method="post" asp-page-handler="SetCurrent" asp-route-id="@y.Id">
+                      <button type="submit" class="btn-ghost btn-ghost--sm">הפוך לנוכחית</button>
+                    </form>
+                  }
+                  else
+                  {
+                    <span style="color:var(--brand-ink-muted); font-size:var(--t-admin-meta);">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

@@ -21,8 +21,9 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 - **B1 — `/Admin/Users`** — user & role management (create user, assign/revoke roles, enable/disable via Identity lockout, reset password; Admin-only; last-admin guard).
 - **Help center — `/Help`** — roles + user-management explainer + per-area cards + FAQ, linked from every dashboard, the shared `_PageShell`, and AccessDenied.
 - **B2 — `/Scheduling/Substitutions/Create`** `[InstructorOrAdmin]` — instructors create a pending substitution request for one of their *own future* shifts (handler enforces ownership / future-only / valid-different-instructor / no-duplicate-pending; the service's `RequestSubstitutionAsync` is a thin write with no authz) and cancel their own pending requests; reachable via a "בקש החלפה" link on the instructor dashboard. This makes the Admin approval queue at `/Scheduling/Substitutions` actually reachable — previously no UI ever created requests.
+- **B3 — `/Admin/AcademicYears`** `[Authorize(Roles=Admin)]` — list / create / set-current for academic years (the Sept-2026 rollover surface; the birthday job keys off the current year). Create makes a non-current year (handler rejects end ≤ start, dates are `DateOnly?` so the Hebrew Required messages fire); set-current uses the existing transactional clear-before-set, honoring the single-current partial index. Added `AcademicYearService.CreateAsync`; reachable via a "שנות לימוד" link on the Admin dashboard.
 
-**Tests: 291/291 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off).
+**Tests: 302/302 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off).
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.

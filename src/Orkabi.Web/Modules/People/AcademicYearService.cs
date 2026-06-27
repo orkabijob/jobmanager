@@ -14,6 +14,22 @@ public class AcademicYearService
     public Task<AcademicYear?> GetCurrentAsync() =>
         _db.AcademicYears.FirstOrDefaultAsync(y => y.IsCurrent);
 
+    // A newly created year is never current — promotion is an explicit SetCurrentAsync, so this
+    // never touches the single-current partial index.
+    public async Task<AcademicYear> CreateAsync(string label, DateOnly startDate, DateOnly endDate)
+    {
+        var year = new AcademicYear
+        {
+            Label = label,
+            StartDate = startDate,
+            EndDate = endDate,
+            IsCurrent = false
+        };
+        _db.AcademicYears.Add(year);
+        await _db.SaveChangesAsync();
+        return year;
+    }
+
     public async Task SetCurrentAsync(int academicYearId)
     {
         // Transactional: clear-before-set avoids partial-index violation (WHERE IsCurrent=true unique).
