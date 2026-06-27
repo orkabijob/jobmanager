@@ -292,6 +292,14 @@ body { margin: 0; line-height: var(--lh-normal); font-weight: var(--fw-medium); 
   align-items: center;
   gap: var(--sp-2);
   margin-block-end: var(--sp-8);
+  /* Soft dark veil so the WHITE wordmark always reads, even over the brightest
+     photo region (the white house wall). Radial fade to transparent → no hard
+     box; pure background, so it always paints behind the text. RTL-neutral. */
+  padding: var(--sp-3) var(--sp-10) var(--sp-4);
+  background: radial-gradient(ellipse 110% 130% at 50% 45%,
+    rgba(16, 26, 40, .42) 0%,
+    rgba(16, 26, 40, .20) 48%,
+    transparent 76%);
   text-decoration: none;
 }
 .auth-wordmark__he {
@@ -1614,18 +1622,32 @@ body { margin: 0; line-height: var(--lh-normal); font-weight: var(--fw-medium); 
 .section-label, .date-group-head {
   color: var(--brand-ink);
 }
+/* …but INSIDE glass cards these dividers already have fill-based AA contrast: drop the
+   edge (GPU noise, §10) and keep their designed muted hierarchy. .section-label is
+   on-photo only on the instructor dashboard (a direct child of dash-body, not .glass),
+   so that legitimate on-photo case is unaffected by this reset. */
+.glass .section-label, .glass .date-group-head,
+.glass .breadcrumb, .glass .scope-note {
+  text-shadow: none;
+}
+.glass .section-label, .glass .date-group-head {
+  color: var(--brand-ink-muted);
+}
 
 /* ---- Responsive: instructor forms + action cards on mobile ---- */
 @media (max-width: 767px) {
   .form-field--suffix { flex-wrap: nowrap; }
   .action-card__due { margin-inline-start: 0; inline-size: 100%; }
+  /* Stay within the §10 mobile blur budget (topbar + panel only): the subnav's 80%
+     fill reads fine without its own backdrop-filter on small screens. */
+  .subnav { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 /* ============================================================
    Universal fallback — @supports not backdrop-filter
    ============================================================ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass--clear, .glass--nav, .glass--tile { background: var(--lg-fill-solid); }
+  .glass, .glass--clear, .glass--nav, .glass--tile, .subnav { background: var(--lg-fill-solid); }
   .auth-field input, .auth-card input { background: var(--lg-fill-solid); }
   .form-field input, .form-field select, .form-field textarea, .form-select { background: var(--lg-fill-solid); }
   .data-table thead th { background: var(--lg-fill-solid); }
