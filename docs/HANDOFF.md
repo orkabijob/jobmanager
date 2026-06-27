@@ -29,8 +29,9 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 - **F11 — Instructor cancels own pending vacation** — `CancelVacationAsync` (ownership + Pending → `Cancelled`) + a "ביטול" button; added `VacationStatus.Cancelled` (no migration) with its "בוטל" render. No migration.
 - **F19 — Instructor dashboard quick-links** — a "פעולות מהירות" card-grid (sub-request, extra-hours, vacations, incident, my-orders, action-items) so the instructor's operations aren't URL-only.
 - **F20 — "First incomplete model" resolver** — `SchedulingService.ResolveCurrentModelForClassAsync` (first syllabus model whose Completed-lesson count is below its expected) now drives both the attendance lesson-log resolution and the dashboard "דגם:" chip — progression was frozen at model #1 before. No migration.
+- **F10 (profile half) — `/Account/Profile`** `[Authorize]` — any logged-in user edits `FullName` + changes password (`ChangePasswordAsync` + `RefreshSignInAsync`); `FullName` now captured at registration; "פרופיל" link on all dashboards + `_PageShell`. No migration. **Deferred: the forgot/reset-password EMAIL flow** (no email sender configured).
 
-**Tests: 350/350 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off). **One pending migration awaits that deploy: `AddIncidentReportStatus`.**
+**Tests: 359/359 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off). **One pending migration awaits that deploy: `AddIncidentReportStatus`.**
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.

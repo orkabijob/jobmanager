@@ -1,0 +1,75 @@
+@page
+@model Orkabi.Web.Pages.Account.ProfileModel
+@{
+    ViewData["Title"] = "הפרופיל שלי";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">הפרופיל שלי</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/">לוח בקרה</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>הפרופיל שלי</span>
+    </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+      <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+    }
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      <h1 class="form-panel__title">פרטים אישיים</h1>
+      <form method="post" asp-page-handler="SaveProfile" class="form-grid form-grid--2col">
+        <div class="form-field">
+          <label class="form-field__label" for="Email">אימייל</label>
+          <input id="Email" value="@Model.Email" dir="ltr" disabled />
+          <p class="form-field__hint">האימייל הוא שם המשתמש לכניסה ואינו ניתן לשינוי כאן.</p>
+        </div>
+        <div class="form-field">
+          <label class="form-field__label" for="FullName">שם מלא</label>
+          <input id="FullName" asp-for="FullName" maxlength="200" placeholder="השם שיוצג במערכת" />
+          <p class="form-field__hint">משמש לברכה ולרשימות; אם ריק — יוצג חלק מהאימייל.</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">שמירת פרטים</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">שינוי סיסמה</h1>
+      <form method="post" asp-page-handler="ChangePassword" class="form-grid form-grid--2col">
+        <div asp-validation-summary="All" class="form-field__error" style="grid-column: 1 / -1;"></div>
+
+        <div class="form-field form-field--full">
+          <label class="form-field__label" for="Current">סיסמה נוכחית <span class="req">*</span></label>
+          <input id="Current" asp-for="Password.Current" type="password" dir="ltr" autocomplete="current-password" />
+        </div>
+        <div class="form-field">
+          <label class="form-field__label" for="New">סיסמה חדשה <span class="req">*</span></label>
+          <input id="New" asp-for="Password.New" type="password" dir="ltr" autocomplete="new-password" />
+          <p class="form-field__hint">לפחות 8 תווים.</p>
+          <p class="form-field__error" asp-validation-for="Password.New"></p>
+        </div>
+        <div class="form-field">
+          <label class="form-field__label" for="Confirm">אימות סיסמה חדשה <span class="req">*</span></label>
+          <input id="Confirm" asp-for="Password.Confirm" type="password" dir="ltr" autocomplete="new-password" />
+          <p class="form-field__error" asp-validation-for="Password.Confirm"></p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">שינוי סיסמה</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

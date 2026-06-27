@@ -27,6 +27,11 @@
 
     <div class="auth-card__fields">
       <div class="auth-field">
+        <label class="auth-field__label" for="FullName">שם מלא</label>
+        <input type="text" id="FullName" asp-for="FullName"
+               autocomplete="name" placeholder="השם המלא שלך" />
+      </div>
+      <div class="auth-field">
         <label class="auth-field__label" for="Email">כתובת אימייל</label>
         <input type="email" id="Email" asp-for="Email" dir="ltr"
                autocomplete="email" inputmode="email" required

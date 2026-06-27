@@ -16,13 +16,19 @@ public class RegisterModel : PageModel
 
     [BindProperty] public string Email { get; set; } = "";
     [BindProperty] public string Password { get; set; } = "";
+    [BindProperty] public string? FullName { get; set; }
     public string? Error { get; set; }
 
     public void OnGet() { }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        var user = new AppUser { UserName = Email, Email = Email };
+        var user = new AppUser
+        {
+            UserName = Email,
+            Email = Email,
+            FullName = string.IsNullOrWhiteSpace(FullName) ? null : FullName.Trim()
+        };
         var result = await _userManager.CreateAsync(user, Password);
         if (result.Succeeded)
         {

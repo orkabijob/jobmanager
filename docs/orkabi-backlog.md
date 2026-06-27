@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **350/350** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **359/359** as of this writing._
 
 > ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
@@ -40,7 +40,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [x] **F9 — Admin locked out of `/Dashboard/Logistics`.** ✅ `[Authorize(Roles = LogisticsOrAdmin)]`. _src A_
 
 > _Deferred (latent, not live): `Pages/Shared/PageShellVm.cs` `SubnavFor(Operations/Scheduling)` still lists ExtraHours/Vacations/"החלפות" with `Roles=null` (everyone). No page renders those sections via `_PageShell` today (only Logistics does), so it's not a live dead-end — but the same role allow-lists must be added there before **TD13** migrates Operations/Scheduling pages onto `_PageShell`, or F6 silently regresses._
-- [ ] **F10 — Self-service password reset + profile page.** No forgot-password flow, no `/Account/Profile`; `FullName` never set at registration → greetings fall back to email. Add `ForgotPassword`/`ResetPassword` + `/Account/Profile` (name + change-password). _src I/G (Register.cshtml.cs:25; AppUser.cs:7)_
+- [~] **F10 — Self-service password reset + profile page.** ✅ **Profile half done:** `/Account/Profile` `[Authorize]` (any logged-in user) — edit `FullName` + change password (`ChangePasswordAsync` verifies current, `RefreshSignInAsync` re-issues cookie; wrong-current/mismatch re-render with error). `FullName` now captured at registration too. Reachable via a "פרופיל" topbar link on all dashboards + `_PageShell`. 8 new tests. **⏳ Deferred: the forgot/reset-password EMAIL flow** — needs an email sender (none configured); revisit with TD3 (Google OAuth) / email infra. _src I/G_
 - [x] **F11 — Instructor cancel own pending vacation.** ✅ `OperationsService.CancelVacationAsync` (guards ownership + Pending → `Cancelled`) + `OnPostCancelAsync` + a "ביטול" button on pending rows. Added `VacationStatus.Cancelled` (int enum, no migration) and the "בוטל" render in the instructor list (blast-radius-checked: counts filter Pending; `_VacationRow` only renders the admin pending list). 5 new tests. _src G_
 - [ ] **F12 — Client profile / enrollment overview.** No `/People/Clients/{id}`; CS can't answer "what class is my kid in?" without opening every roster. Add a read-only detail page (enrollments, payment flags, tryout). _src C_
 - [ ] **F13 — Attendance history view.** Attendance is Instructor/Admin + today-only; CS has zero visibility. Add `/Attendance/History` `[CsOrAdmin]` (LessonLog summaries → per-student rows). _src C/I/G_
