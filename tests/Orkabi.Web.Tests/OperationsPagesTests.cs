@@ -198,6 +198,155 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task Admin_denies_extrahours_row_swaps_to_rejected()
+    {
+        var (instrFactory, _, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_deny_xh");
+        var (adminFactory, adminClient, _) = await CreateAdminClientAsync(_sqlite, "_deny_xh_a");
+
+        int xhId;
+        using (var s = adminFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var school = new School { Name = $"Sch-dxh-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+            var year = new AcademicYear { Label = $"Y-dxh-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school);
+            db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+
+            var cls = new Class { Name = $"C-dxh-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.Classes.Add(cls);
+            await db.SaveChangesAsync();
+
+            var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = instrUserId, DayOfWeek = DayOfWeek.Tuesday, StartTime = new TimeOnly(10, 0), EndTime = new TimeOnly(11, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.ShiftTemplates.Add(template);
+            await db.SaveChangesAsync();
+
+            var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instrUserId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)), Status = ShiftInstanceStatus.Scheduled };
+            db.ShiftInstances.Add(shift);
+            await db.SaveChangesAsync();
+
+            var xh = new Orkabi.Web.Modules.Operations.ExtraHours { ShiftInstanceId = shift.Id, InstructorId = instrUserId, Hours = 2m, Reason = "הארכה", Status = ExtraHoursStatus.Pending };
+            db.ExtraHours.Add(xh);
+            await db.SaveChangesAsync();
+            xhId = xh.Id;
+        }
+
+        var getResp = await adminClient.GetAsync("/Operations/ExtraHours");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        var postResp = await adminClient.PostAsync($"/Operations/ExtraHours?handler=Deny&id={xhId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.OK, postResp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await postResp.Content.ReadAsStringAsync());
+        Assert.Contains("נדחה", body);
+        Assert.DoesNotContain("ממתין", body);
+
+        using (var s = adminFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.ExtraHours.FindAsync(xhId);
+            Assert.Equal(ExtraHoursStatus.Denied, rec!.Status);
+        }
+
+        instrFactory.Dispose();
+        adminFactory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_cannot_deny_extrahours_via_handler()
+    {
+        var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_deny403_xh");
+
+        int xhId;
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var school = new School { Name = $"Sch-d403-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+            var year = new AcademicYear { Label = $"Y-d403-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school);
+            db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+
+            var cls = new Class { Name = $"C-d403-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.Classes.Add(cls);
+            await db.SaveChangesAsync();
+
+            var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = instrUserId, DayOfWeek = DayOfWeek.Tuesday, StartTime = new TimeOnly(10, 0), EndTime = new TimeOnly(11, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.ShiftTemplates.Add(template);
+            await db.SaveChangesAsync();
+
+            var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instrUserId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)), Status = ShiftInstanceStatus.Scheduled };
+            db.ShiftInstances.Add(shift);
+            await db.SaveChangesAsync();
+
+            var xh = new Orkabi.Web.Modules.Operations.ExtraHours { ShiftInstanceId = shift.Id, InstructorId = instrUserId, Hours = 1m, Reason = "הכנה", Status = ExtraHoursStatus.Pending };
+            db.ExtraHours.Add(xh);
+            await db.SaveChangesAsync();
+            xhId = xh.Id;
+        }
+
+        var getResp = await instrClient.GetAsync("/Operations/ExtraHours");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        var postResp = await instrClient.PostAsync($"/Operations/ExtraHours?handler=Deny&id={xhId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.Contains("AccessDenied", postResp.Headers.Location?.ToString());
+
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.ExtraHours.FindAsync(xhId);
+            Assert.Equal(ExtraHoursStatus.Pending, rec!.Status);  // still pending — deny was blocked
+        }
+
+        instrFactory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_sees_denied_status_on_own_submission()
+    {
+        var (factory, client, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_mydeny_xh");
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var school = new School { Name = $"Sch-myd-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+            var year = new AcademicYear { Label = $"Y-myd-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school);
+            db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+
+            var cls = new Class { Name = $"C-myd-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.Classes.Add(cls);
+            await db.SaveChangesAsync();
+
+            var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = instrUserId, DayOfWeek = DayOfWeek.Tuesday, StartTime = new TimeOnly(10, 0), EndTime = new TimeOnly(11, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.ShiftTemplates.Add(template);
+            await db.SaveChangesAsync();
+
+            var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instrUserId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)), Status = ShiftInstanceStatus.Scheduled };
+            db.ShiftInstances.Add(shift);
+            await db.SaveChangesAsync();
+
+            // A denied submission owned by this instructor.
+            var xh = new Orkabi.Web.Modules.Operations.ExtraHours { ShiftInstanceId = shift.Id, InstructorId = instrUserId, Hours = 2m, Reason = "הארכה", Status = ExtraHoursStatus.Denied, ApprovedByUserId = instrUserId, ApprovedAt = DateTime.UtcNow };
+            db.ExtraHours.Add(xh);
+            await db.SaveChangesAsync();
+        }
+
+        var resp = await client.GetAsync("/Operations/ExtraHours");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+        Assert.Contains("נדחה", body);   // must NOT be silently shown as "אושר"
+
+        factory.Dispose();
+    }
+
+    [Fact]
     public async Task Instructor_cannot_approve_extrahours_via_handler()
     {
         var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_403_xh");

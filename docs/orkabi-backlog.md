@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **302/302** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **307/307** as of this writing._
 
 **Legend:** `[ ]` open · `[x]` done · **✓v** = hand-verified against source · _src_ tags:
 A=Admin persona, C=CS persona, L=Logistics persona, I=Instructor persona, G=gap-reviewer,
@@ -27,7 +27,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 
 ## 🟧 Functional / important — capability or correctness hole
 
-- [ ] **F1 — Extra-hours denial.** Approve-only; no `DenyExtraHoursAsync`, no `Denied` status, no reject handler (Vacations has both). **✓v** _src A/G (OperationsService.cs:39–49; ExtraHours/Index.cshtml.cs:68–75)_
+- [x] **F1 — Extra-hours denial.** ✅ Added `ExtraHoursStatus.Denied` (int-mapped, no migration), `OperationsService.DenyExtraHoursAsync`, `OnPostDenyAsync` handler (Admin-only, like approve), and a "דחייה" button + "נדחה" chip on the row — mirroring the Vacations approve/deny. _Caught in review: the new enum value exposed a latent binary `Pending?else→Approved` render in the instructor's own-submissions list that would have shown a denied report as "אושר"; fixed to 3-state + test-locked._ No `AdminNote`/reason column added (would need a migration; Vacations passes null anyway). 5 new tests. _src A/G_
 - [ ] **F2 — Incident-report lifecycle.** No `Status`, no resolution, no action item — append-only, loop never closes. Add `Status` (Open/Closed/Escalated) + Admin close/escalate, or an action item on severe incidents. _src G/D-O1 (IncidentReport.cs; spec §4)_
 - [ ] **F3 — Logistics dispute response path.** `_OrderRow` renders "—" for non-Pending; no transition out of `Disputed`. Add `RepackDisputedAsync` (Disputed→Pending) + a re-pack action. _src L/G_
 - [ ] **F4 — Dispute ticket assigned to Admin, invisible to Logistics hub.** `EnsureDisputeActionItemAsync` hard-codes `AssignedToRole = Admin`; Logistics dashboard lists `ListOpenForRoleAsync(Logistics)`. Reassign (or dual-assign) to Logistics. _src L (ActionItemService.cs:249)_

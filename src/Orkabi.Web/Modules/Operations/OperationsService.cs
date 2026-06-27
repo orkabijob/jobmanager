@@ -48,6 +48,20 @@ public class OperationsService
         await _db.SaveChangesAsync();
     }
 
+    // Mirror of approve: deny a pending extra-hours report. Reuses ApprovedBy*/ApprovedAt as the
+    // reviewer + decision timestamp (same shape as DenyVacationAsync, which also reuses them).
+    public async Task DenyExtraHoursAsync(int extraHoursId, int approverUserId)
+    {
+        var record = await _db.ExtraHours
+            .FirstOrDefaultAsync(e => e.Id == extraHoursId && e.Status == ExtraHoursStatus.Pending)
+            ?? throw new InvalidOperationException($"דיווח שעות {extraHoursId} לא נמצא או שאינו ממתין");
+
+        record.Status = ExtraHoursStatus.Denied;
+        record.ApprovedByUserId = approverUserId;
+        record.ApprovedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+    }
+
     public Task<List<ExtraHours>> ListPendingExtraHoursAsync() =>
         _db.ExtraHours
             .Where(e => e.Status == ExtraHoursStatus.Pending)

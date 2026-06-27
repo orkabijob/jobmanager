@@ -75,6 +75,16 @@ public class IndexModel : PageModel
         return Partial("_ExtraHoursRow", record);
     }
 
+    public async Task<IActionResult> OnPostDenyAsync(int id)
+    {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _ops.DenyExtraHoursAsync(id, userId);
+        var record = await LoadExtraHoursRecordAsync(id);
+        if (record is null) return NotFound();
+        return Partial("_ExtraHoursRow", record);
+    }
+
     private async Task LoadAsync()
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

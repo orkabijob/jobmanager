@@ -114,9 +114,13 @@
                     {
                       <span class="status-chip status-chip--pending">ממתין</span>
                     }
-                    else
+                    else if (xh.Status == ExtraHoursStatus.Approved)
                     {
                       <span class="status-chip status-chip--approved">אושר</span>
+                    }
+                    else
+                    {
+                      <span class="status-chip status-chip--rejected">נדחה</span>
                     }
                   </td>
                 </tr>

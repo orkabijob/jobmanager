@@ -114,6 +114,28 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task DenyExtraHours_transitions_to_denied()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var submitted = await ops.SubmitExtraHoursAsync(shift.Id, instructor.Id, 2m, "הארכת מפגש");
+        await ops.DenyExtraHoursAsync(submitted.Id, instructor.Id);
+        var denied = await db.ExtraHours.FindAsync(submitted.Id);
+        Assert.Equal(ExtraHoursStatus.Denied, denied!.Status);
+        Assert.Equal(instructor.Id, denied.ApprovedByUserId);
+        Assert.NotNull(denied.ApprovedAt);
+    }
+
+    [Fact]
+    public async Task DenyExtraHours_on_non_pending_throws()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var submitted = await ops.SubmitExtraHoursAsync(shift.Id, instructor.Id, 1m, "סיבה");
+        await ops.ApproveExtraHoursAsync(submitted.Id, instructor.Id);   // now Approved, not Pending
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.DenyExtraHoursAsync(submitted.Id, instructor.Id));
+    }
+
+    [Fact]
     public async Task SubmitIncident_creates_record()
     {
         var (db, ops, instructor, shift) = await SetupAsync(_sqlite);

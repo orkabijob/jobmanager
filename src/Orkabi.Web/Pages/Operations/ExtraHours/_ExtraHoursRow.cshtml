@@ -22,10 +22,15 @@
     {
       <span class="status-chip status-chip--pending">ממתין</span>
     }
-    else
+    else if (Model.Status == ExtraHoursStatus.Approved)
     {
       <span class="status-chip status-chip--approved">אושר</span>
       <span class="approve-meta">אושר ע״י @approverName · <bdi class="num">@approvedDate</bdi></span>
+    }
+    else
+    {
+      <span class="status-chip status-chip--rejected">נדחה</span>
+      <span class="approve-meta">נדחה ע״י @approverName · <bdi class="num">@approvedDate</bdi></span>
     }
   </td>
   <td class="data-cell data-cell--actions">
@@ -35,6 +40,10 @@
               hx-post="/Operations/ExtraHours?handler=Approve&id=@Model.Id"
               hx-target="#xh-row-@Model.Id"
               hx-swap="outerHTML">אישור</button>
+      <button class="btn-ghost btn-ghost--sm"
+              hx-post="/Operations/ExtraHours?handler=Deny&id=@Model.Id"
+              hx-target="#xh-row-@Model.Id"
+              hx-swap="outerHTML">דחייה</button>
     }
     else
     {
