@@ -438,6 +438,52 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task Instructor_cancels_own_pending_vacation()
+    {
+        var (factory, client, userId) = await CreateInstructorClientAsync(_sqlite, "_vaccancel");
+        int vacId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+            var vac = new VacationRequest { InstructorId = userId, StartDate = today.AddDays(3), EndDate = today.AddDays(5), Status = VacationStatus.Pending };
+            db.VacationRequests.Add(vac);
+            await db.SaveChangesAsync();
+            vacId = vac.Id;
+        }
+
+        var getResp = await client.GetAsync("/Operations/Vacations");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var postResp = await client.PostAsync($"/Operations/Vacations?handler=Cancel&id={vacId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(VacationStatus.Cancelled, (await db.VacationRequests.FindAsync(vacId))!.Status);
+        }
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_sees_cancelled_vacation_as_cancelled_not_rejected()
+    {
+        var (factory, client, userId) = await CreateInstructorClientAsync(_sqlite, "_vaccancelview");
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+            db.VacationRequests.Add(new VacationRequest { InstructorId = userId, StartDate = today.AddDays(3), EndDate = today.AddDays(5), Status = VacationStatus.Cancelled });
+            await db.SaveChangesAsync();
+        }
+        var resp = await client.GetAsync("/Operations/Vacations");
+        var body = System.Net.WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+        Assert.Contains("בוטל", body);   // must NOT render as "נדחה"
+        factory.Dispose();
+    }
+
+    [Fact]
     public async Task Instructor_cannot_approve_extrahours_via_handler()
     {
         var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_403_xh");

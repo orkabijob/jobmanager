@@ -218,6 +218,19 @@ public class OperationsService
         await _db.SaveChangesAsync();
     }
 
+    /// <summary>Instructor withdraws their OWN pending vacation request (Pending → Cancelled).</summary>
+    public async Task CancelVacationAsync(int vacationRequestId, int instructorId)
+    {
+        var vacation = await _db.VacationRequests
+            .FirstOrDefaultAsync(v => v.Id == vacationRequestId
+                                   && v.InstructorId == instructorId
+                                   && v.Status == VacationStatus.Pending)
+            ?? throw new InvalidOperationException($"בקשת חופשה {vacationRequestId} לא נמצאה");
+
+        vacation.Status = VacationStatus.Cancelled;
+        await _db.SaveChangesAsync();
+    }
+
     public Task<List<VacationRequest>> ListPendingVacationsAsync() =>
         _db.VacationRequests
             .Where(v => v.Status == VacationStatus.Pending)

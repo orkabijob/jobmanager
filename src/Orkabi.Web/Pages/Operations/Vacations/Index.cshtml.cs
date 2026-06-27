@@ -93,6 +93,22 @@ public class IndexModel : PageModel
         return Partial("_VacationRow", vac);
     }
 
+    public async Task<IActionResult> OnPostCancelAsync(int id)
+    {
+        // Instructor cancels their OWN pending request — the service guards ownership + Pending.
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            await _ops.CancelVacationAsync(id, userId);
+            TempData["SuccessMessage"] = "בקשת החופשה בוטלה";
+        }
+        catch (InvalidOperationException)
+        {
+            TempData["SuccessMessage"] = "לא ניתן לבטל בקשה זו";
+        }
+        return RedirectToPage();
+    }
+
     private async Task LoadAsync()
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

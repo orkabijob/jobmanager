@@ -292,6 +292,42 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
             () => ops.ApproveVacationAsync(vac.Id, instructor.Id));
     }
 
+    // ── CancelVacationAsync (F11 — instructor withdraws their own pending request) ──
+
+    [Fact]
+    public async Task CancelVacation_sets_cancelled()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await ops.CancelVacationAsync(vac.Id, instructor.Id);
+        db.ChangeTracker.Clear();
+        Assert.Equal(VacationStatus.Cancelled, (await db.VacationRequests.FindAsync(vac.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task CancelVacation_by_non_owner_throws_and_leaves_pending()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.CancelVacationAsync(vac.Id, instructor.Id + 99999));
+        db.ChangeTracker.Clear();
+        Assert.Equal(VacationStatus.Pending, (await db.VacationRequests.FindAsync(vac.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task CancelVacation_non_pending_throws()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await ops.ApproveVacationAsync(vac.Id, instructor.Id);   // no longer Pending
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.CancelVacationAsync(vac.Id, instructor.Id));
+    }
+
     // ── IDOR-lite ownership guards ────────────────────────────────────────────
 
     /// <summary>

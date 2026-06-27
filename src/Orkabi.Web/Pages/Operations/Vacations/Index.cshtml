@@ -70,6 +70,7 @@
                 <th scope="col">טווח</th>
                 <th scope="col">סיבה</th>
                 <th scope="col">סטטוס</th>
+                <th scope="col" class="data-table__actions-col">פעולות</th>
               </tr>
             </thead>
             <tbody>
@@ -87,9 +88,25 @@
                     {
                       <span class="status-chip status-chip--approved">אושר</span>
                     }
+                    else if (vac.Status == VacationStatus.Cancelled)
+                    {
+                      <span class="status-chip status-chip--off">בוטל</span>
+                    }
                     else
                     {
                       <span class="status-chip status-chip--rejected">נדחה</span>
+                    }
+                  </td>
+                  <td class="data-cell data-cell--actions">
+                    @if (vac.Status == VacationStatus.Pending)
+                    {
+                      <form method="post" asp-page-handler="Cancel" asp-route-id="@vac.Id" style="display:inline;">
+                        <button type="submit" class="btn-ghost btn-ghost--sm">ביטול</button>
+                      </form>
+                    }
+                    else
+                    {
+                      <span style="color:var(--brand-ink-muted);">—</span>
                     }
                   </td>
                 </tr>
