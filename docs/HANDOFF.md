@@ -16,6 +16,14 @@ Orkabi (Hebrew: **עורקבי**) is a role-based, 100%-Hebrew RTL web app for a
 - **Slice 4 delivers:** Logistics_Order + the **dispute loop** (`SupplyPacingService`: seed → Packed → Accepted/Disputed; Disputed → urgent Admin Action_Item) + Logistics pages; the in-process **`DailyJobScheduler` BackgroundService** (5-min PeriodicTimer Asia/Jerusalem, **catch-up-on-wake**, scope-per-run, Testing-gated, drains the outbox each tick) running **birthday + shift-gen** daily jobs via a timer-free `IDailyJobRunner`, with **`JobExecutionLog`** (unique `(JobName,ScheduledFor)`) exactly-once; **event-driven automations** — double-consecutive-absence + deferred tryout-followup (same-tx OutboxEvents + new drainer branches) and **mass-dropout** (`ClientService.DeactivateAsync`, wired from the Clients/Edit deactivation path); and **6 new dedup-keyed Action_Item creators**.
 - **Slice 3 delivers:** Operations (Extra-Hours / Incident / Vacation, single-approval) + the **Outbox + Action-Item kernel** + the **Real-Gap monitor** (Lesson_Log save → same-transaction OutboxEvent → drain → Admin Action_Item, dedup-keyed) + a minimal Admin Action-Items read page.
 
+### Post-roadmap backlog hardening (in progress — since 2026-06-27)
+After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.md` (the authoritative checklist). Done so far:
+- **B1 — `/Admin/Users`** — user & role management (create user, assign/revoke roles, enable/disable via Identity lockout, reset password; Admin-only; last-admin guard).
+- **Help center — `/Help`** — roles + user-management explainer + per-area cards + FAQ, linked from every dashboard, the shared `_PageShell`, and AccessDenied.
+- **B2 — `/Scheduling/Substitutions/Create`** `[InstructorOrAdmin]` — instructors create a pending substitution request for one of their *own future* shifts (handler enforces ownership / future-only / valid-different-instructor / no-duplicate-pending; the service's `RequestSubstitutionAsync` is a thin write with no authz) and cancel their own pending requests; reachable via a "בקש החלפה" link on the instructor dashboard. This makes the Admin approval queue at `/Scheduling/Substitutions` actually reachable — previously no UI ever created requests.
+
+**Tests: 291/291 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off).
+
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.
 - **RBAC:** 4 fixed roles (Admin / CustomerService / Logistics / Instructor); role-router home (`/`) + 4 role-gated dashboards.

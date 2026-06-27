@@ -285,4 +285,82 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
 
         Assert.Equal(enrolledIds, recordedClientIds);
     }
+
+    // ── Substitution cancel (regression coverage for the instructor self-cancel path) ──
+
+    [Fact]
+    public async Task Cancel_substitution_sets_status_cancelled()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+
+        await svc.CancelSubstitutionAsync(request.Id, instructor.Id);
+
+        db.ChangeTracker.Clear();
+        var reloaded = await db.SubstitutionRequests.FindAsync(request.Id);
+        Assert.Equal(SubstitutionStatus.Cancelled, reloaded!.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_substitution_by_non_owner_throws_and_leaves_pending()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var stranger = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CancelSubstitutionAsync(request.Id, stranger.Id));
+
+        db.ChangeTracker.Clear();
+        var reloaded = await db.SubstitutionRequests.FindAsync(request.Id);
+        Assert.Equal(SubstitutionStatus.Pending, reloaded!.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_substitution_non_pending_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var approver = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+        await svc.ApproveSubstitutionAsync(request.Id, approver.Id);   // now Approved, no longer Pending
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CancelSubstitutionAsync(request.Id, instructor.Id));
+    }
 }

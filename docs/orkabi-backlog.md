@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **275/275** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **291/291** as of this writing._
 
 **Legend:** `[ ]` open · `[x]` done · **✓v** = hand-verified against source · _src_ tags:
 A=Admin persona, C=CS persona, L=Logistics persona, I=Instructor persona, G=gap-reviewer,
@@ -20,7 +20,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 
 ## 🟥 Blocking — a core flow is non-functional
 
-- [ ] **B2 — Instructor substitution-request page.** `RequestSubstitutionAsync`/`CancelSubstitutionAsync` exist with **zero UI callers** → Admin approval queue is always empty. Add `Pages/Scheduling/Substitutions/Create` `[InstructorOrAdmin]` (select future shift + proposed sub → pending request) + instructor cancel. **✓v** _src I/G (SchedulingService.cs:221–276; Substitutions/Index only)_
+- [x] **B2 — Instructor substitution-request page.** ✅ `Pages/Scheduling/Substitutions/Create` `[InstructorOrAdmin]`: pick one of *my* future scheduled shifts + a proposed substitute → pending request; "my pending requests" list with per-row cancel. Handler enforces ownership / future-only / valid-different-instructor / no-duplicate-pending (the thin `RequestSubstitutionAsync` has no authz). Reachable via a "בקש החלפה" link on the instructor dashboard. 16 new tests (page authz + functional + service cancel coverage). _src I/G (SchedulingService.cs:221–276; Substitutions/Index only)_
 - [ ] **B3 — Academic-year management UI.** `AcademicYearService.SetCurrentAsync` exists, no page; year rollover (Sept 2026) needs DB surgery; daily birthday job keys off `IsCurrent`. Add `Pages/Admin/AcademicYears` (list, set-current, create). **✓v** _src A/G (no AcademicYears pages; DailyJobService.cs:37)_
 
 ---
