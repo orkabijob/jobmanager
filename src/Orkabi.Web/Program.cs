@@ -57,6 +57,9 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+// Admin user & role management (list / create / assign-roles / enable-disable / reset-password).
+builder.Services.AddScoped<Orkabi.Web.Modules.Identity.UserAdminService>();
+
 // Google OAuth: registered only when ClientId is present at startup.
 // In prod, the env var is set before the process starts so AddGoogle() runs and wires
 // the full handler chain (OAuthPostConfigureOptions, EnsureSignInScheme, etc.).

@@ -1,0 +1,112 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.Admin.Users.EditModel
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "ניהול משתמש";
+    var u = Model.TargetUser!;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול משתמשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Admin/Users">משתמשים</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span><bdi dir="ltr">@u.Email</bdi></span>
+    </nav>
+
+    <header class="list-head" style="margin-block-start: var(--sp-4);">
+      <div>
+        <h1 class="page-head__title"><bdi dir="ltr">@u.Email</bdi></h1>
+        <p class="page-head__sub">@(string.IsNullOrWhiteSpace(u.FullName) ? "ללא שם מלא" : u.FullName)
+          @if (u.IsDisabled)
+          {
+            <span class="status-chip status-chip--off" style="margin-inline-start: var(--sp-2);">מושבת</span>
+          }
+        </p>
+      </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+      <div class="form-banner form-banner--error" role="alert">@Model.Error</div>
+    }
+
+    <div class="help-section" style="display:flex; flex-direction:column; gap:var(--sp-5);">
+
+      <!-- ── Roles ── -->
+      <section class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <h2 class="help-section__title">תפקידים</h2>
+        <p class="help-prose">התפקידים קובעים לאילו אזורים יש למשתמש גישה. ללא תפקיד — המשתמש לא יוכל להיכנס לאף לוח בקרה.</p>
+        <form method="post" asp-page-handler="Roles">
+          <div class="role-pick">
+            @foreach (var r in AppRoles.All)
+            {
+              <label class="toggle-pill">
+                <input type="checkbox" name="SelectedRoles" value="@r" @(u.Roles.Contains(r) ? "checked" : "") />
+                <span class="toggle-pill__track" aria-hidden="true"></span>
+                <span class="toggle-pill__label">@RoleLabels.Hebrew(r)</span>
+              </label>
+            }
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">שמירת תפקידים</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ── Status (enable / disable) ── -->
+      <section class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <h2 class="help-section__title">סטטוס</h2>
+        @if (Model.IsSelf)
+        {
+          <p class="help-prose">לא ניתן להשבית את החשבון שלך מכאן.</p>
+        }
+        else if (u.IsDisabled)
+        {
+          <p class="help-prose">המשתמש מושבת ואינו יכול להתחבר. ניתן להפעיל אותו מחדש.</p>
+          <form method="post" asp-page-handler="Toggle">
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">הפעלה מחדש</button>
+            </div>
+          </form>
+        }
+        else
+        {
+          <p class="help-prose">השבתה חוסמת את המשתמש מהתחברות, מבלי למחוק את החשבון או ההיסטוריה שלו.</p>
+          <form method="post" asp-page-handler="Toggle">
+            <div class="form-actions">
+              <button type="submit" class="btn-ghost btn-ghost--accent">השבתת משתמש</button>
+            </div>
+          </form>
+        }
+      </section>
+
+      <!-- ── Reset password ── -->
+      <section class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <h2 class="help-section__title">איפוס סיסמה</h2>
+        <p class="help-prose">קבעו סיסמה חדשה ומסרו אותה למשתמש. הסיסמה הקודמת תפסיק לעבוד מיד.</p>
+        <form method="post" asp-page-handler="Password" class="form-grid form-grid--2col">
+          <div class="form-field">
+            <label class="form-field__label" for="NewPassword">סיסמה חדשה</label>
+            <input id="NewPassword" name="NewPassword" type="text" dir="ltr" autocomplete="off" minlength="8" />
+            <p class="form-field__hint">לפחות 8 תווים.</p>
+          </div>
+          <div class="form-actions" style="align-self:end;">
+            <button type="submit" class="btn-primary">איפוס סיסמה</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+  </main>
+</div>

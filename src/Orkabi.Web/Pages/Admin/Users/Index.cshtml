@@ -1,0 +1,102 @@
+@page
+@model Orkabi.Web.Pages.Admin.Users.IndexModel
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "ניהול משתמשים";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול משתמשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/">לוח בקרה</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>משתמשים</span>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">משתמשים</h1>
+      <a class="btn-primary" href="/Admin/Users/Create">+ משתמש חדש</a>
+    </header>
+
+    <form class="search-bar" method="get" role="search">
+      <input class="search-bar__input" name="q" type="search" value="@Model.Q"
+             placeholder="חיפוש לפי אימייל או שם…" aria-label="חיפוש משתמשים">
+    </form>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Users.Any())
+      {
+        <div class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">@(string.IsNullOrWhiteSpace(Model.Q) ? "👤" : "🔍")</span>
+          <p class="empty-state__title">@(string.IsNullOrWhiteSpace(Model.Q) ? "אין משתמשים עדיין" : "לא נמצאו תוצאות")</p>
+          <p class="empty-state__hint">@(string.IsNullOrWhiteSpace(Model.Q) ? "הוסיפו משתמש ושייכו לו תפקיד כדי לתת גישה." : "נסו מונח חיפוש אחר.")</p>
+          @if (string.IsNullOrWhiteSpace(Model.Q))
+          {
+            <a class="btn-primary" href="/Admin/Users/Create">+ משתמש חדש</a>
+          }
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">אימייל</th>
+              <th scope="col">שם מלא</th>
+              <th scope="col">תפקידים</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var u in Model.Users)
+            {
+              <tr class="data-row @(u.IsDisabled ? "data-row--muted" : "")">
+                <td class="data-cell data-cell--primary"><bdi dir="ltr">@u.Email</bdi></td>
+                <td class="data-cell">@(string.IsNullOrWhiteSpace(u.FullName) ? "—" : u.FullName)</td>
+                <td class="data-cell">
+                  @if (u.Roles.Count == 0)
+                  {
+                    <span class="status-chip status-chip--off">ללא תפקיד</span>
+                  }
+                  else
+                  {
+                    <span class="role-chips">
+                      @foreach (var r in u.Roles)
+                      {
+                        <span class="role-chip">@RoleLabels.Hebrew(r)</span>
+                      }
+                    </span>
+                  }
+                </td>
+                <td class="data-cell">
+                  @if (u.IsDisabled)
+                  {
+                    <span class="status-chip status-chip--off">מושבת</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--active">פעיל</span>
+                  }
+                </td>
+                <td class="data-cell data-cell--actions">
+                  <a class="btn-ghost btn-ghost--sm" href="/Admin/Users/Edit/@u.Id">ניהול</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>
