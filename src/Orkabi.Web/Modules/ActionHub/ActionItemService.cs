@@ -245,7 +245,7 @@ public class ActionItemService
         {
             Type = ActionItemType.Dispute,
             Status = ActionItemStatus.Open,
-            AssignedToRole = AppRoles.Admin,
+            AssignedToRole = AppRoles.Logistics,   // F4: the dispute loop is Logistics' to resolve (re-pack)
             AssignedToUserId = null,
             RelatedEntityId = logisticsOrderId,
             DeduplicationKey = dedupKey,

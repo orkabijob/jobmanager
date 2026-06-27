@@ -379,7 +379,107 @@ public class LogisticsServiceTests : IClassFixture<SqliteFixture>
         Assert.NotNull(actionItem);
         Assert.Equal(ActionItemStatus.Open, actionItem.Status);
         Assert.Equal(ActionItemType.Dispute, actionItem.Type);
-        Assert.Equal(AppRoles.Admin, actionItem.AssignedToRole);
+        Assert.Equal(AppRoles.Logistics, actionItem.AssignedToRole);   // F4: dispute tickets belong to Logistics, not Admin
+    }
+
+    [Fact]
+    public async Task Dispute_ticket_appears_in_logistics_hub_queue_not_admin()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+        var hub = sp.GetRequiredService<ActionItemService>();
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Packed };
+        db.LogisticsOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        await svc.MarkDisputedAsync(order.Id, instructorUserId: 0, disputeNotes: "חסר");
+
+        var dedupKey = $"dispute_{order.Id}";
+        var logisticsQueue = await hub.ListOpenForRoleAsync(AppRoles.Logistics);
+        Assert.Contains(logisticsQueue, a => a.DeduplicationKey == dedupKey);     // F4: visible to the Logistics hub
+        var adminQueue = await hub.ListOpenForRoleAsync(AppRoles.Admin);
+        Assert.DoesNotContain(adminQueue, a => a.DeduplicationKey == dedupKey);
+    }
+
+    // ── RepackDisputedAsync (F3 — Disputed → Pending, closes the loop) ──────────
+
+    [Fact]
+    public async Task RepackDisputed_transitions_Disputed_to_Pending_and_clears_notes()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+        var repacker = await SeedInstructorAsync(sp);   // a real user for the resolve FK
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Packed };
+        db.LogisticsOrders.Add(order);
+        await db.SaveChangesAsync();
+        await svc.MarkDisputedAsync(order.Id, instructorUserId: 0, disputeNotes: "חסר ציוד");
+
+        await svc.RepackDisputedAsync(order.Id, repacker.Id);
+
+        db.ChangeTracker.Clear();
+        var loaded = await db.LogisticsOrders.FindAsync(order.Id);
+        Assert.Equal(LogisticsOrderStatus.Pending, loaded!.Status);
+        Assert.Null(loaded.DisputeNotes);
+    }
+
+    [Fact]
+    public async Task RepackDisputed_resolves_the_dispute_ticket()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+        var repacker = await SeedInstructorAsync(sp);
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Packed };
+        db.LogisticsOrders.Add(order);
+        await db.SaveChangesAsync();
+        await svc.MarkDisputedAsync(order.Id, instructorUserId: 0, disputeNotes: "חסר ציוד");
+
+        await svc.RepackDisputedAsync(order.Id, repacker.Id);
+
+        db.ChangeTracker.Clear();
+        var ticket = await db.ActionItems.FirstOrDefaultAsync(
+            a => a.RelatedEntityId == order.Id && a.Type == ActionItemType.Dispute);
+        Assert.NotNull(ticket);
+        Assert.Equal(ActionItemStatus.Resolved, ticket!.Status);
+        Assert.Null(ticket.DeduplicationKey);              // freed so a re-dispute can re-fire
+        Assert.Equal(repacker.Id, ticket.ResolvedByUserId);
+    }
+
+    [Fact]
+    public async Task RepackDisputed_on_non_disputed_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+        var repacker = await SeedInstructorAsync(sp);
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Packed };
+        db.LogisticsOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.RepackDisputedAsync(order.Id, repacker.Id));
     }
 
     [Fact]

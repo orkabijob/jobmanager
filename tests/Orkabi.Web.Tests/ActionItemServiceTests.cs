@@ -251,7 +251,7 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
     // ─── EnsureDisputeActionItemAsync ─────────────────────────────────────────
 
     [Fact]
-    public async Task EnsureDispute_creates_admin_dispute_item_with_correct_key_and_description()
+    public async Task EnsureDispute_creates_logistics_dispute_item_with_correct_key_and_description()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
         using var scope = factory.Services.CreateScope();
@@ -267,7 +267,7 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
         var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == dedupKey);
         Assert.Equal(ActionItemType.Dispute, item.Type);
         Assert.Equal(ActionItemStatus.Open, item.Status);
-        Assert.Equal(AppRoles.Admin, item.AssignedToRole);
+        Assert.Equal(AppRoles.Logistics, item.AssignedToRole);   // F4
         Assert.Null(item.AssignedToUserId);
         Assert.Equal(order.Id, item.RelatedEntityId);
         Assert.Contains(cls.Name, item.Description);

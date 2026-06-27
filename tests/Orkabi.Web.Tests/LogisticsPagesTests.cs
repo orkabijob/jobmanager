@@ -86,6 +86,53 @@ public class LogisticsPagesTests : IClassFixture<SqliteFixture>
     // ── Authz: Instructor cannot mark Packed via handler ──────────────────────
 
     [Fact]
+    public async Task Logistics_repacks_disputed_order_back_to_pending()
+    {
+        var (factory, client, _) = await CreateUserClientAsync(_sqlite, AppRoles.Logistics, "_repack");
+
+        int orderId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var school = new School { Name = $"Sch-rp-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+            var year = new AcademicYear { Label = $"Y-rp-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school); db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+            var cls = new Class { Name = $"C-rp-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.Classes.Add(cls);
+            await db.SaveChangesAsync();
+            var model = new Orkabi.Web.Modules.Curriculum.Model { Name = $"Mdl-rp-{Guid.NewGuid():N}"[..15] };
+            db.Models.Add(model);
+            await db.SaveChangesAsync();
+            var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 5, Status = LogisticsOrderStatus.Disputed, DisputeNotes = "חסר ציוד" };
+            db.LogisticsOrders.Add(order);
+            await db.SaveChangesAsync();
+            orderId = order.Id;
+        }
+
+        var getResp = await client.GetAsync("/Logistics/Orders");
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+
+        var postResp = await client.PostAsync($"/Logistics/Orders?handler=Repack&id={orderId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.OK, postResp.StatusCode);
+        var body = System.Net.WebUtility.HtmlDecode(await postResp.Content.ReadAsStringAsync());
+        Assert.Contains("ממתין", body);          // re-rendered row now shows Pending
+        Assert.DoesNotContain("במחלוקת", body);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.LogisticsOrders.FindAsync(orderId);
+            Assert.Equal(LogisticsOrderStatus.Pending, rec!.Status);
+            Assert.Null(rec.DisputeNotes);
+        }
+
+        factory.Dispose();
+    }
+
+    [Fact]
     public async Task Instructor_cannot_mark_packed_via_handler()
     {
         var (instrFactory, instrClient, instrUserId) = await CreateUserClientAsync(_sqlite, AppRoles.Instructor, "_403_pack");

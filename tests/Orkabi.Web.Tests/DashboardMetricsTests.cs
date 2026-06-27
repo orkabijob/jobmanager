@@ -337,6 +337,39 @@ public class DashboardMetricsTests : IClassFixture<SqliteFixture>
         Assert.Equal(before + 2, metrics.ActiveClassesCount);
     }
 
+    // ─── F4 intent guard: Logistics-assigned disputes stay off the Admin focal tile ──
+
+    [Fact]
+    public async Task Logistics_dispute_excluded_from_admin_focal_tile_but_counted_and_in_feed()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<DashboardMetricsService>();
+
+        var beforeDispute = await db.ActionItems.CountAsync(a => a.Status == ActionItemStatus.Open && a.Type == ActionItemType.Dispute);
+
+        // A dispute ticket as F4 creates it: assigned to Logistics, not Admin.
+        var dispute = new ActionItem
+        {
+            Type = ActionItemType.Dispute,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Logistics,
+            Description = "מחלוקת לוגיסטית"
+        };
+        db.ActionItems.Add(dispute);
+        await db.SaveChangesAsync();
+
+        var m = await svc.GetAdminMetricsAsync();
+
+        // Not in the Admin's personal focal queue (it's Logistics' to resolve)…
+        Assert.DoesNotContain(m.HubPreview, a => a.Id == dispute.Id);
+        // …but the Admin is NOT blind to it: counted by type, and present in the all-roles alerts feed.
+        var disputeCount = m.OpenActionItemsByType.TryGetValue(ActionItemType.Dispute, out var d) ? d : 0;
+        Assert.Equal(beforeDispute + 1, disputeCount);
+        Assert.Contains(m.RecentOpenItems, a => a.Id == dispute.Id);
+    }
+
     // ─── OpenActionItemsByType ────────────────────────────────────────────────
 
     [Fact]

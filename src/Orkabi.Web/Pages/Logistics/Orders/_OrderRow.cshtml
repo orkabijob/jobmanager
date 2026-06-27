@@ -57,6 +57,14 @@
               hx-swap="outerHTML"
               hx-include="#csrf-anchor">נארז</button>
     }
+    else if (Model.Status == LogisticsOrderStatus.Disputed)
+    {
+      <button class="btn-ghost btn-ghost--sm"
+              hx-post="/Logistics/Orders?handler=Repack&id=@Model.Id"
+              hx-target="#order-row-@Model.Id"
+              hx-swap="outerHTML"
+              hx-include="#csrf-anchor">החזר לאריזה</button>
+    }
     else
     {
       <span style="color:var(--brand-ink-muted);">—</span>

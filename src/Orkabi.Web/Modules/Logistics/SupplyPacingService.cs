@@ -135,6 +135,36 @@ public class SupplyPacingService
     }
 
     /// <summary>
+    /// Re-pack a disputed order: transitions Disputed → Pending (back into the packing queue) and
+    /// resolves the open dispute ActionItem, closing the loop. Guards that current status is Disputed.
+    /// In a transaction: clears the dispute, saves, resolves the ticket (frees its dedup slot), commits.
+    /// </summary>
+    public async Task RepackDisputedAsync(int orderId, int logisticsUserId, CancellationToken ct = default)
+    {
+        var order = await _db.LogisticsOrders.FindAsync(new object[] { orderId }, ct)
+            ?? throw new InvalidOperationException($"הזמנה {orderId} לא נמצאה");
+
+        if (order.Status != LogisticsOrderStatus.Disputed)
+            throw new InvalidOperationException($"הזמנה {orderId} אינה במחלוקת — לא ניתן להחזיר לאריזה");
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+        order.Status = LogisticsOrderStatus.Pending;
+        order.DisputeNotes = null;
+        await _db.SaveChangesAsync(ct);
+
+        // Close the dispute ticket so the Logistics hub queue clears; nulling its dedup key lets a
+        // future dispute on the same order re-create a fresh ticket.
+        var ticket = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == $"dispute_{orderId}"
+                                   && a.Status == ActionItemStatus.Open, ct);
+        if (ticket is not null)
+            await _actionHub.ResolveActionItemAsync(ticket.Id, logisticsUserId);
+
+        await tx.CommitAsync(ct);
+    }
+
+    /// <summary>
     /// Returns all Pending and Packed orders for the master packing list, grouped by
     /// School → Class → Status. Includes Class → School and Model navigations.
     /// IgnoreQueryFilters: Class has a global filter (Status == Active); archived classes
