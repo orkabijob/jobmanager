@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **347/347** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **350/350** as of this writing._
 
 > ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
@@ -49,8 +49,8 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [ ] **F16 — No delete for Curriculum Models / Schools.** Create+Update only; bad rows accumulate. Add FK-guarded `DeleteModelAsync`/`DeleteSchoolAsync` + edit-page buttons. _src G (CurriculumService.cs:12–31; SchoolService.cs:11–33)_
 - [ ] **F17 — Instructor week/month schedule view.** Dashboard shows today only; `/Scheduling/Instances` is CS/Admin-gated. Add a read-only "my schedule" tab (7/30-day) filtered to the user. _src I_
 - [ ] **F18 — Instructor proactive absence report.** No "I can't make it" path (vacation needs future range; incident needs an existing shift). Add "הודע על היעדרות" on the shift card → action item + optional sub-request. _src I_
-- [ ] **F19 — Instructor dashboard nav to Operations.** No links to ExtraHours/Vacations/Incidents/MyOrders — URL-only. Add a quick-links strip under the shift cards. _src I_
-- [ ] **F20 — "First incomplete model" resolver.** `ResolveLessonLogForAttendanceAsync` + `ResolveCurrentModelNameAsync` always pick model #1 by OrderIndex; progression looks frozen. Pick first model lacking enough `Completed` LessonLogs. **✓v** _src I/G/D-S1 (SchedulingService.cs:40–53; Instructor.cshtml.cs:135)_
+- [x] **F19 — Instructor dashboard nav to Operations.** ✅ A "פעולות מהירות" quick-links card-grid under the shift cards: בקשת החלפה, שעות נוספות, חופשות, דיווח אירוע, ההזמנות שלי, משימות פתוחות. _src I_
+- [x] **F20 — "First incomplete model" resolver.** ✅ New `SchedulingService.ResolveCurrentModelForClassAsync` picks the first syllabus model (by OrderIndex) whose count of **Completed** LessonLogs for the class is still below its `ExpectedLessonsToComplete` (last model if all complete). Both callers now route through it — `ResolveLessonLogForAttendanceAsync` (attendance) and the dashboard "דגם:" chip (the now-unused `CurriculumService` dep was dropped). Progression no longer frozen at model #1. **✓v** _src I/G/D-S1_
 
 ---
 

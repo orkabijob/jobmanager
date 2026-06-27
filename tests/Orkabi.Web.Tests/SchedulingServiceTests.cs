@@ -363,4 +363,113 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => svc.CancelSubstitutionAsync(request.Id, instructor.Id));
     }
+
+    // ── F20: "first incomplete model" resolver (progression no longer frozen at model #1) ──
+
+    private static async Task<Syllabus> SeedTwoModelSyllabusAsync(
+        AppDbContext db, Class cls, Modules.Curriculum.Model modelA, Modules.Curriculum.Model modelB)
+    {
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var syllabus = new Syllabus
+        {
+            Name = $"syl-{Guid.NewGuid():N}"[..12],
+            StartDate = today.AddDays(-30),
+            EndDate = today.AddDays(120),
+            Status = EntityStatus.Active
+        };
+        db.Syllabi.Add(syllabus);
+        await db.SaveChangesAsync();
+        db.SyllabusModels.Add(new SyllabusModel { SyllabusId = syllabus.Id, ModelId = modelA.Id, OrderIndex = 1 });
+        db.SyllabusModels.Add(new SyllabusModel { SyllabusId = syllabus.Id, ModelId = modelB.Id, OrderIndex = 2 });
+        cls.SyllabusId = syllabus.Id;
+        await db.SaveChangesAsync();
+        return syllabus;
+    }
+
+    [Fact]
+    public async Task ResolveCurrentModel_advances_past_completed_models()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 2);
+        var modelB = await SeedModelAsync(db, expected: 3);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        // Nothing completed yet → current is the first model (A).
+        var (firstId, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelA.Id, firstId);
+
+        // Complete modelA's expected (2) lessons for this class.
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        for (int i = 0; i < 2; i++)
+        {
+            var inst = await SeedInstanceAsync(db, template.Id, today.AddDays(-10 + i), instructor.Id);
+            await svc.SaveLessonLogAsync(inst.Id, modelA.Id, LessonLogStatus.Completed, null);
+        }
+
+        // Model A is complete → current advances to B (was frozen at A before F20).
+        var (nextId, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelB.Id, nextId);
+    }
+
+    [Fact]
+    public async Task ResolveLessonLog_creates_log_for_first_incomplete_model()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 1);
+        var modelB = await SeedModelAsync(db, expected: 3);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var doneInst = await SeedInstanceAsync(db, template.Id, today.AddDays(-5), instructor.Id);
+        await svc.SaveLessonLogAsync(doneInst.Id, modelA.Id, LessonLogStatus.Completed, null);   // model A complete (expected 1)
+
+        // A fresh shift with no log → resolver should pick model B (A is done), not model #1.
+        var newInst = await SeedInstanceAsync(db, template.Id, today, instructor.Id);
+        var (logId, modelId, _) = await svc.ResolveLessonLogForAttendanceAsync(newInst.Id);
+        Assert.NotNull(logId);
+        Assert.Equal(modelB.Id, modelId);
+    }
+
+    [Fact]
+    public async Task ResolveCurrentModel_falls_back_to_last_when_all_complete()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 1);
+        var modelB = await SeedModelAsync(db, expected: 1);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var instA = await SeedInstanceAsync(db, template.Id, today.AddDays(-4), instructor.Id);
+        await svc.SaveLessonLogAsync(instA.Id, modelA.Id, LessonLogStatus.Completed, null);
+        var instB = await SeedInstanceAsync(db, template.Id, today.AddDays(-3), instructor.Id);
+        await svc.SaveLessonLogAsync(instB.Id, modelB.Id, LessonLogStatus.Completed, null);
+
+        // Every model complete → fall back to the last model (B), not null.
+        var (id, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelB.Id, id);
+    }
 }

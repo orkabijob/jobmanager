@@ -94,6 +94,37 @@
       }
     }
 
+    @* Quick-links to the instructor's operations (F19) — these were URL-only before. *@
+    <div class="section-label">פעולות מהירות</div>
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      <div class="hub-grid">
+        <a href="/Scheduling/Substitutions/Create" class="nav-card">
+          <span class="nav-card__title">בקשת החלפה</span>
+          <span class="nav-card__desc">בקשת מחליף/ה למשמרת עתידית</span>
+        </a>
+        <a href="/Operations/ExtraHours" class="nav-card">
+          <span class="nav-card__title">שעות נוספות</span>
+          <span class="nav-card__desc">דיווח שעות מעבר למשמרת</span>
+        </a>
+        <a href="/Operations/Vacations" class="nav-card">
+          <span class="nav-card__title">חופשות</span>
+          <span class="nav-card__desc">בקשת ימי חופשה</span>
+        </a>
+        <a href="/Operations/Incidents" class="nav-card">
+          <span class="nav-card__title">דיווח אירוע</span>
+          <span class="nav-card__desc">תיעוד אירוע מהשטח</span>
+        </a>
+        <a href="/Logistics/MyOrders" class="nav-card">
+          <span class="nav-card__title">ההזמנות שלי</span>
+          <span class="nav-card__desc">ערכות וחומרים לכיתות שלי</span>
+        </a>
+        <a href="/Operations/ActionItems" class="nav-card">
+          <span class="nav-card__title">משימות פתוחות</span>
+          <span class="nav-card__desc">מרכז הפעולות שלי</span>
+        </a>
+      </div>
+    </div>
+
     @* "My tickets" strip — rendered only when the instructor has open items (design §3.4). *@
     @if (Model.Tickets.Count > 0)
     {

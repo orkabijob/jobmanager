@@ -20,11 +20,10 @@ public class SchedulingService
     }
 
     /// <summary>
-    /// Resolves the "current" lesson model for a shift's class via the class's syllabus
-    /// (first model by OrderIndex — the Slice-2 rule; precise "first incomplete" is a later
-    /// refinement), then GETS-OR-CREATES the LessonLog for this shift instance with that model.
-    /// Returns (null, null) when the class has no syllabus or the syllabus has no models —
-    /// the caller then shows the "טרם שובץ דגם" state and disables submit (no LessonLog created).
+    /// Resolves the "current" lesson model for a shift's class (the first not-yet-completed syllabus
+    /// model — see ResolveCurrentModelForClassAsync), then GETS-OR-CREATES the LessonLog for this
+    /// shift instance with that model. Returns (null, null) when the class has no syllabus or the
+    /// syllabus has no models — the caller then shows the "טרם שובץ דגם" state and disables submit.
     /// </summary>
     public async Task<(int? lessonLogId, int? modelId, string? modelName)>
         ResolveLessonLogForAttendanceAsync(int shiftInstanceId)
@@ -36,22 +35,62 @@ public class SchedulingService
         if (existing is not null)
             return (existing.Id, existing.ModelId, existing.Model?.Name);
 
-        // No log yet — resolve the first syllabus model of the shift's class.
-        var firstModel = await (
-            from i in _db.ShiftInstances
-            where i.Id == shiftInstanceId
-            join c in _db.Classes.IgnoreQueryFilters() on i.Template.ClassId equals c.Id
-            where c.SyllabusId != null
-            from sm in _db.SyllabusModels.Where(sm => sm.SyllabusId == c.SyllabusId)
-            orderby sm.OrderIndex
-            select new { sm.ModelId, sm.Model.Name }
-        ).FirstOrDefaultAsync();
+        // No log yet — resolve the class's CURRENT model (first not-yet-completed), then create it.
+        var classId = await _db.ShiftInstances.IgnoreQueryFilters()
+            .Where(i => i.Id == shiftInstanceId)
+            .Select(i => (int?)i.Template.ClassId)
+            .FirstOrDefaultAsync();
+        if (classId is null)
+            return (null, null, null);
 
-        if (firstModel is null)
+        var (modelId, modelName) = await ResolveCurrentModelForClassAsync(classId.Value);
+        if (modelId is null)
             return (null, null, null);   // no syllabus / no models → caller disables submit
 
-        var log = await SaveLessonLogAsync(shiftInstanceId, firstModel.ModelId, LessonLogStatus.InProgress, null);
-        return (log.Id, firstModel.ModelId, firstModel.Name);
+        var log = await SaveLessonLogAsync(shiftInstanceId, modelId.Value, LessonLogStatus.InProgress, null);
+        return (log.Id, modelId, modelName);
+    }
+
+    /// <summary>
+    /// The class's "current" syllabus model = the first (by OrderIndex) whose count of Completed
+    /// LessonLogs for this class is still below the model's ExpectedLessonsToComplete. If every model
+    /// is complete, returns the last model. Returns (null, null) when the class has no syllabus or
+    /// the syllabus has no models. (F20 — previously this was frozen at model #1.)
+    /// </summary>
+    public async Task<(int? modelId, string? modelName)> ResolveCurrentModelForClassAsync(int classId)
+    {
+        var syllabusId = await _db.Classes.IgnoreQueryFilters()
+            .Where(c => c.Id == classId)
+            .Select(c => c.SyllabusId)
+            .FirstOrDefaultAsync();
+        if (syllabusId is null)
+            return (null, null);
+
+        var models = await _db.SyllabusModels
+            .Where(sm => sm.SyllabusId == syllabusId)
+            .OrderBy(sm => sm.OrderIndex)
+            .Select(sm => new { sm.ModelId, sm.Model.Name, sm.Model.ExpectedLessonsToComplete })
+            .ToListAsync();
+        if (models.Count == 0)
+            return (null, null);
+
+        // Completed lesson counts per model for THIS class. IgnoreQueryFilters so a lesson taught
+        // under a since-archived template still counts as real progress (same reasoning as the
+        // OutboxDrainer's Real-Gap monitor). NOTE: ComputePacingAsync does NOT yet use it — a
+        // pre-existing inconsistency tracked as tech-debt, not changed here.
+        var completed = await _db.LessonLogs.IgnoreQueryFilters()
+            .Where(l => l.Status == LessonLogStatus.Completed
+                     && l.ShiftInstance.Template.ClassId == classId)
+            .GroupBy(l => l.ModelId)
+            .Select(g => new { ModelId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var completedByModel = completed.ToDictionary(x => x.ModelId, x => x.Count);
+
+        var current = models.FirstOrDefault(m =>
+            (completedByModel.TryGetValue(m.ModelId, out var c) ? c : 0) < m.ExpectedLessonsToComplete)
+            ?? models[^1];
+
+        return (current.ModelId, current.Name);
     }
 
     // ── Template management ──────────────────────────────────────────────────
