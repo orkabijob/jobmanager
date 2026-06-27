@@ -19,7 +19,10 @@
       <a class="subnav__item" href="/Scheduling">סקירה</a>
       <a class="subnav__item" href="/Scheduling/Templates">תבניות</a>
       <a class="subnav__item is-active" href="/Scheduling/Instances">מופעים</a>
-      <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+      @if (User.IsInRole("Admin"))
+      {
+        <a class="subnav__item" href="/Scheduling/Substitutions">החלפות</a>
+      }
     </nav>
 
     <header class="list-head">

@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **307/307** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **326/326** as of this writing._
 
 **Legend:** `[ ]` open · `[x]` done · **✓v** = hand-verified against source · _src_ tags:
 A=Admin persona, C=CS persona, L=Logistics persona, I=Instructor persona, G=gap-reviewer,
@@ -31,11 +31,13 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [ ] **F2 — Incident-report lifecycle.** No `Status`, no resolution, no action item — append-only, loop never closes. Add `Status` (Open/Closed/Escalated) + Admin close/escalate, or an action item on severe incidents. _src G/D-O1 (IncidentReport.cs; spec §4)_
 - [ ] **F3 — Logistics dispute response path.** `_OrderRow` renders "—" for non-Pending; no transition out of `Disputed`. Add `RepackDisputedAsync` (Disputed→Pending) + a re-pack action. _src L/G_
 - [ ] **F4 — Dispute ticket assigned to Admin, invisible to Logistics hub.** `EnsureDisputeActionItemAsync` hard-codes `AssignedToRole = Admin`; Logistics dashboard lists `ListOpenForRoleAsync(Logistics)`. Reassign (or dual-assign) to Logistics. _src L (ActionItemService.cs:249)_
-- [ ] **F5 — Authz holes on Operations.** `/Operations` hub and `/Operations/Incidents` are bare `[Authorize]` → Logistics-only users reach them; non-instructor incident submit throws a 500. Tighten to `[Authorize(Roles=InstructorOrAdmin)]` (hub may need Admin+CS+Instructor). _src C/G (Operations/Index.cshtml.cs:11; Incidents/Index.cshtml.cs:14)_
-- [ ] **F6 — Dead-end subnav links for CS.** Operations subnav shows "שעות נוספות"/"חופשות"; every Scheduling sub-page shows "החלפות" — all 403 for CS. Role-gate the links (pattern already used for the Admin hub card). _src C_
-- [ ] **F7 — Incident submit form unusable for CS.** Page is role-free so CS sees the form, but `RecentShifts` is always empty → submit fails. Hide the form for non-instructors (`@if (!isAdminOrCs)`). _src C (Incidents/Index.cshtml:43–89)_
-- [ ] **F8 — Operations subnav hides ActionItems from instructors.** The page serves them but the non-Admin subnav omits "משימות פתוחות". Add the link in the `else` block. _src I (Operations/Index.cshtml:28–34)_
-- [ ] **F9 — Admin locked out of `/Dashboard/Logistics`.** `[Authorize(Roles=Logistics)]` excludes Admin (inconsistent with the `LogisticsOrAdmin` Logistics pages). One-line fix → `LogisticsOrAdmin`. _src A (Logistics.cshtml.cs:11)_
+- [x] **F5 — Authz holes on Operations.** ✅ `/Operations` hub + `/Operations/Incidents` → `[Authorize(Roles = CsOrInstructorOrAdmin)]` (new constant; excludes Logistics, keeps CS for incident *reads*). `/Operations/ActionItems` stays all-roles. Logistics is now excluded from the hub/incidents but still reaches the Action Hub. _src C/G_
+- [x] **F6 — Dead-end subnav links for CS.** ✅ Extracted a shared, role-gated `_OperationsSubnav` partial (the 5 inline copies' drift *was* F8) + gated the hub nav-cards; gated the Scheduling "החלפות" link+card to Admin across **all 6** Scheduling pages (Index, Templates Index/Create/Edit, Instances, Substitutions). CS sees zero 403 links. _src C_
+- [x] **F7 — Incident submit form unusable for CS.** ✅ Form is now instructor-only in the view **and** the `OnPostAsync` handler guards `!IsInRole(Instructor) → Forbid()` (view/handler symmetry — caught in review). CS/Admin still see the incident *lists*. _src C_
+- [x] **F8 — Operations subnav hides ActionItems from instructors.** ✅ Folded into the `_OperationsSubnav` partial — "משימות פתוחות" now shows for every role (incl. CS), and a Logistics user on the Action Hub sees *only* that link (no new dead-ends). _src I_
+- [x] **F9 — Admin locked out of `/Dashboard/Logistics`.** ✅ `[Authorize(Roles = LogisticsOrAdmin)]`. _src A_
+
+> _Deferred (latent, not live): `Pages/Shared/PageShellVm.cs` `SubnavFor(Operations/Scheduling)` still lists ExtraHours/Vacations/"החלפות" with `Roles=null` (everyone). No page renders those sections via `_PageShell` today (only Logistics does), so it's not a live dead-end — but the same role allow-lists must be added there before **TD13** migrates Operations/Scheduling pages onto `_PageShell`, or F6 silently regresses._
 - [ ] **F10 — Self-service password reset + profile page.** No forgot-password flow, no `/Account/Profile`; `FullName` never set at registration → greetings fall back to email. Add `ForgotPassword`/`ResetPassword` + `/Account/Profile` (name + change-password). _src I/G (Register.cshtml.cs:25; AppUser.cs:7)_
 - [ ] **F11 — Instructor cannot cancel own pending vacation.** Add `CancelVacationAsync(id, instructorId)` (guard Pending + ownership) + `OnPostCancelAsync`. _src G (Vacations/Index.cshtml.cs:96–104)_
 - [ ] **F12 — Client profile / enrollment overview.** No `/People/Clients/{id}`; CS can't answer "what class is my kid in?" without opening every roster. Add a read-only detail page (enrollments, payment flags, tryout). _src C_

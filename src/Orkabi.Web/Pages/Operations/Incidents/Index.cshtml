@@ -18,29 +18,16 @@
   </header>
 
   <main class="dash-body">
-    <nav class="subnav" aria-label="ניווט תפעול">
-      <a class="subnav__item" href="/Operations">סקירה</a>
-      @if (User.IsInRole(AppRoles.Admin))
-      {
-        <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
-        <a class="subnav__item is-active" href="/Operations/Incidents">דיווחי אירוע</a>
-        <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
-        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
-      }
-      else
-      {
-        <a class="subnav__item" href="/Operations/ExtraHours">שעות נוספות</a>
-        <a class="subnav__item is-active" href="/Operations/Incidents">דיווחי אירוע</a>
-        <a class="subnav__item" href="/Operations/Vacations">חופשות</a>
-      }
-    </nav>
+    @await Html.PartialAsync("_OperationsSubnav", "incidents")
 
     @if (TempData["SuccessMessage"] != null)
     {
       <div class="toast" role="status">@TempData["SuccessMessage"]</div>
     }
 
-    @* Submit form — visible to instructors and admins *@
+    @* Submit form — instructors only (RecentShifts is the instructor's own shifts; empty for CS/Admin). *@
+    @if (User.IsInRole(AppRoles.Instructor))
+    {
     <form method="post" class="glass glass--tile form-panel form-panel--instructor"
           style="--lg-tile-shadow: var(--lg-shadow);">
       <h1 class="form-panel__title">דיווח אירוע</h1>
@@ -87,6 +74,7 @@
         <button type="submit" class="btn-primary">שליחת דיווח</button>
       </div>
     </form>
+    }
 
     @if (isAdminOrCs && Model.AllIncidents.Any())
     {

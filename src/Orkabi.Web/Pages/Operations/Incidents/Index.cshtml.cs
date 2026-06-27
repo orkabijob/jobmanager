@@ -9,7 +9,7 @@ using Orkabi.Web.Modules.Scheduling;
 
 namespace Orkabi.Web.Pages.Operations.Incidents;
 
-[Authorize]
+[Authorize(Roles = AppRoles.CsOrInstructorOrAdmin)]
 public class IndexModel : PageModel
 {
     private readonly OperationsService _ops;
@@ -49,6 +49,10 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        // Only instructors submit incidents (the form is instructor-only in the view). Guard the
+        // handler too — CS/Admin reach this page (to read) but must not be able to craft a submit.
+        if (!User.IsInRole(AppRoles.Instructor)) return Forbid();
+
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await LoadAsync();
 
