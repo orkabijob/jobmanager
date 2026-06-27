@@ -30,8 +30,10 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 - **F19 — Instructor dashboard quick-links** — a "פעולות מהירות" card-grid (sub-request, extra-hours, vacations, incident, my-orders, action-items) so the instructor's operations aren't URL-only.
 - **F20 — "First incomplete model" resolver** — `SchedulingService.ResolveCurrentModelForClassAsync` (first syllabus model whose Completed-lesson count is below its expected) now drives both the attendance lesson-log resolution and the dashboard "דגם:" chip — progression was frozen at model #1 before. No migration.
 - **F10 (profile half) — `/Account/Profile`** `[Authorize]` — any logged-in user edits `FullName` + changes password (`ChangePasswordAsync` + `RefreshSignInAsync`); `FullName` now captured at registration; "פרופיל" link on all dashboards + `_PageShell`. No migration. **Deferred: the forgot/reset-password EMAIL flow** (no email sender configured).
+- **F14 — Substitution-approval notifications** — `ApproveSubstitutionAsync` creates two user-assigned action items (substitute + original instructor) in its transaction; they surface in each instructor's dashboard tickets. No migration.
+- **F16 — FK-guarded deletes** — `CurriculumService.DeleteModelAsync` (blocks if used in any syllabus/lesson-log/order) + `SchoolService.DeleteAsync` (blocks if any class references it) + delete buttons/handlers on both edit pages. No migration.
 
-**Tests: 359/359 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off). **One pending migration awaits that deploy: `AddIncidentReportStatus`.**
+**Tests: 367/367 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off). **One pending migration awaits that deploy: `AddIncidentReportStatus`.**
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.

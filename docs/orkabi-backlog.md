@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **359/359** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **367/367** as of this writing._
 
 > ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
@@ -44,9 +44,9 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [x] **F11 — Instructor cancel own pending vacation.** ✅ `OperationsService.CancelVacationAsync` (guards ownership + Pending → `Cancelled`) + `OnPostCancelAsync` + a "ביטול" button on pending rows. Added `VacationStatus.Cancelled` (int enum, no migration) and the "בוטל" render in the instructor list (blast-radius-checked: counts filter Pending; `_VacationRow` only renders the admin pending list). 5 new tests. _src G_
 - [ ] **F12 — Client profile / enrollment overview.** No `/People/Clients/{id}`; CS can't answer "what class is my kid in?" without opening every roster. Add a read-only detail page (enrollments, payment flags, tryout). _src C_
 - [ ] **F13 — Attendance history view.** Attendance is Instructor/Admin + today-only; CS has zero visibility. Add `/Attendance/History` `[CsOrAdmin]` (LessonLog summaries → per-student rows). _src C/I/G_
-- [ ] **F14 — Substitution-approval notifications.** `ApproveSubstitutionAsync` silently swaps `ActualInstructorId`; affected instructors aren't told. Create user-assigned action items for sub + original on approve. _src G/I (SchedulingService.cs:236–252)_
+- [x] **F14 — Substitution-approval notifications.** ✅ `ApproveSubstitutionAsync` now creates two **user-assigned** action items (in its transaction): one to the substitute ("שובצת כמחליף/ה…") and one to the original instructor ("המשמרת שלך הועברה…"). They surface in each instructor's dashboard "my tickets". Dedup-keyed per request. _src G/I_
 - [ ] **F15 — `EnrollmentStatus.Completed` is unreachable.** No `CompleteAsync`, no UI transition. Define semantics (manual graduate vs. auto on syllabus completion) + add the transition. _src G (EnrollmentService.cs)_
-- [ ] **F16 — No delete for Curriculum Models / Schools.** Create+Update only; bad rows accumulate. Add FK-guarded `DeleteModelAsync`/`DeleteSchoolAsync` + edit-page buttons. _src G (CurriculumService.cs:12–31; SchoolService.cs:11–33)_
+- [x] **F16 — Delete for Curriculum Models / Schools.** ✅ FK-guarded `CurriculumService.DeleteModelAsync` (blocks if used in any SyllabusModel / LessonLog / LogisticsOrder — all 3 FK refs verified) + `SchoolService.DeleteAsync` (blocks if any Class references it) with friendly Hebrew errors; delete buttons + `OnPostDelete` handlers on both edit pages (in-use → re-render with the error). 6 new tests. _src G_
 - [ ] **F17 — Instructor week/month schedule view.** Dashboard shows today only; `/Scheduling/Instances` is CS/Admin-gated. Add a read-only "my schedule" tab (7/30-day) filtered to the user. _src I_
 - [ ] **F18 — Instructor proactive absence report.** No "I can't make it" path (vacation needs future range; incident needs an existing shift). Add "הודע על היעדרות" on the shift card → action item + optional sub-request. _src I_
 - [x] **F19 — Instructor dashboard nav to Operations.** ✅ A "פעולות מהירות" quick-links card-grid under the shift cards: בקשת החלפה, שעות נוספות, חופשות, דיווח אירוע, ההזמנות שלי, משימות פתוחות. _src I_

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
@@ -471,5 +472,40 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
         // Every model complete → fall back to the last model (B), not null.
         var (id, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
         Assert.Equal(modelB.Id, id);
+    }
+
+    // ── F14: substitution-approval notifies the substitute + the original instructor ──
+
+    [Fact]
+    public async Task ApproveSubstitution_notifies_substitute_and_original_instructor()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var approver = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+        await svc.ApproveSubstitutionAsync(request.Id, approver.Id);
+
+        db.ChangeTracker.Clear();
+        var subItem = await db.ActionItems.FirstOrDefaultAsync(a => a.DeduplicationKey == $"sub_assigned_{request.Id}");
+        Assert.NotNull(subItem);
+        Assert.Equal(substitute.Id, subItem!.AssignedToUserId);
+        Assert.Null(subItem.AssignedToRole);
+        Assert.Equal(ActionItemStatus.Open, subItem.Status);
+
+        var origItem = await db.ActionItems.FirstOrDefaultAsync(a => a.DeduplicationKey == $"sub_reassigned_{request.Id}");
+        Assert.NotNull(origItem);
+        Assert.Equal(instructor.Id, origItem!.AssignedToUserId);
+        Assert.Equal(ActionItemStatus.Open, origItem.Status);
     }
 }

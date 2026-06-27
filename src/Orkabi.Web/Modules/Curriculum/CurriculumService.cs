@@ -30,6 +30,25 @@ public class CurriculumService
         await _db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Deletes a model, but only if nothing references it (FK-guarded): not in any syllabus, not in
+    /// any lesson log, not in any logistics order. Throws a friendly Hebrew error if it's in use.
+    /// </summary>
+    public async Task DeleteModelAsync(int id)
+    {
+        var model = await _db.Models.FindAsync(id)
+            ?? throw new InvalidOperationException($"מודל {id} לא נמצא");
+
+        var inUse = await _db.SyllabusModels.AnyAsync(sm => sm.ModelId == id)
+                 || await _db.LessonLogs.IgnoreQueryFilters().AnyAsync(l => l.ModelId == id)
+                 || await _db.LogisticsOrders.AnyAsync(o => o.ModelId == id);
+        if (inUse)
+            throw new InvalidOperationException("המודל בשימוש (בסילבוס, ביומן שיעור או בהזמנה) ולא ניתן למחיקה.");
+
+        _db.Models.Remove(model);
+        await _db.SaveChangesAsync();
+    }
+
     // ── Syllabus CRUD ────────────────────────────────────────────────────────
 
     /// <summary>

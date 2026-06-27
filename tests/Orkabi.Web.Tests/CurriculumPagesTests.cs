@@ -52,6 +52,67 @@ public class CurriculumPagesTests : IClassFixture<SqliteFixture>
         return (factory, client);
     }
 
+    // ── F16: model delete (FK-guarded) ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task Cs_deletes_unused_model()
+    {
+        var (factory, client) = await CreateCsClientAsync(_sqlite, "_delmodel");
+        int modelId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var m = new Model { Name = $"מ-{Guid.NewGuid():N}"[..12], ExpectedLessonsToComplete = 2 };
+            db.Models.Add(m);
+            await db.SaveChangesAsync();
+            modelId = m.Id;
+        }
+
+        var getResp = await client.GetAsync($"/Curriculum/Models/Edit/{modelId}");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var postResp = await client.PostAsync($"/Curriculum/Models/Edit/{modelId}?handler=Delete",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Null(await db.Models.FindAsync(modelId));
+        }
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Cs_cannot_delete_model_in_use()
+    {
+        var (factory, client) = await CreateCsClientAsync(_sqlite, "_delmodelinuse");
+        int modelId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var m = new Model { Name = $"מ-{Guid.NewGuid():N}"[..12], ExpectedLessonsToComplete = 2 };
+            var syl = new Syllabus { Name = $"ס-{Guid.NewGuid():N}"[..12], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30), Status = EntityStatus.Active };
+            db.Models.Add(m); db.Syllabi.Add(syl);
+            await db.SaveChangesAsync();
+            db.SyllabusModels.Add(new SyllabusModel { SyllabusId = syl.Id, ModelId = m.Id, OrderIndex = 1 });
+            await db.SaveChangesAsync();
+            modelId = m.Id;
+        }
+
+        var getResp = await client.GetAsync($"/Curriculum/Models/Edit/{modelId}");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var postResp = await client.PostAsync($"/Curriculum/Models/Edit/{modelId}?handler=Delete",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.OK, postResp.StatusCode);   // re-render with the FK-guard error
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.NotNull(await db.Models.FindAsync(modelId));  // still there
+        }
+        factory.Dispose();
+    }
+
     // ── Authz ─────────────────────────────────────────────────────────────────────
 
     [Fact]

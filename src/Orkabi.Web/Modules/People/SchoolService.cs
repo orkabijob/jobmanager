@@ -31,4 +31,21 @@ public class SchoolService
         _db.Schools.Update(s);
         await _db.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Deletes a school, but only if no class references it (FK-guarded; archived classes count too).
+    /// Throws a friendly Hebrew error if classes are still attached.
+    /// </summary>
+    public async Task DeleteAsync(int id)
+    {
+        var school = await _db.Schools.FindAsync(id)
+            ?? throw new InvalidOperationException($"בית ספר {id} לא נמצא");
+
+        var inUse = await _db.Classes.IgnoreQueryFilters().AnyAsync(c => c.SchoolId == id);
+        if (inUse)
+            throw new InvalidOperationException("לבית הספר משויכות כיתות ולא ניתן למחיקה.");
+
+        _db.Schools.Remove(school);
+        await _db.SaveChangesAsync();
+    }
 }

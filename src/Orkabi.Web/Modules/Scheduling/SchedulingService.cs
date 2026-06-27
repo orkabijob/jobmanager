@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Shared;
 
@@ -276,8 +277,11 @@ public class SchedulingService
     {
         await using var tx = await _db.Database.BeginTransactionAsync();
 
+        // IgnoreQueryFilters so the Template→Class chain loads even for an archived class/template
+        // (needed for the notification text below).
         var request = await _db.SubstitutionRequests
-            .Include(r => r.ShiftInstance)
+            .IgnoreQueryFilters()
+            .Include(r => r.ShiftInstance).ThenInclude(i => i.Template).ThenInclude(t => t.Class)
             .FirstOrDefaultAsync(r => r.Id == substitutionRequestId && r.Status == SubstitutionStatus.Pending)
             ?? throw new InvalidOperationException($"בקשת החלפה {substitutionRequestId} לא נמצאה או שאינה ממתינה");
 
@@ -285,6 +289,32 @@ public class SchedulingService
         request.ApprovedByUserId = approverUserId;
         request.ApprovedAt = DateTime.UtcNow;
         request.ShiftInstance.ActualInstructorId = request.SubstituteInstructorId;
+
+        // F14: notify the two affected instructors (user-assigned action items — they surface in the
+        // instructor dashboard "my tickets"). Approve runs once per request (Pending-guarded), so the
+        // dedup keys also guard against any double-fire.
+        var className = request.ShiftInstance.Template?.Class?.Name ?? "";
+        var dateStr = request.ShiftInstance.Date.ToString("dd/MM/yyyy");
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = request.SubstituteInstructorId,
+            AssignedToRole = null,
+            RelatedEntityId = request.ShiftInstanceId,
+            DeduplicationKey = $"sub_assigned_{substitutionRequestId}",
+            Description = $"שובצת כמחליף/ה למשמרת: כיתה {className} · {dateStr}."
+        });
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = request.RequestingInstructorId,
+            AssignedToRole = null,
+            RelatedEntityId = request.ShiftInstanceId,
+            DeduplicationKey = $"sub_reassigned_{substitutionRequestId}",
+            Description = $"המשמרת שלך הועברה למחליף/ה: כיתה {className} · {dateStr}."
+        });
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
