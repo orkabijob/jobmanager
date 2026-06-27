@@ -346,6 +346,97 @@ public class OperationsPagesTests : IClassFixture<SqliteFixture>
         factory.Dispose();
     }
 
+    private static async Task<int> SeedOpenIncidentAsync(OrkabiAppFactory f, int instrUserId)
+    {
+        using var s = f.Services.CreateScope();
+        var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+        var school = new School { Name = $"Sch-inc-{Guid.NewGuid():N}"[..20], City = "Tel Aviv" };
+        var year = new AcademicYear { Label = $"Y-inc-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+        db.Schools.Add(school); db.AcademicYears.Add(year);
+        await db.SaveChangesAsync();
+        var cls = new Class { Name = $"C-inc-{Guid.NewGuid():N}"[..15], SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+        db.Classes.Add(cls);
+        await db.SaveChangesAsync();
+        var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = instrUserId, DayOfWeek = DayOfWeek.Tuesday, StartTime = new TimeOnly(10, 0), EndTime = new TimeOnly(11, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+        db.ShiftTemplates.Add(template);
+        await db.SaveChangesAsync();
+        var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instrUserId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)), Status = ShiftInstanceStatus.Scheduled };
+        db.ShiftInstances.Add(shift);
+        await db.SaveChangesAsync();
+        var inc = new Orkabi.Web.Modules.Operations.IncidentReport { ShiftInstanceId = shift.Id, InstructorId = instrUserId, Severity = IncidentSeverity.High, Description = "אירוע חמור", Status = IncidentStatus.Open };
+        db.IncidentReports.Add(inc);
+        await db.SaveChangesAsync();
+        return inc.Id;
+    }
+
+    [Fact]
+    public async Task Admin_closes_incident_sets_status_closed()
+    {
+        var (instrFactory, _, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_incclose");
+        var (adminFactory, adminClient, _) = await CreateAdminClientAsync(_sqlite, "_incclose_a");
+        var incId = await SeedOpenIncidentAsync(adminFactory, instrUserId);
+
+        var tokenResp = await adminClient.GetAsync("/Admin/Users/Create");   // any admin form page → valid token
+        var token = AntiForgery.Extract(await tokenResp.Content.ReadAsStringAsync());
+        var postResp = await adminClient.PostAsync($"/Operations/Incidents?handler=Close&id={incId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.DoesNotContain("AccessDenied", postResp.Headers.Location?.ToString() ?? "");
+
+        using (var s = adminFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.IncidentReports.FindAsync(incId);
+            Assert.Equal(IncidentStatus.Closed, rec!.Status);
+        }
+        instrFactory.Dispose(); adminFactory.Dispose();
+    }
+
+    [Fact]
+    public async Task Admin_escalates_incident_sets_status_escalated()
+    {
+        var (instrFactory, _, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_incesc");
+        var (adminFactory, adminClient, _) = await CreateAdminClientAsync(_sqlite, "_incesc_a");
+        var incId = await SeedOpenIncidentAsync(adminFactory, instrUserId);
+
+        var tokenResp = await adminClient.GetAsync("/Admin/Users/Create");
+        var token = AntiForgery.Extract(await tokenResp.Content.ReadAsStringAsync());
+        var postResp = await adminClient.PostAsync($"/Operations/Incidents?handler=Escalate&id={incId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.DoesNotContain("AccessDenied", postResp.Headers.Location?.ToString() ?? "");
+
+        using (var s = adminFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.IncidentReports.FindAsync(incId);
+            Assert.Equal(IncidentStatus.Escalated, rec!.Status);
+        }
+        instrFactory.Dispose(); adminFactory.Dispose();
+    }
+
+    [Fact]
+    public async Task Non_admin_cannot_close_incident()
+    {
+        var (instrFactory, instrClient, instrUserId) = await CreateInstructorClientAsync(_sqlite, "_incclose403");
+        var incId = await SeedOpenIncidentAsync(instrFactory, instrUserId);
+
+        var getResp = await instrClient.GetAsync("/Operations/Incidents");   // instructor sees the submit form → token
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var postResp = await instrClient.PostAsync($"/Operations/Incidents?handler=Close&id={incId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.Contains("AccessDenied", postResp.Headers.Location?.ToString() ?? "");
+
+        using (var s = instrFactory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rec = await db.IncidentReports.FindAsync(incId);
+            Assert.Equal(IncidentStatus.Open, rec!.Status);  // unchanged
+        }
+        instrFactory.Dispose();
+    }
+
     [Fact]
     public async Task Instructor_cannot_approve_extrahours_via_handler()
     {

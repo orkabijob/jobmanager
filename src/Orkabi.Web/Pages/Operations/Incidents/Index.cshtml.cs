@@ -70,6 +70,24 @@ public class IndexModel : PageModel
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostCloseAsync(int id)
+    {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _ops.CloseIncidentAsync(id, userId);
+        TempData["SuccessMessage"] = "הדיווח סומן כטופל";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostEscalateAsync(int id)
+    {
+        if (!User.IsInRole(AppRoles.Admin)) return Forbid();
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _ops.EscalateIncidentAsync(id, userId);
+        TempData["SuccessMessage"] = "הדיווח הוסלם";
+        return RedirectToPage();
+    }
+
     private async Task LoadAsync()
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

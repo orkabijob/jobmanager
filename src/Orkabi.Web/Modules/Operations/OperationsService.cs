@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Modules.Operations;
@@ -7,10 +9,12 @@ namespace Orkabi.Web.Modules.Operations;
 public class OperationsService
 {
     private readonly AppDbContext _db;
+    private readonly ActionItemService _actionHub;
 
-    public OperationsService(AppDbContext db)
+    public OperationsService(AppDbContext db, ActionItemService actionHub)
     {
         _db = db;
+        _actionHub = actionHub;
     }
 
     // ── Extra Hours ──────────────────────────────────────────────────────────
@@ -96,8 +100,26 @@ public class OperationsService
             Severity = severity,
             Description = description
         };
+
+        // A High-severity incident raises an Admin action item via the outbox kernel. One transaction
+        // so the report and its event commit atomically; the drainer creates the ticket after commit.
+        await using var tx = await _db.Database.BeginTransactionAsync();
         _db.IncidentReports.Add(report);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync();   // report.Id is assigned here
+
+        if (severity == IncidentSeverity.High)
+        {
+            _db.OutboxEvents.Add(new OutboxEvent
+            {
+                EventType = "IncidentSevere",
+                Payload = JsonSerializer.Serialize(new { incidentReportId = report.Id }),
+                CreatedAt = DateTime.UtcNow,
+                ScheduledFor = null
+            });
+            await _db.SaveChangesAsync();
+        }
+
+        await tx.CommitAsync();
         return report;
     }
 
@@ -108,6 +130,42 @@ public class OperationsService
             .Include(r => r.ShiftInstance).ThenInclude(i => i.Template).ThenInclude(t => t.Class)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+
+    /// <summary>
+    /// Admin closes an incident (Open or Escalated → Closed) and clears its severe-incident action
+    /// item if one is open — closing the loop. One transaction so the status + ticket commit together.
+    /// </summary>
+    public async Task CloseIncidentAsync(int incidentId, int adminUserId)
+    {
+        var incident = await _db.IncidentReports.FindAsync(incidentId)
+            ?? throw new InvalidOperationException($"דיווח אירוע {incidentId} לא נמצא");
+        if (incident.Status == IncidentStatus.Closed)
+            throw new InvalidOperationException($"דיווח אירוע {incidentId} כבר סגור");
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        incident.Status = IncidentStatus.Closed;
+        await _db.SaveChangesAsync();
+
+        var ticket = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == $"severe_incident_{incidentId}"
+                                   && a.Status == ActionItemStatus.Open);
+        if (ticket is not null)
+            await _actionHub.ResolveActionItemAsync(ticket.Id, adminUserId);
+
+        await tx.CommitAsync();
+    }
+
+    /// <summary>Admin escalates an Open incident (Open → Escalated). The severe ticket stays open.</summary>
+    public async Task EscalateIncidentAsync(int incidentId, int adminUserId)
+    {
+        var incident = await _db.IncidentReports.FindAsync(incidentId)
+            ?? throw new InvalidOperationException($"דיווח אירוע {incidentId} לא נמצא");
+        if (incident.Status != IncidentStatus.Open)
+            throw new InvalidOperationException("ניתן להסלים רק דיווח פתוח");
+
+        incident.Status = IncidentStatus.Escalated;
+        await _db.SaveChangesAsync();
+    }
 
     // ── Vacation Request ─────────────────────────────────────────────────────
 

@@ -2,7 +2,9 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **332/332** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **342/342** as of this writing._
+
+> ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
 **Legend:** `[ ]` open · `[x]` done · **✓v** = hand-verified against source · _src_ tags:
 A=Admin persona, C=CS persona, L=Logistics persona, I=Instructor persona, G=gap-reviewer,
@@ -28,7 +30,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 ## 🟧 Functional / important — capability or correctness hole
 
 - [x] **F1 — Extra-hours denial.** ✅ Added `ExtraHoursStatus.Denied` (int-mapped, no migration), `OperationsService.DenyExtraHoursAsync`, `OnPostDenyAsync` handler (Admin-only, like approve), and a "דחייה" button + "נדחה" chip on the row — mirroring the Vacations approve/deny. _Caught in review: the new enum value exposed a latent binary `Pending?else→Approved` render in the instructor's own-submissions list that would have shown a denied report as "אושר"; fixed to 3-state + test-locked._ No `AdminNote`/reason column added (would need a migration; Vacations passes null anyway). 5 new tests. _src A/G_
-- [ ] **F2 — Incident-report lifecycle.** No `Status`, no resolution, no action item — append-only, loop never closes. Add `Status` (Open/Closed/Escalated) + Admin close/escalate, or an action item on severe incidents. _src G/D-O1 (IncidentReport.cs; spec §4)_
+- [x] **F2 — Incident-report lifecycle.** ✅ **Both:** (A) a **High**-severity incident appends an `IncidentSevere` outbox event (same tx) → drainer → Admin action item (`EnsureSevereIncidentActionItemAsync`, dedup `severe_incident_{id}`); (B) `IncidentStatus` (Open/Closed/Escalated) on `IncidentReport` + Admin `OnPostClose`/`OnPostEscalate` (Admin-only) + status chips in both incident tables. Closing an incident resolves its severe action item (closes the loop). **⚠️ Migration `AddIncidentReportStatus` — runs on Neon at deploy (sign-off).** `OperationsService` now takes `ActionItemService`. _src G/D-O1_
 - [x] **F3 — Logistics dispute response path.** ✅ `SupplyPacingService.RepackDisputedAsync` (Disputed→Pending, clears notes, resolves the dispute ticket — closes the loop) + `OnPostRepackAsync` (Logistics/Admin) + a "החזר לאריזה" button on disputed rows. Re-dispute recurrence holds (resolve nulls the dedup key). _src L/G_
 - [x] **F4 — Dispute ticket assigned to Admin, invisible to Logistics hub.** ✅ `EnsureDisputeActionItemAsync` now assigns `AssignedToRole = Logistics` → shows in the Logistics dashboard queue + the Logistics Action Hub (and Logistics can resolve). Admin retains full visibility (the Admin hub uses `ListAllOpenAsync`; the bento by-type count + alerts feed still include disputes — only the Admin's *personal* focal queue excludes them, by design, locked with a test). _src L_
 - [x] **F5 — Authz holes on Operations.** ✅ `/Operations` hub + `/Operations/Incidents` → `[Authorize(Roles = CsOrInstructorOrAdmin)]` (new constant; excludes Logistics, keeps CS for incident *reads*). `/Operations/ActionItems` stays all-roles. Logistics is now excluded from the hub/incidents but still reaches the Action Hub. _src C/G_

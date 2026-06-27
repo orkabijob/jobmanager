@@ -86,8 +86,13 @@
               <th scope="col">מדריך/ה</th>
               <th scope="col">משמרת</th>
               <th scope="col">חומרה</th>
+              <th scope="col">סטטוס</th>
               <th scope="col">תיאור</th>
               <th scope="col">תאריך</th>
+              @if (User.IsInRole(AppRoles.Admin))
+              {
+                <th scope="col" class="data-table__actions-col">פעולות</th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -103,8 +108,43 @@
                 <td class="data-cell data-cell--primary">@(inc.Instructor.FullName ?? inc.Instructor.Email)</td>
                 <td class="data-cell">@inc.ShiftInstance.Template.Class.Name · <bdi class="num">@inc.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
                 <td class="data-cell"><span class="severity-chip @severityClass">@severityLabel</span></td>
+                <td class="data-cell">
+                  @if (inc.Status == IncidentStatus.Open)
+                  {
+                    <span class="status-chip status-chip--pending">פתוח</span>
+                  }
+                  else if (inc.Status == IncidentStatus.Escalated)
+                  {
+                    <span class="status-chip status-chip--rejected">הוסלם</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--approved">טופל</span>
+                  }
+                </td>
                 <td class="data-cell">@inc.Description</td>
                 <td class="data-cell"><bdi class="num">@inc.CreatedAt.ToString("dd/MM")</bdi></td>
+                @if (User.IsInRole(AppRoles.Admin))
+                {
+                  <td class="data-cell data-cell--actions">
+                    @if (inc.Status != IncidentStatus.Closed)
+                    {
+                      <form method="post" asp-page-handler="Close" asp-route-id="@inc.Id" style="display:inline;">
+                        <button type="submit" class="btn-ghost btn-ghost--sm">סגור</button>
+                      </form>
+                      @if (inc.Status == IncidentStatus.Open)
+                      {
+                        <form method="post" asp-page-handler="Escalate" asp-route-id="@inc.Id" style="display:inline;">
+                          <button type="submit" class="btn-ghost btn-ghost--sm">הסלם</button>
+                        </form>
+                      }
+                    }
+                    else
+                    {
+                      <span style="color:var(--brand-ink-muted);">—</span>
+                    }
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -129,6 +169,7 @@
               <tr>
                 <th scope="col">משמרת</th>
                 <th scope="col">חומרה</th>
+                <th scope="col">סטטוס</th>
                 <th scope="col">תיאור</th>
                 <th scope="col">תאריך</th>
               </tr>
@@ -145,6 +186,20 @@
                 <tr class="data-row">
                   <td class="data-cell data-cell--primary">@inc.ShiftInstance.Template.Class.Name · <bdi class="num">@inc.ShiftInstance.Date.ToString("dd/MM")</bdi></td>
                   <td class="data-cell"><span class="severity-chip @severityClass">@severityLabel</span></td>
+                  <td class="data-cell">
+                    @if (inc.Status == IncidentStatus.Open)
+                    {
+                      <span class="status-chip status-chip--pending">פתוח</span>
+                    }
+                    else if (inc.Status == IncidentStatus.Escalated)
+                    {
+                      <span class="status-chip status-chip--rejected">הוסלם</span>
+                    }
+                    else
+                    {
+                      <span class="status-chip status-chip--approved">טופל</span>
+                    }
+                  </td>
                   <td class="data-cell">@inc.Description</td>
                   <td class="data-cell"><bdi class="num">@inc.CreatedAt.ToString("dd/MM")</bdi></td>
                 </tr>

@@ -5,6 +5,7 @@ using Orkabi.Web.Data;
 using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
+using Orkabi.Web.Modules.Operations;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Modules.Scheduling;
 using Orkabi.Web.Shared;
@@ -143,6 +144,35 @@ public class OutboxDrainerTests : IClassFixture<SqliteFixture>
         // Payload carries classId + modelId.
         Assert.Contains($"\"classId\":{cls.Id}", evt.Payload);
         Assert.Contains($"\"modelId\":{model.Id}", evt.Payload);
+    }
+
+    [Fact]
+    public async Task Drain_creates_severe_incident_ticket()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var ops = sp.GetRequiredService<OperationsService>();
+        var drainer = sp.GetRequiredService<IOutboxDrainer>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var instance = await SeedInstanceAsync(db, template.Id, today, instructor.Id);
+
+        var report = await ops.SubmitIncidentReportAsync(instance.Id, instructor.Id, IncidentSeverity.High, "אירוע חמור בשטח");
+
+        await drainer.DrainAsync();
+
+        db.ChangeTracker.Clear();
+        var ticket = await db.ActionItems.SingleOrDefaultAsync(a =>
+            a.DeduplicationKey == $"severe_incident_{report.Id}" && a.Status == ActionItemStatus.Open);
+        Assert.NotNull(ticket);
+        Assert.Equal(ActionItemType.Task, ticket!.Type);
+        Assert.Equal(AppRoles.Admin, ticket.AssignedToRole);
+        Assert.Equal(report.Id, ticket.RelatedEntityId);
     }
 
     [Fact]
