@@ -87,24 +87,28 @@
   --fw-bold:    700;
   --fw-extrabold: 800;
 
+  /* Global type scale lever — both scales multiply by the SAME factor, so all
+     internal ratios + the cross-scale hierarchy are preserved. 1 = original. */
+  --type-scale: 1.2;   /* +20% */
+
   /* Display / Auth hero */
-  --t-wordmark:  36px;   /* brand wordmark in auth hero */
-  --t-hero-cta:  30px;
-  --t-display:   26px;
-  --t-title:     21px;
-  --t-body:      17px;
-  --t-label:     15px;
-  --t-meta:      13px;
-  --t-micro:     11px;
+  --t-wordmark:  calc(36px * var(--type-scale));   /* brand wordmark in auth hero */
+  --t-hero-cta:  calc(30px * var(--type-scale));
+  --t-display:   calc(26px * var(--type-scale));
+  --t-title:     calc(21px * var(--type-scale));
+  --t-body:      calc(17px * var(--type-scale));
+  --t-label:     calc(15px * var(--type-scale));
+  --t-meta:      calc(13px * var(--type-scale));
+  --t-micro:     calc(11px * var(--type-scale));
 
   /* Admin / dense */
-  --t-metric:       44px;
-  --t-metric-label: 13px;
-  --t-admin-display: 22px;
-  --t-admin-title:   18px;
-  --t-admin-body:    15px;
-  --t-admin-label:   13px;
-  --t-admin-meta:    12px;
+  --t-metric:       calc(44px * var(--type-scale));
+  --t-metric-label: calc(13px * var(--type-scale));
+  --t-admin-display: calc(22px * var(--type-scale));
+  --t-admin-title:   calc(18px * var(--type-scale));
+  --t-admin-body:    calc(15px * var(--type-scale));
+  --t-admin-label:   calc(13px * var(--type-scale));
+  --t-admin-meta:    calc(12px * var(--type-scale));
 
   /* Line heights */
   --lh-tight:  1.12;
@@ -210,15 +214,17 @@
 }
 
 /* ============================================================
-   Photo backdrop — water-over-granite image IS the glass refractor.
-   Mesh gradient replaced; body::before is now the legibility scrim.
+   Photo backdrop — the legibility-critical layer is the body::before SCRIM,
+   not the photo itself. The photo is light (white house / bright sky / pale
+   path), so the scrim must (a) wash it toward a cool brand field and (b) knock
+   down the bright CENTRAL spine where centred glass cards sit.
    ============================================================ */
 body {
   /* Photo: fixed on desktop so glass slides over a stationary image */
   background-color: var(--bg-base);
-  background-image: url('/img/bg-liquid.jpg');
+  background-image: url('/img/bg-house.jpg');
   background-size: cover;
-  background-position: center;
+  background-position: center 32%;
   background-attachment: fixed;
   color: var(--brand-ink);
   font-family: var(--font-ui);
@@ -232,22 +238,29 @@ body {
   body { background-attachment: scroll; }
 }
 
-/* Legibility scrim over the photo.
-   Dual-gradient: lifts mid-brightness toward a medium brand-tinted value
-   so both bright-rock and dark-water areas sit at a comfortable mid-tone.
-   The glass cards refract the PHOTO through backdrop-filter — this scrim
-   is deliberately subtle (~40%) so the water texture is still visible and
-   the glass effect is meaningful. NOT fully opaque.                      */
+/* Legibility scrim over the photo — the load-bearing contrast layer.
+   Layer A: a cool brand wash that kills the stark white and unifies the patchy
+   photo to one field. It stays light enough that DARK ink clears AA on the photo
+   (verify-at-lightest-point). Layer B: a glare knock-down on the BRIGHT CENTRAL
+   SPINE (house/sky/path) — exactly where centred glass cards sit — so white/light
+   text rides legibly there. This is the INVERSION of the old edge-vignette, which
+   wrongly darkened the dark tree frame and spared the glare. One fixed,
+   pointer-events:none layer, no backdrop-filter (perf budget).             */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    /* Center-weighted gentle brand tint — the photo's blues resonate with the brand */
+    /* A — cool brand wash: removes glare, adds the "less white" brand field */
     linear-gradient(
       180deg,
-      rgba(var(--brand-rgb), .28) 0%,
-      rgba(var(--brand-rgb), .18) 40%,
-      rgba(var(--brand-rgb), .22) 100%
+      rgba(var(--brand-rgb), .30) 0%,
+      rgba(var(--brand-rgb), .22) 50%,
+      rgba(var(--brand-rgb), .32) 100%
     ),
-    /* Radial vignette to pull down very bright highlights (the white rock) */
-    radial-gradient(ellipse 120% 80% at 50% 50%, transparent 40%, rgba(22,38,58,.35) 100%);
+    /* B — glare knock-down on the bright central spine (NOT the edges) */
+    radial-gradient(
+      ellipse 82% 64% at 50% 40%,
+      rgba(16, 26, 40, .20) 0%,
+      rgba(16, 26, 40, .06) 55%,
+      transparent 78%
+    );
 }
