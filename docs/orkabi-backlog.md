@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **367/367** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **371/371** as of this writing._
 
 > ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
@@ -45,7 +45,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [ ] **F12 — Client profile / enrollment overview.** No `/People/Clients/{id}`; CS can't answer "what class is my kid in?" without opening every roster. Add a read-only detail page (enrollments, payment flags, tryout). _src C_
 - [ ] **F13 — Attendance history view.** Attendance is Instructor/Admin + today-only; CS has zero visibility. Add `/Attendance/History` `[CsOrAdmin]` (LessonLog summaries → per-student rows). _src C/I/G_
 - [x] **F14 — Substitution-approval notifications.** ✅ `ApproveSubstitutionAsync` now creates two **user-assigned** action items (in its transaction): one to the substitute ("שובצת כמחליף/ה…") and one to the original instructor ("המשמרת שלך הועברה…"). They surface in each instructor's dashboard "my tickets". Dedup-keyed per request. _src G/I_
-- [ ] **F15 — `EnrollmentStatus.Completed` is unreachable.** No `CompleteAsync`, no UI transition. Define semantics (manual graduate vs. auto on syllabus completion) + add the transition. _src G (EnrollmentService.cs)_
+- [x] **F15 — `EnrollmentStatus.Completed` reachable.** ✅ **Decision: manual graduate by CS.** `EnrollmentService.CompleteAsync` (Active → Completed; guards non-Active) + a "סיום" button on active roster rows + a "הושלם" badge on completed ones. Also closed an edge the new status exposed: the tryout toggle (which drives Status) is now hidden for completed rows **and** guarded in `ToggleAsync` so it can't resurrect a completed enrollment. 4 new tests. _src G_
 - [x] **F16 — Delete for Curriculum Models / Schools.** ✅ FK-guarded `CurriculumService.DeleteModelAsync` (blocks if used in any SyllabusModel / LessonLog / LogisticsOrder — all 3 FK refs verified) + `SchoolService.DeleteAsync` (blocks if any Class references it) with friendly Hebrew errors; delete buttons + `OnPostDelete` handlers on both edit pages (in-use → re-render with the error). 6 new tests. _src G_
 - [ ] **F17 — Instructor week/month schedule view.** Dashboard shows today only; `/Scheduling/Instances` is CS/Admin-gated. Add a read-only "my schedule" tab (7/30-day) filtered to the user. _src I_
 - [ ] **F18 — Instructor proactive absence report.** No "I can't make it" path (vacation needs future range; incident needs an existing shift). Add "הודע על היעדרות" on the shift card → action item + optional sub-request. _src I_
