@@ -25,6 +25,15 @@
       </div>
     </header>
 
+    @if (TempData["SuccessMessage"] != null)
+    {
+      <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+      <div class="toast" role="alert">@TempData["ErrorMessage"]</div>
+    }
+
     <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
       @if (!Model.Shifts.Any())
       {
@@ -41,6 +50,7 @@
               <th scope="col">תאריך</th>
               <th scope="col">שעות</th>
               <th scope="col">כיתה</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
             </tr>
           </thead>
           <tbody>
@@ -50,6 +60,13 @@
                 <td class="data-cell data-cell--primary"><bdi class="num">@sh.Date.ToString("dd/MM/yyyy")</bdi> · @sh.Date.ToString("dddd", he)</td>
                 <td class="data-cell"><bdi class="num">@sh.Template.StartTime.ToString("HH\\:mm")–@sh.Template.EndTime.ToString("HH\\:mm")</bdi></td>
                 <td class="data-cell">@sh.Template.Class.Name@(sh.Template.Class.School?.Name is null ? "" : $" · {sh.Template.Class.School.Name}")</td>
+                <td class="data-cell data-cell--actions">
+                  <form method="post" asp-page-handler="ReportAbsence" style="display:inline;">
+                    <input type="hidden" name="shiftInstanceId" value="@sh.Id" />
+                    <input type="hidden" name="Days" value="@Model.Days" />
+                    <button type="submit" class="btn-ghost btn-ghost--sm">הודע על היעדרות</button>
+                  </form>
+                </td>
               </tr>
             }
           </tbody>

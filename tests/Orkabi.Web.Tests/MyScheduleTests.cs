@@ -1,8 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Modules.Scheduling;
@@ -95,6 +97,84 @@ public class MyScheduleTests : IClassFixture<SqliteFixture>
         Assert.Contains(mineSoon, body);          // my upcoming shift shows
         Assert.DoesNotContain(mineFar, body);     // beyond the default 30-day window
         Assert.DoesNotContain(othersSoon, body);  // another instructor's shift is not mine
+        factory.Dispose();
+    }
+
+    // ── F18: proactive absence report ──────────────────────────────────────────
+
+    [Fact]
+    public async Task ReportAbsence_creates_admin_action_item()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var (_, _, myId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "abs");
+        var (instanceId, _) = await SeedShiftAsync(factory, myId, daysFromToday: 4);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
+
+        await svc.ReportAbsenceAsync(instanceId, myId);
+
+        var item = await db.ActionItems.FirstOrDefaultAsync(a => a.DeduplicationKey == $"absence_report_{instanceId}");
+        Assert.NotNull(item);
+        Assert.Equal(AppRoles.Admin, item!.AssignedToRole);
+        Assert.Equal(ActionItemStatus.Open, item.Status);
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task ReportAbsence_for_another_instructors_shift_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var (_, _, myId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "absme");
+        var (_, _, otherId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "absother");
+        var (instanceId, _) = await SeedShiftAsync(factory, otherId, daysFromToday: 4);
+
+        using var scope = factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.ReportAbsenceAsync(instanceId, myId));
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task ReportAbsence_is_idempotent()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var (_, _, myId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "absidem");
+        var (instanceId, _) = await SeedShiftAsync(factory, myId, daysFromToday: 4);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
+
+        await svc.ReportAbsenceAsync(instanceId, myId);
+        await svc.ReportAbsenceAsync(instanceId, myId);
+
+        Assert.Equal(1, await db.ActionItems.CountAsync(a => a.DeduplicationKey == $"absence_report_{instanceId}"));
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Instructor_reports_absence_via_schedule_page()
+    {
+        var (factory, client, myId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "abspg");
+        var (instanceId, _) = await SeedShiftAsync(factory, myId, daysFromToday: 4);
+
+        var getResp = await client.GetAsync(Url);
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["shiftInstanceId"] = instanceId.ToString(),
+            ["Days"] = "7",
+            ["__RequestVerificationToken"] = token
+        });
+        var postResp = await client.PostAsync($"{Url}?handler=ReportAbsence", form);
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+        Assert.Contains("days=7", postResp.Headers.Location?.ToString());   // PRG preserves the 7-day filter
+
+        using var s = factory.Services.CreateScope();
+        var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.True(await db.ActionItems.AnyAsync(a => a.DeduplicationKey == $"absence_report_{instanceId}"));
         factory.Dispose();
     }
 

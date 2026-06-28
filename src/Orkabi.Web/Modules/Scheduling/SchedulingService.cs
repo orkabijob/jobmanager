@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.ActionHub;
+using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Shared;
 
@@ -377,6 +378,49 @@ public class SchedulingService
 
         request.Status = SubstitutionStatus.Cancelled;
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// F18 — an instructor proactively reports they can't make one of their own FUTURE shifts.
+    /// Creates a dedup-keyed Admin "needs coverage" action item. Idempotent per shift.
+    /// </summary>
+    public async Task ReportAbsenceAsync(int shiftInstanceId, int instructorId)
+    {
+        var today = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+
+        var shift = await _db.ShiftInstances.IgnoreQueryFilters()
+            .Include(i => i.Template).ThenInclude(t => t.Class)
+            .FirstOrDefaultAsync(i => i.Id == shiftInstanceId
+                                   && i.ActualInstructorId == instructorId
+                                   && i.Date >= today)
+            ?? throw new InvalidOperationException("ניתן לדווח היעדרות רק עבור משמרת עתידית שלך");
+
+        var dedupKey = $"absence_report_{shiftInstanceId}";
+        if (await _db.ActionItems.AnyAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open))
+            return;   // already reported
+
+        var className = shift.Template?.Class?.Name ?? "";
+        var dateStr = shift.Date.ToString("dd/MM/yyyy");
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = shiftInstanceId,
+            DeduplicationKey = dedupKey,
+            Description = $"דיווח היעדרות: מדריך/ה לא יוכל/תוכל להגיע למשמרת כיתה {className} · {dateStr} — נדרש כיסוי."
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();   // concurrent insert won the dedup race
+        }
     }
 
     public Task<List<SubstitutionRequest>> ListPendingSubstitutionsAsync() =>

@@ -27,4 +27,19 @@ public class MyScheduleModel : PageModel
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
         Shifts = await _scheduling.ListUpcomingForInstructorAsync(userId, today, today.AddDays(Days));
     }
+
+    public async Task<IActionResult> OnPostReportAbsenceAsync(int shiftInstanceId)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            await _scheduling.ReportAbsenceAsync(shiftInstanceId, userId);
+            TempData["SuccessMessage"] = "דווח על היעדרות. המנהל יקבל התראה לכיסוי המשמרת.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        return RedirectToPage(new { days = Days == 7 ? 7 : 30 });
+    }
 }
