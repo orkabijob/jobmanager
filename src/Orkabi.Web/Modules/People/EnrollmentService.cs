@@ -15,6 +15,18 @@ public class EnrollmentService
             .OrderBy(e => e.Client.Name)
             .ToListAsync();
 
+    /// <summary>
+    /// F12 — all of a client's enrollments (full history, every status), Class + School loaded.
+    /// IgnoreQueryFilters so enrollments in an archived class still appear.
+    /// </summary>
+    public Task<List<Enrollment>> ListByClientAsync(int clientId) =>
+        _db.Enrollments
+            .IgnoreQueryFilters()
+            .Where(e => e.ClientId == clientId)
+            .Include(e => e.Class).ThenInclude(c => c.School)
+            .OrderByDescending(e => e.EnrolledAt)
+            .ToListAsync();
+
     public async Task<List<Client>> ListAvailableForClassAsync(int classId, string? q)
     {
         // Active clients who are NOT currently enrolled (non-Dropped) in this class.
