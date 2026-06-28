@@ -2,7 +2,7 @@
 
 _Synthesized 2026-06-27 from: the 5 persona gap reports, the codebase gap/authz review, the
 docs+code deferred-items sweep, and `docs/HANDOFF.md`. Deduplicated; nothing dropped._
-_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **380/380** as of this writing._
+_Companion: `docs/personas-and-gaps.md` (persona detail). Tests are at **384/384** as of this writing._
 
 > ⚠️ **Pending production migration (needs deploy sign-off):** `20260627160841_AddIncidentReportStatus` (F2) adds a non-null `int Status` column (default 0 = Open) to `IncidentReports`. Applied automatically by `MigrateAsync` at boot on the next `master` deploy; non-breaking (existing rows → Open). No other pending migrations.
 
@@ -47,7 +47,7 @@ ID scheme: **B**=blocking · **F**=functional/important · **P**=polish/nice-to-
 - [x] **F14 — Substitution-approval notifications.** ✅ `ApproveSubstitutionAsync` now creates two **user-assigned** action items (in its transaction): one to the substitute ("שובצת כמחליף/ה…") and one to the original instructor ("המשמרת שלך הועברה…"). They surface in each instructor's dashboard "my tickets". Dedup-keyed per request. _src G/I_
 - [x] **F15 — `EnrollmentStatus.Completed` reachable.** ✅ **Decision: manual graduate by CS.** `EnrollmentService.CompleteAsync` (Active → Completed; guards non-Active) + a "סיום" button on active roster rows + a "הושלם" badge on completed ones. Also closed an edge the new status exposed: the tryout toggle (which drives Status) is now hidden for completed rows **and** guarded in `ToggleAsync` so it can't resurrect a completed enrollment. 4 new tests. _src G_
 - [x] **F16 — Delete for Curriculum Models / Schools.** ✅ FK-guarded `CurriculumService.DeleteModelAsync` (blocks if used in any SyllabusModel / LessonLog / LogisticsOrder — all 3 FK refs verified) + `SchoolService.DeleteAsync` (blocks if any Class references it) with friendly Hebrew errors; delete buttons + `OnPostDelete` handlers on both edit pages (in-use → re-render with the error). 6 new tests. _src G_
-- [ ] **F17 — Instructor week/month schedule view.** Dashboard shows today only; `/Scheduling/Instances` is CS/Admin-gated. Add a read-only "my schedule" tab (7/30-day) filtered to the user. _src I_
+- [x] **F17 — Instructor week/month schedule view.** ✅ `/Scheduling/MySchedule` `[InstructorOrAdmin]` — the instructor's own upcoming shifts for the next 7 or 30 days (toggle), date+time order, via `SchedulingService.ListUpcomingForInstructorAsync`. Reachable from the instructor dashboard quick-links. 4 new tests. _src I_
 - [ ] **F18 — Instructor proactive absence report.** No "I can't make it" path (vacation needs future range; incident needs an existing shift). Add "הודע על היעדרות" on the shift card → action item + optional sub-request. _src I_
 - [x] **F19 — Instructor dashboard nav to Operations.** ✅ A "פעולות מהירות" quick-links card-grid under the shift cards: בקשת החלפה, שעות נוספות, חופשות, דיווח אירוע, ההזמנות שלי, משימות פתוחות. _src I_
 - [x] **F20 — "First incomplete model" resolver.** ✅ New `SchedulingService.ResolveCurrentModelForClassAsync` picks the first syllabus model (by OrderIndex) whose count of **Completed** LessonLogs for the class is still below its `ExpectedLessonsToComplete` (last model if all complete). Both callers now route through it — `ResolveLessonLogForAttendanceAsync` (attendance) and the dashboard "דגם:" chip (the now-unused `CurriculumService` dep was dropped). Progression no longer frozen at model #1. **✓v** _src I/G/D-S1_

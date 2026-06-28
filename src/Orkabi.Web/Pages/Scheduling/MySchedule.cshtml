@@ -1,0 +1,60 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.MyScheduleModel
+@{
+    ViewData["Title"] = "לוח הזמנים שלי";
+    var he = new System.Globalization.CultureInfo("he-IL");
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">לוח הזמנים שלי</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Dashboard/Instructor" class="btn-ghost dash-topbar__help">חזרה ללוח</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <header class="list-head">
+      <h1 class="page-head__title">לוח הזמנים שלי</h1>
+      <div class="status-pill-rail">
+        <a href="?days=7" class="status-pill @(Model.Days == 7 ? "status-pill--on" : "")">7 ימים</a>
+        <a href="?days=30" class="status-pill @(Model.Days == 30 ? "status-pill--on" : "")">30 ימים</a>
+      </div>
+    </header>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Shifts.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין מפגשים מתוכננים</p>
+          <p class="empty-state__hint">מפגשים שישובצו לך יופיעו כאן.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">תאריך</th>
+              <th scope="col">שעות</th>
+              <th scope="col">כיתה</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var sh in Model.Shifts)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary"><bdi class="num">@sh.Date.ToString("dd/MM/yyyy")</bdi> · @sh.Date.ToString("dddd", he)</td>
+                <td class="data-cell"><bdi class="num">@sh.Template.StartTime.ToString("HH\\:mm")–@sh.Template.EndTime.ToString("HH\\:mm")</bdi></td>
+                <td class="data-cell">@sh.Template.Class.Name@(sh.Template.Class.School?.Name is null ? "" : $" · {sh.Template.Class.School.Name}")</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

@@ -176,6 +176,15 @@ public class SchedulingService
             .ToListAsync();
     }
 
+    /// <summary>F17 — the instructor's shifts within [from, to], in date then start-time order
+    /// (Class + School loaded for display).</summary>
+    public Task<List<ShiftInstance>> ListUpcomingForInstructorAsync(int userId, DateOnly from, DateOnly to) =>
+        _db.ShiftInstances
+            .Where(i => i.ActualInstructorId == userId && i.Date >= from && i.Date <= to)
+            .Include(i => i.Template).ThenInclude(t => t.Class).ThenInclude(c => c.School)
+            .OrderBy(i => i.Date).ThenBy(i => i.Template.StartTime)
+            .ToListAsync();
+
     /// <summary>Returns the instructor's most recent ShiftInstances (up to 30) for use in operation submit forms.</summary>
     public Task<List<ShiftInstance>> ListRecentForInstructorAsync(int userId, int take = 30)
     {
