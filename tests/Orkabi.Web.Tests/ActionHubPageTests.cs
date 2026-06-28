@@ -4,7 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.ActionHub;
+using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
+using Orkabi.Web.Modules.Logistics;
+using Orkabi.Web.Modules.People;
+using Orkabi.Web.Shared;
 using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
@@ -60,6 +64,74 @@ public class ActionHubPageTests : IClassFixture<SqliteFixture>
             var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
             return (factory, client, existing.Id);
         }
+    }
+
+    private static async Task<(OrkabiAppFactory factory, HttpClient client, int userId)>
+        CreateLogisticsClientAsync(SqliteFixture sqlite, string suffix)
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = sqlite.ConnectionString }.Prepared();
+        using (var s = factory.Services.CreateScope())
+        {
+            var um = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var email = $"logi.hub{suffix}@test.test";
+            var existing = await um.FindByEmailAsync(email);
+            if (existing is null)
+            {
+                var u = new AppUser { UserName = email, Email = email };
+                await um.CreateAsync(u, "Passw0rd!");
+                await um.AddToRoleAsync(u, AppRoles.Logistics);
+                existing = u;
+            }
+            var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+            return (factory, client, existing.Id);
+        }
+    }
+
+    // F-review (Logistics #1): resolving a dispute ticket from the hub must RE-PACK the order
+    // (Disputed → Pending) and resolve the ticket — not just mark the ticket done while the kit
+    // stays stranded in Disputed forever.
+    [Fact]
+    public async Task Resolving_a_dispute_ticket_repacks_the_order()
+    {
+        var (factory, client, _) = await CreateLogisticsClientAsync(_sqlite, "_repack");
+        int ticketId, orderId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var school = new School { Name = $"בס-{Guid.NewGuid():N}", City = "ת" };
+            var year = new AcademicYear { Label = $"y{Guid.NewGuid():N}"[..8], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30), IsCurrent = false };
+            db.Schools.Add(school); db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+            var cls = new Class { Name = $"כ-{Guid.NewGuid():N}"[..10], School = school, AcademicYear = year, Status = EntityStatus.Active };
+            var model = new Model { Name = $"מ-{Guid.NewGuid():N}"[..10], ExpectedLessonsToComplete = 4 };
+            db.Classes.Add(cls); db.Models.Add(model);
+            await db.SaveChangesAsync();
+            var order = new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 5, Status = LogisticsOrderStatus.Disputed, DisputeNotes = "חסרים חומרים" };
+            db.LogisticsOrders.Add(order);
+            await db.SaveChangesAsync();
+            orderId = order.Id;
+            var ticket = new ActionItem { Type = ActionItemType.Dispute, Status = ActionItemStatus.Open, AssignedToRole = AppRoles.Logistics, RelatedEntityId = orderId, DeduplicationKey = $"dispute_{orderId}", Description = "מחלוקת על הזמנה" };
+            db.ActionItems.Add(ticket);
+            await db.SaveChangesAsync();
+            ticketId = ticket.Id;
+        }
+
+        var getResp = await client.GetAsync("/Operations/ActionItems");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var postResp = await client.PostAsync($"/Operations/ActionItems?handler=Resolve&id={ticketId}",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token }));
+        Assert.Equal(HttpStatusCode.OK, postResp.StatusCode);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var order = await db.LogisticsOrders.FindAsync(orderId);
+            Assert.Equal(LogisticsOrderStatus.Pending, order!.Status);   // re-packed, not stranded
+            Assert.Null(order.DisputeNotes);
+            var ticket = await db.ActionItems.FindAsync(ticketId);
+            Assert.Equal(ActionItemStatus.Resolved, ticket!.Status);     // ticket also resolved
+        }
+        factory.Dispose();
     }
 
     private static ActionItem MakeAdminItem(string description = "חריגת קצב: כיתה טסט · דגם טסט — בוצעו 9 שיעורים מתוך 8 צפויים.") =>
