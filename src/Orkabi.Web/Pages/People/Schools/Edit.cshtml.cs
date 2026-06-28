@@ -71,4 +71,27 @@ public class EditModel : PageModel
 
         return RedirectToPage("Index");
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        try
+        {
+            await _schools.DeleteAsync(id);
+            return RedirectToPage("Index");
+        }
+        catch (InvalidOperationException ex)
+        {
+            var school = await _schools.GetAsync(id);
+            if (school is null) return NotFound();
+            SchoolId = id;
+            Input = new InputModel
+            {
+                Name = school.Name,
+                City = school.City,
+                ExternalWebsiteUrl = school.ExternalWebsiteUrl
+            };
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return Page();
+        }
+    }
 }

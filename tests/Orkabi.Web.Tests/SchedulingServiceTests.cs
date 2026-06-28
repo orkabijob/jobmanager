@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
@@ -284,5 +285,227 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
         var recordedClientIds = attendances.Select(a => a.ClientId).OrderBy(x => x).ToList();
 
         Assert.Equal(enrolledIds, recordedClientIds);
+    }
+
+    // ── Substitution cancel (regression coverage for the instructor self-cancel path) ──
+
+    [Fact]
+    public async Task Cancel_substitution_sets_status_cancelled()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+
+        await svc.CancelSubstitutionAsync(request.Id, instructor.Id);
+
+        db.ChangeTracker.Clear();
+        var reloaded = await db.SubstitutionRequests.FindAsync(request.Id);
+        Assert.Equal(SubstitutionStatus.Cancelled, reloaded!.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_substitution_by_non_owner_throws_and_leaves_pending()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var stranger = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CancelSubstitutionAsync(request.Id, stranger.Id));
+
+        db.ChangeTracker.Clear();
+        var reloaded = await db.SubstitutionRequests.FindAsync(request.Id);
+        Assert.Equal(SubstitutionStatus.Pending, reloaded!.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_substitution_non_pending_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var approver = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+        await svc.ApproveSubstitutionAsync(request.Id, approver.Id);   // now Approved, no longer Pending
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => svc.CancelSubstitutionAsync(request.Id, instructor.Id));
+    }
+
+    // ── F20: "first incomplete model" resolver (progression no longer frozen at model #1) ──
+
+    private static async Task<Syllabus> SeedTwoModelSyllabusAsync(
+        AppDbContext db, Class cls, Modules.Curriculum.Model modelA, Modules.Curriculum.Model modelB)
+    {
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var syllabus = new Syllabus
+        {
+            Name = $"syl-{Guid.NewGuid():N}"[..12],
+            StartDate = today.AddDays(-30),
+            EndDate = today.AddDays(120),
+            Status = EntityStatus.Active
+        };
+        db.Syllabi.Add(syllabus);
+        await db.SaveChangesAsync();
+        db.SyllabusModels.Add(new SyllabusModel { SyllabusId = syllabus.Id, ModelId = modelA.Id, OrderIndex = 1 });
+        db.SyllabusModels.Add(new SyllabusModel { SyllabusId = syllabus.Id, ModelId = modelB.Id, OrderIndex = 2 });
+        cls.SyllabusId = syllabus.Id;
+        await db.SaveChangesAsync();
+        return syllabus;
+    }
+
+    [Fact]
+    public async Task ResolveCurrentModel_advances_past_completed_models()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 2);
+        var modelB = await SeedModelAsync(db, expected: 3);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        // Nothing completed yet → current is the first model (A).
+        var (firstId, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelA.Id, firstId);
+
+        // Complete modelA's expected (2) lessons for this class.
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        for (int i = 0; i < 2; i++)
+        {
+            var inst = await SeedInstanceAsync(db, template.Id, today.AddDays(-10 + i), instructor.Id);
+            await svc.SaveLessonLogAsync(inst.Id, modelA.Id, LessonLogStatus.Completed, null);
+        }
+
+        // Model A is complete → current advances to B (was frozen at A before F20).
+        var (nextId, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelB.Id, nextId);
+    }
+
+    [Fact]
+    public async Task ResolveLessonLog_creates_log_for_first_incomplete_model()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 1);
+        var modelB = await SeedModelAsync(db, expected: 3);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var doneInst = await SeedInstanceAsync(db, template.Id, today.AddDays(-5), instructor.Id);
+        await svc.SaveLessonLogAsync(doneInst.Id, modelA.Id, LessonLogStatus.Completed, null);   // model A complete (expected 1)
+
+        // A fresh shift with no log → resolver should pick model B (A is done), not model #1.
+        var newInst = await SeedInstanceAsync(db, template.Id, today, instructor.Id);
+        var (logId, modelId, _) = await svc.ResolveLessonLogForAttendanceAsync(newInst.Id);
+        Assert.NotNull(logId);
+        Assert.Equal(modelB.Id, modelId);
+    }
+
+    [Fact]
+    public async Task ResolveCurrentModel_falls_back_to_last_when_all_complete()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var modelA = await SeedModelAsync(db, expected: 1);
+        var modelB = await SeedModelAsync(db, expected: 1);
+        await SeedTwoModelSyllabusAsync(db, cls, modelA, modelB);
+
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var instA = await SeedInstanceAsync(db, template.Id, today.AddDays(-4), instructor.Id);
+        await svc.SaveLessonLogAsync(instA.Id, modelA.Id, LessonLogStatus.Completed, null);
+        var instB = await SeedInstanceAsync(db, template.Id, today.AddDays(-3), instructor.Id);
+        await svc.SaveLessonLogAsync(instB.Id, modelB.Id, LessonLogStatus.Completed, null);
+
+        // Every model complete → fall back to the last model (B), not null.
+        var (id, _) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+        Assert.Equal(modelB.Id, id);
+    }
+
+    // ── F14: substitution-approval notifies the substitute + the original instructor ──
+
+    [Fact]
+    public async Task ApproveSubstitution_notifies_substitute_and_original_instructor()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var approver = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var future = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz)).AddDays(7);
+        var instance = await SeedInstanceAsync(db, template.Id, future, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+        await svc.ApproveSubstitutionAsync(request.Id, approver.Id);
+
+        db.ChangeTracker.Clear();
+        var subItem = await db.ActionItems.FirstOrDefaultAsync(a => a.DeduplicationKey == $"sub_assigned_{request.Id}");
+        Assert.NotNull(subItem);
+        Assert.Equal(substitute.Id, subItem!.AssignedToUserId);
+        Assert.Null(subItem.AssignedToRole);
+        Assert.Equal(ActionItemStatus.Open, subItem.Status);
+
+        var origItem = await db.ActionItems.FirstOrDefaultAsync(a => a.DeduplicationKey == $"sub_reassigned_{request.Id}");
+        Assert.NotNull(origItem);
+        Assert.Equal(instructor.Id, origItem!.AssignedToUserId);
+        Assert.Equal(ActionItemStatus.Open, origItem.Status);
     }
 }

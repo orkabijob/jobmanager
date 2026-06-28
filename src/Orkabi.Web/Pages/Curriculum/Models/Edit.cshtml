@@ -72,5 +72,14 @@
         </div>
       </form>
     </div>
+
+    <form method="post" asp-page-handler="Delete" class="glass glass--tile form-panel"
+          style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-4);">
+      <h2 class="form-panel__title" style="font-size:var(--t-admin-body);">מחיקת דגם</h2>
+      <p class="form-field__hint">ניתן למחוק רק דגם שאינו בשימוש בסילבוס, ביומן שיעור או בהזמנה.</p>
+      <div class="form-actions">
+        <button type="submit" class="btn-ghost">מחיקת דגם</button>
+      </div>
+    </form>
   </main>
 </div>

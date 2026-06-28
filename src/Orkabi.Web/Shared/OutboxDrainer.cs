@@ -82,6 +82,10 @@ public class OutboxDrainer : IOutboxDrainer
                 await HandleTryoutPresentAsync(evt, ct);
                 break;
 
+            case "IncidentSevere":
+                await HandleIncidentSevereAsync(evt, ct);
+                break;
+
             default:
                 // Unknown type — log and let it be marked processed (avoid infinite retry).
                 _logger.LogWarning("Unknown outbox event type {EventType} (id {EventId}); marking processed.",
@@ -176,8 +180,20 @@ public class OutboxDrainer : IOutboxDrainer
         // Else: no-op; the event will still be stamped processed.
     }
 
+    private async Task HandleIncidentSevereAsync(OutboxEvent evt, CancellationToken ct)
+    {
+        var payload = JsonSerializer.Deserialize<IncidentSeverePayload>(evt.Payload)
+            ?? throw new InvalidOperationException($"Empty IncidentSevere payload (event {evt.Id}).");
+
+        // EnsureSevereIncidentActionItemAsync is idempotent (dedup-key index), so a retry is safe.
+        await _actionHub.EnsureSevereIncidentActionItemAsync(payload.incidentReportId);
+    }
+
     // Mirrors the anonymous type serialized in SchedulingService.SaveLessonLogAsync.
     private sealed record LessonLogSavedPayload(int classId, int modelId);
+
+    // Mirrors the anonymous type serialized in OperationsService.SubmitIncidentReportAsync.
+    private sealed record IncidentSeverePayload(int incidentReportId);
 
     // Mirrors the anonymous types serialized in SchedulingService.RecordAttendanceAsync.
     private sealed record AttendanceAbsentPayload(int clientId, int lessonLogId);

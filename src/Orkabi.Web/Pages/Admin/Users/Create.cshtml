@@ -1,0 +1,69 @@
+@page
+@model Orkabi.Web.Pages.Admin.Users.CreateModel
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "משתמש חדש";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול משתמשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @Model.Greeting</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Admin/Users">משתמשים</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>משתמש חדש</span>
+    </nav>
+
+    <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+      <h1 class="form-panel__title">משתמש חדש</h1>
+      <form method="post" class="form-grid form-grid--2col">
+        <div asp-validation-summary="All" class="form-field__error" style="grid-column: 1 / -1;"></div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Email">אימייל <span class="req">*</span></label>
+          <input id="Email" asp-for="Input.Email" type="email" dir="ltr" autocomplete="off" inputmode="email" />
+          <p class="form-field__error" asp-validation-for="Input.Email"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="FullName">שם מלא</label>
+          <input id="FullName" asp-for="Input.FullName" maxlength="200" />
+          <p class="form-field__error" asp-validation-for="Input.FullName"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Password">סיסמה ראשונית <span class="req">*</span></label>
+          <input id="Password" asp-for="Input.Password" type="text" dir="ltr" autocomplete="off" />
+          <p class="form-field__hint">לפחות 8 תווים. מסרו אותה למשתמש — הוא יכול לשנותה בהמשך.</p>
+          <p class="form-field__error" asp-validation-for="Input.Password"></p>
+        </div>
+
+        <div class="form-field">
+          <label class="form-field__label" for="Role">תפקיד <span class="req">*</span></label>
+          <select id="Role" asp-for="Input.Role" class="form-select">
+            <option value="">— בחרו תפקיד —</option>
+            @foreach (var r in AppRoles.All)
+            {
+              <option value="@r">@RoleLabels.Hebrew(r)</option>
+            }
+          </select>
+          <p class="form-field__error" asp-validation-for="Input.Role"></p>
+        </div>
+
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Admin/Users">ביטול</a>
+          <button type="submit" class="btn-primary">יצירת משתמש</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>

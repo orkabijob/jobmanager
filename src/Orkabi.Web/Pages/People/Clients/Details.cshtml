@@ -1,0 +1,111 @@
+@page "{id:int}"
+@model Orkabi.Web.Pages.People.Clients.DetailsModel
+@using Orkabi.Web.Modules.People
+@{
+    ViewData["Title"] = "פרופיל תלמיד";
+    var c = Model.TheClient;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">ניהול אנשים</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body people">
+    <nav class="subnav" aria-label="ניווט אנשים">
+      <a class="subnav__item" href="/People">סקירה</a>
+      <a class="subnav__item" href="/People/Schools">בתי ספר</a>
+      <a class="subnav__item" href="/People/Classes">כיתות</a>
+      <a class="subnav__item is-active" href="/People/Clients">לקוחות</a>
+    </nav>
+
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/People/Clients">לקוחות</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>@c.Name</span>
+    </nav>
+
+    <header class="list-head">
+      <div>
+        <h1 class="page-head__title">@c.Name</h1>
+        <p class="page-head__sub">
+          @(c.IsActive ? "פעיל" : "לא פעיל")
+          @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
+          {
+            <text> · </text><bdi class="num">@c.ParentPhone</bdi>
+          }
+          @if (c.Age.HasValue)
+          {
+            <text> · גיל </text><bdi class="num">@c.Age</bdi>
+          }
+          @if (c.Birthday.HasValue)
+          {
+            <text> · יום הולדת </text><bdi class="num">@c.Birthday.Value.ToString("dd.MM.yyyy")</bdi>
+          }
+        </p>
+      </div>
+      <a class="btn-ghost" href="/People/Clients/Edit/@c.Id">עריכה</a>
+    </header>
+
+    <div class="section-label" style="margin-block: var(--sp-5) var(--sp-4);">שיבוצים לכיתות</div>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Enrollments.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין שיבוצים</p>
+          <p class="empty-state__hint">התלמיד אינו משובץ לאף כיתה.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">כיתה</th>
+              <th scope="col">בית ספר</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col">חומרים</th>
+              <th scope="col">חודשי</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var e in Model.Enrollments)
+            {
+              <tr class="data-row@(e.Status == EnrollmentStatus.Dropped ? " data-row--muted" : "")">
+                <td class="data-cell data-cell--primary">@e.Class?.Name</td>
+                <td class="data-cell">@(e.Class?.School?.Name ?? "—")</td>
+                <td class="data-cell">
+                  @if (e.Status == EnrollmentStatus.Active)
+                  {
+                    <span class="status-chip status-chip--active">פעיל</span>
+                  }
+                  else if (e.Status == EnrollmentStatus.Tryout)
+                  {
+                    <span class="status-chip status-chip--pending">ניסיון</span>
+                  }
+                  else if (e.Status == EnrollmentStatus.Completed)
+                  {
+                    <span class="status-chip status-chip--approved">הושלם</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--off">בוטל</span>
+                  }
+                </td>
+                <td class="data-cell">@(e.PaidMaterials ? "✓" : "—")</td>
+                <td class="data-cell">@(e.PaidMonthly ? "✓" : "—")</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

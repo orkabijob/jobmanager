@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Orkabi.Web.Modules.ActionHub;
-using Orkabi.Web.Modules.Curriculum;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Modules.Scheduling;
@@ -17,7 +16,6 @@ public class InstructorModel : PageModel
 {
     private readonly SchedulingService _scheduling;
     private readonly EnrollmentService _enrollments;
-    private readonly CurriculumService _curriculum;
     private readonly ClassService _classes;
     private readonly UserManager<AppUser> _users;
     private readonly ActionItemService _actionItems;
@@ -25,14 +23,12 @@ public class InstructorModel : PageModel
     public InstructorModel(
         SchedulingService scheduling,
         EnrollmentService enrollments,
-        CurriculumService curriculum,
         ClassService classes,
         UserManager<AppUser> users,
         ActionItemService actionItems)
     {
         _scheduling = scheduling;
         _enrollments = enrollments;
-        _curriculum = curriculum;
         _classes = classes;
         _users = users;
         _actionItems = actionItems;
@@ -130,13 +126,10 @@ public class InstructorModel : PageModel
         return at > 0 ? name[..at] : name;
     }
 
-    // First model in the class's syllabus = the "current" model for Slice 2.
-    // (A precise "first incomplete" resolution is a later refinement — flagged in the report.)
+    // The class's current (first-incomplete) syllabus model — resolved by SchedulingService (F20).
     private async Task<string?> ResolveCurrentModelNameAsync(Class cls)
     {
-        if (cls.SyllabusId is not int syllabusId) return null;
-        var syllabus = await _curriculum.GetSyllabusAsync(syllabusId);
-        var first = syllabus?.SyllabusModels.OrderBy(sm => sm.OrderIndex).FirstOrDefault();
-        return first?.Model?.Name;
+        var (_, modelName) = await _scheduling.ResolveCurrentModelForClassAsync(cls.Id);
+        return modelName;
     }
 }

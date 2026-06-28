@@ -8,7 +8,7 @@ using Orkabi.Web.Modules.Identity;
 
 namespace Orkabi.Web.Pages.Dashboard;
 
-[Authorize(Roles = AppRoles.Logistics)]
+[Authorize(Roles = AppRoles.LogisticsOrAdmin)]
 public class LogisticsModel : PageModel
 {
     private readonly DashboardMetricsService _metrics;

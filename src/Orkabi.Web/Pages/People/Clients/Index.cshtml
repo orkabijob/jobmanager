@@ -87,7 +87,7 @@
             @foreach (var c in Model.Clients)
             {
               <tr class="data-row @(!c.IsActive ? "data-row--muted" : "")">
-                <td class="data-cell data-cell--primary">@c.Name</td>
+                <td class="data-cell data-cell--primary"><a href="/People/Clients/Details/@c.Id">@c.Name</a></td>
                 <td class="data-cell">
                   @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
                   {

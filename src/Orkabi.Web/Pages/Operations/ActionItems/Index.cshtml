@@ -16,13 +16,7 @@
   </header>
 
   <main class="dash-body">
-    <nav class="subnav" aria-label="ניווט תפעול">
-      <a class="subnav__item" href="/Operations">סקירה</a>
-      <a class="subnav__item" href="/Operations/ExtraHours">אישור שעות</a>
-      <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
-      <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
-      <a class="subnav__item is-active" href="/Operations/ActionItems">משימות פתוחות</a>
-    </nav>
+    @await Html.PartialAsync("_OperationsSubnav", "actionitems")
 
     <div class="page-head">
       <div>

@@ -53,6 +53,23 @@ public class IndexModel : PageModel
         return Partial("_OrderRow", order);
     }
 
+    public async Task<IActionResult> OnPostRepackAsync(int id)
+    {
+        if (!User.IsInRole(AppRoles.Logistics) && !User.IsInRole(AppRoles.Admin))
+            return Forbid();
+
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _supply.RepackDisputedAsync(id, userId);
+
+        var order = await _db.LogisticsOrders
+            .Include(o => o.Class)
+            .Include(o => o.Model)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (order is null) return NotFound();
+
+        return Partial("_OrderRow", order);
+    }
+
     public async Task<IActionResult> OnPostGenerateAsync(int? classId)
     {
         if (!User.IsInRole(AppRoles.Logistics) && !User.IsInRole(AppRoles.Admin))

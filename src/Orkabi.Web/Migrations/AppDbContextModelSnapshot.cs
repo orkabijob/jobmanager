@@ -521,6 +521,9 @@ namespace Orkabi.Web.Migrations
                     b.Property<int>("ShiftInstanceId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1177,12 +1180,14 @@ namespace Orkabi.Web.Migrations
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", null)
+                    b.HasOne("Orkabi.Web.Modules.Identity.AppUser", "ResolvedByUser")
                         .WithMany()
                         .HasForeignKey("ResolvedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("AssignedToUser");
+
+                    b.Navigation("ResolvedByUser");
                 });
 
             modelBuilder.Entity("Orkabi.Web.Modules.Curriculum.SyllabusModel", b =>

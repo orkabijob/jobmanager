@@ -1,0 +1,138 @@
+@page
+@model Orkabi.Web.Pages.Scheduling.Substitutions.CreateModel
+@using Orkabi.Web.Modules.Scheduling
+@{
+    ViewData["Title"] = "בקשת החלפה";
+    var selectable = Model.MyFutureShifts.Where(s => !Model.PendingShiftIds.Contains(s.Id)).ToList();
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">בקשת החלפה</span>
+    <nav class="dash-topbar__user">
+      <span>שלום, @User.Identity?.Name?.Split('@')[0]</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="subnav" aria-label="ניווט">
+      <a class="subnav__item" href="/Dashboard/Instructor">חזרה ללוח</a>
+      <a class="subnav__item is-active" href="/Scheduling/Substitutions/Create">בקשת החלפה</a>
+    </nav>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+      <div class="toast" role="status">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+      <div class="toast" role="alert">@TempData["ErrorMessage"]</div>
+    }
+
+    @* Antiforgery anchor — always present so a token exists even when the form is not rendered. *@
+    <form id="csrf-anchor" style="display:none">
+      @Html.AntiForgeryToken()
+    </form>
+
+    @if (!Model.MyFutureShifts.Any())
+    {
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <div class="empty-state">
+          <p class="empty-state__title">אין משמרות עתידיות</p>
+          <p class="empty-state__hint">בקשת החלפה זמינה רק עבור משמרות עתידיות המשובצות אליך.</p>
+        </div>
+      </div>
+    }
+    else
+    {
+      <form method="post" class="glass glass--tile form-panel form-panel--instructor"
+            style="--lg-tile-shadow: var(--lg-shadow);">
+        <h1 class="form-panel__title">בקשת החלפה למשמרת</h1>
+        <div class="form-grid form-grid--2col">
+          <div class="form-field">
+            <label class="form-field__label" for="ShiftInstanceId">משמרת <span class="req">*</span></label>
+            <select id="ShiftInstanceId" asp-for="Input.ShiftInstanceId">
+              <option value="">— בחר/י משמרת —</option>
+              @foreach (var s in selectable)
+              {
+                <option value="@s.Id">@s.Template.Class.Name · @s.Date.ToString("dd/MM/yyyy") · @s.Template.StartTime.ToString("HH:mm")</option>
+              }
+            </select>
+            <span class="form-field__error" asp-validation-for="Input.ShiftInstanceId"></span>
+            @if (!selectable.Any())
+            {
+              <span style="font-size:var(--t-admin-meta); color:var(--brand-ink-muted);">
+                כל המשמרות העתידיות שלך כבר בבקשת החלפה ממתינה.
+              </span>
+            }
+          </div>
+          <div class="form-field">
+            <label class="form-field__label" for="SubstituteInstructorId">מחליף/ה <span class="req">*</span></label>
+            <select id="SubstituteInstructorId" asp-for="Input.SubstituteInstructorId">
+              <option value="">— בחר/י מדריך/ה —</option>
+              @foreach (var u in Model.OtherInstructors)
+              {
+                <option value="@u.Id">@(u.FullName ?? u.Email)</option>
+              }
+            </select>
+            <span class="form-field__error" asp-validation-for="Input.SubstituteInstructorId"></span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <a class="btn-ghost" href="/Dashboard/Instructor">ביטול</a>
+          <button type="submit" class="btn-primary">שליחת בקשה</button>
+        </div>
+      </form>
+    }
+
+    <div class="section-label" style="margin-block: var(--sp-6) var(--sp-4);">הבקשות הממתינות שלי</div>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.MyPendingRequests.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין בקשות החלפה ממתינות</p>
+          <p class="empty-state__hint">בקשות שתשלחו יופיעו כאן עד לאישור או דחייה.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">משמרת</th>
+              <th scope="col">תאריך</th>
+              <th scope="col">מחליף/ה</th>
+              <th scope="col">סטטוס</th>
+              <th scope="col" class="data-table__actions-col">פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var r in Model.MyPendingRequests)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">
+                  @r.ShiftInstance.Template.Class.Name
+                  <bdi class="num" style="font-size:var(--t-admin-meta); color:var(--brand-ink-muted);">
+                    @r.ShiftInstance.Template.StartTime.ToString("HH:mm")–@r.ShiftInstance.Template.EndTime.ToString("HH:mm")
+                  </bdi>
+                </td>
+                <td class="data-cell"><bdi class="num">@r.ShiftInstance.Date.ToString("dd/MM/yyyy")</bdi></td>
+                <td class="data-cell">@(r.SubstituteInstructor.FullName ?? r.SubstituteInstructor.Email)</td>
+                <td class="data-cell"><span class="status-chip status-chip--pending">ממתין</span></td>
+                <td class="data-cell data-cell--actions">
+                  <form method="post" asp-page-handler="Cancel" asp-route-id="@r.Id">
+                    <button type="submit" class="btn-ghost btn-ghost--sm">ביטול בקשה</button>
+                  </form>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

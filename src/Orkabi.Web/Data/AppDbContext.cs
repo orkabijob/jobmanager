@@ -192,6 +192,7 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, int>
 
         // IncidentReport
         b.Entity<Operations.IncidentReport>().Property(r => r.Severity).HasConversion<int>();
+        b.Entity<Operations.IncidentReport>().Property(r => r.Status).HasConversion<int>();
         b.Entity<Operations.IncidentReport>().Property(r => r.Description).HasMaxLength(2000).IsRequired();
         b.Entity<Operations.IncidentReport>()
             .HasOne(r => r.ShiftInstance).WithMany()

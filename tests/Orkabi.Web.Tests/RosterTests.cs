@@ -65,6 +65,95 @@ public class RosterTests : IClassFixture<SqliteFixture>
         return (school, year, cls, client);
     }
 
+    // ── F15: manual "graduate" — CS marks an Active enrollment Completed ──
+
+    [Fact]
+    public async Task Complete_enrollment_sets_status_completed()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<EnrollmentService>();
+
+        var (_, __, cls, client) = await SeedAsync(db, "comp");
+        var enr = new Enrollment { ClassId = cls.Id, ClientId = client.Id, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.UtcNow };
+        db.Enrollments.Add(enr);
+        await db.SaveChangesAsync();
+
+        await svc.CompleteAsync(enr.Id);
+
+        db.ChangeTracker.Clear();
+        Assert.Equal(EnrollmentStatus.Completed, (await db.Enrollments.FindAsync(enr.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task Complete_non_active_enrollment_throws()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<EnrollmentService>();
+
+        var (_, __, cls, client) = await SeedAsync(db, "compbad");
+        var enr = new Enrollment { ClassId = cls.Id, ClientId = client.Id, Status = EnrollmentStatus.Dropped, EnrolledAt = DateTime.UtcNow };
+        db.Enrollments.Add(enr);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.CompleteAsync(enr.Id));
+    }
+
+    [Fact]
+    public async Task Cs_completes_enrollment_via_roster()
+    {
+        var (factory, httpClient) = await CreateCsClientAsync(_sqlite, "_complete");
+        int classId, enrollmentId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var (_, __, cls, client) = await SeedAsync(db, "completepg");
+            var enr = new Enrollment { ClassId = cls.Id, ClientId = client.Id, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.UtcNow };
+            db.Enrollments.Add(enr);
+            await db.SaveChangesAsync();
+            classId = cls.Id; enrollmentId = enr.Id;
+        }
+
+        var getResp = await httpClient.GetAsync($"/People/Classes/Roster/{classId}");
+        var token = AntiForgery.Extract(await getResp.Content.ReadAsStringAsync());
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["enrollmentId"] = enrollmentId.ToString(),
+            ["__RequestVerificationToken"] = token
+        });
+        var postResp = await httpClient.PostAsync($"/People/Classes/Roster/{classId}?handler=Complete", form);
+        Assert.Equal(HttpStatusCode.Redirect, postResp.StatusCode);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(EnrollmentStatus.Completed, (await db.Enrollments.FindAsync(enrollmentId))!.Status);
+        }
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Toggle_tryout_on_completed_enrollment_throws_and_keeps_completed()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<EnrollmentService>();
+
+        var (_, __, cls, client) = await SeedAsync(db, "comptog");
+        var enr = new Enrollment { ClassId = cls.Id, ClientId = client.Id, Status = EnrollmentStatus.Completed, EnrolledAt = DateTime.UtcNow };
+        db.Enrollments.Add(enr);
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.ToggleAsync(enr.Id, "tryout"));
+
+        db.ChangeTracker.Clear();
+        Assert.Equal(EnrollmentStatus.Completed, (await db.Enrollments.FindAsync(enr.Id))!.Status);  // not resurrected
+    }
+
     [Fact]
     public async Task Cs_can_enroll_a_client_then_it_appears_on_the_roster()
     {

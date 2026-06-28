@@ -7,7 +7,7 @@ using Orkabi.Web.Modules.Operations;
 
 namespace Orkabi.Web.Pages.Operations;
 
-[Authorize]
+[Authorize(Roles = AppRoles.CsOrInstructorOrAdmin)]
 public class IndexModel : PageModel
 {
     private readonly OperationsService _ops;

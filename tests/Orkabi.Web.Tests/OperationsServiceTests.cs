@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.Operations;
 using Orkabi.Web.Modules.Scheduling;
@@ -77,7 +78,7 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
             .UseSqlite(sqlite.ConnectionString)
             .Options;
         var freshDb = new AppDbContext(opts);
-        var ops = new OperationsService(freshDb);
+        var ops = new OperationsService(freshDb, new ActionItemService(freshDb));
 
         return (freshDb, ops, instructor, shift);
     }
@@ -114,12 +115,115 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task DenyExtraHours_transitions_to_denied()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var submitted = await ops.SubmitExtraHoursAsync(shift.Id, instructor.Id, 2m, "הארכת מפגש");
+        await ops.DenyExtraHoursAsync(submitted.Id, instructor.Id);
+        var denied = await db.ExtraHours.FindAsync(submitted.Id);
+        Assert.Equal(ExtraHoursStatus.Denied, denied!.Status);
+        Assert.Equal(instructor.Id, denied.ApprovedByUserId);
+        Assert.NotNull(denied.ApprovedAt);
+    }
+
+    [Fact]
+    public async Task DenyExtraHours_on_non_pending_throws()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var submitted = await ops.SubmitExtraHoursAsync(shift.Id, instructor.Id, 1m, "סיבה");
+        await ops.ApproveExtraHoursAsync(submitted.Id, instructor.Id);   // now Approved, not Pending
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.DenyExtraHoursAsync(submitted.Id, instructor.Id));
+    }
+
+    [Fact]
     public async Task SubmitIncident_creates_record()
     {
         var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
         var result = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.High, "תיאור");
         Assert.NotNull(result);
         Assert.Equal(IncidentSeverity.High, result.Severity);
+    }
+
+    [Fact]
+    public async Task SubmitIncident_High_writes_severe_outbox_event()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.High, "אירוע חמור");
+        var evt = await db.OutboxEvents.SingleOrDefaultAsync(e =>
+            e.EventType == "IncidentSevere" && e.Payload.Contains($"\"incidentReportId\":{report.Id}"));
+        Assert.NotNull(evt);
+        Assert.Null(evt!.ProcessedAt);
+    }
+
+    [Fact]
+    public async Task SubmitIncident_Medium_writes_no_severe_event()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Medium, "אירוע בינוני");
+        var any = await db.OutboxEvents.AnyAsync(e =>
+            e.EventType == "IncidentSevere" && e.Payload.Contains($"\"incidentReportId\":{report.Id}"));
+        Assert.False(any);
+    }
+
+    // ── Incident lifecycle (F2 part B) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task CloseIncident_sets_status_closed()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Medium, "אירוע");
+        await ops.CloseIncidentAsync(report.Id, adminUserId: instructor.Id);
+        db.ChangeTracker.Clear();
+        var loaded = await db.IncidentReports.FindAsync(report.Id);
+        Assert.Equal(IncidentStatus.Closed, loaded!.Status);
+    }
+
+    [Fact]
+    public async Task EscalateIncident_sets_status_escalated()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Medium, "אירוע");
+        await ops.EscalateIncidentAsync(report.Id, adminUserId: instructor.Id);
+        db.ChangeTracker.Clear();
+        var loaded = await db.IncidentReports.FindAsync(report.Id);
+        Assert.Equal(IncidentStatus.Escalated, loaded!.Status);
+    }
+
+    [Fact]
+    public async Task CloseIncident_resolves_open_severe_ticket()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.High, "חמור");
+        // The drainer would create this severe ticket; insert it directly to test the close→resolve link.
+        db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            RelatedEntityId = report.Id,
+            DeduplicationKey = $"severe_incident_{report.Id}",
+            Description = "severe"
+        });
+        await db.SaveChangesAsync();
+
+        await ops.CloseIncidentAsync(report.Id, adminUserId: instructor.Id);
+
+        db.ChangeTracker.Clear();
+        var ticket = await db.ActionItems.FirstOrDefaultAsync(
+            a => a.RelatedEntityId == report.Id && a.Type == ActionItemType.Task);
+        Assert.Equal(ActionItemStatus.Resolved, ticket!.Status);
+        Assert.Null(ticket.DeduplicationKey);
+    }
+
+    [Fact]
+    public async Task CloseIncident_already_closed_throws()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Low, "אירוע");
+        await ops.CloseIncidentAsync(report.Id, instructor.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.CloseIncidentAsync(report.Id, instructor.Id));
     }
 
     [Fact]
@@ -186,6 +290,42 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
         await ops.ApproveVacationAsync(vac.Id, instructor.Id);
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => ops.ApproveVacationAsync(vac.Id, instructor.Id));
+    }
+
+    // ── CancelVacationAsync (F11 — instructor withdraws their own pending request) ──
+
+    [Fact]
+    public async Task CancelVacation_sets_cancelled()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await ops.CancelVacationAsync(vac.Id, instructor.Id);
+        db.ChangeTracker.Clear();
+        Assert.Equal(VacationStatus.Cancelled, (await db.VacationRequests.FindAsync(vac.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task CancelVacation_by_non_owner_throws_and_leaves_pending()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.CancelVacationAsync(vac.Id, instructor.Id + 99999));
+        db.ChangeTracker.Clear();
+        Assert.Equal(VacationStatus.Pending, (await db.VacationRequests.FindAsync(vac.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task CancelVacation_non_pending_throws()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
+        var vac = await ops.RequestVacationAsync(instructor.Id, today.AddDays(1), today.AddDays(3), null);
+        await ops.ApproveVacationAsync(vac.Id, instructor.Id);   // no longer Pending
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => ops.CancelVacationAsync(vac.Id, instructor.Id));
     }
 
     // ── IDOR-lite ownership guards ────────────────────────────────────────────
@@ -263,7 +403,7 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
             .UseSqlite(sqlite.ConnectionString)
             .Options;
         var freshDb = new AppDbContext(opts);
-        var ops = new OperationsService(freshDb);
+        var ops = new OperationsService(freshDb, new ActionItemService(freshDb));
 
         return (freshDb, ops, shift.Id, instructorB.Id);
     }

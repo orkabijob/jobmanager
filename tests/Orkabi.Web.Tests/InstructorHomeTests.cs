@@ -118,6 +118,28 @@ public class InstructorHomeTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task Instructor_home_has_operations_quick_links()
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        string email;
+        using (var s = factory.Services.CreateScope())
+            email = (await SeedInstructorAsync(s.ServiceProvider)).Email!;
+
+        var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+        var resp = await client.GetAsync("/Dashboard/Instructor");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+
+        // F19: the instructor reaches their operations from the dashboard, not URL-only.
+        Assert.Contains("/Operations/ExtraHours", body);
+        Assert.Contains("/Operations/Vacations", body);
+        Assert.Contains("/Operations/Incidents", body);
+        Assert.Contains("/Logistics/MyOrders", body);
+
+        factory.Dispose();
+    }
+
+    [Fact]
     public async Task Instructor_home_shows_empty_state_when_no_shifts_today()
     {
         var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();

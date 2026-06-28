@@ -1,0 +1,142 @@
+@page
+@model Orkabi.Web.Pages.HelpModel
+@using Orkabi.Web.Modules.Identity
+@{
+    ViewData["Title"] = "עזרה ומדריך";
+
+    // Area guide cards. Roles = comma-separated allow-list (null = everyone). Gated exactly like
+    // the subnav in _PageShell, so users only see areas they can actually open (no AccessDenied
+    // dead-ends). The role strings mirror the [Authorize] attributes on each area's Index page.
+    var areas = new (string Icon, string Title, string Href, string Desc, string? Roles)[]
+    {
+        ("👥", "אנשים", "/People", "בתי ספר, כיתות, לקוחות ורישום תלמידים", AppRoles.CsOrAdmin),
+        ("📚", "תוכניות לימוד", "/Curriculum", "סילבוסים ודגמי שיעור", AppRoles.CsOrAdmin),
+        ("🗓", "שיבוץ", "/Scheduling", "תבניות משמרת, מופעים והחלפות", AppRoles.CsOrAdmin),
+        ("🛠", "תפעול", "/Operations", "שעות נוספות, חופשות ודיווחי אירוע", null),
+        ("📦", "לוגיסטיקה", "/Logistics/Orders", "הזמנות חומרים ורשימת אריזה", AppRoles.LogisticsOrAdmin),
+        ("🎒", "ההזמנות של הכיתה שלי", "/Logistics/MyOrders", "קבלה או ערעור על חבילת חומרים", AppRoles.InstructorOrAdmin),
+        ("✅", "נוכחות", "/Attendance", "רישום נוכחות ויומן שיעור מהמשמרת", AppRoles.InstructorOrAdmin),
+        ("🔔", "מרכז הפעולות", "/Operations/ActionItems", "התראות ומשימות הדורשות טיפול", null),
+        ("⚙️", "ניהול משתמשים", "/Admin/Users", "הוספת משתמשים ושיוך תפקידים", AppRoles.Admin),
+    };
+
+    bool Allowed((string Icon, string Title, string Href, string Desc, string? Roles) a) =>
+        a.Roles is null || Array.Exists(a.Roles.Split(','), r => User.IsInRole(r));
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">עזרה ומדריך</span>
+    <nav class="dash-topbar__user">
+      @if (!string.IsNullOrEmpty(Model.Greeting))
+      {
+        <span>שלום, @Model.Greeting</span>
+      }
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">עזרה ומדריך</h1>
+        <p class="page-head__sub">כל מה שצריך כדי לעבוד עם עורקבי — תפקידים, ניהול משתמשים, ומדריך מהיר לכל אזור.</p>
+      </div>
+    </div>
+
+    <!-- ─── תפקידים והרשאות ─── -->
+    <section class="glass glass--tile people-panel help-section" style="--lg-tile-shadow: var(--lg-shadow);">
+      <h2 class="help-section__title">תפקידים והרשאות</h2>
+      <p class="help-prose">לכל משתמש תפקיד אחד או יותר. התפקיד קובע לאיזה לוח בקרה מגיעים ואילו אזורים פתוחים:</p>
+      <ul class="help-roles">
+        <li class="help-role">
+          <span class="help-role__name">מנהל</span>
+          <span class="help-role__desc">גישה מלאה לכל האזורים, האישורים וניהול המערכת. נוחת בלוח הבקרה של המנהל.</span>
+        </li>
+        <li class="help-role">
+          <span class="help-role__name">שירות לקוחות</span>
+          <span class="help-role__desc">ניהול אנשים, תוכניות לימוד ושיבוץ. נוחת בלוח שירות הלקוחות.</span>
+        </li>
+        <li class="help-role">
+          <span class="help-role__name">לוגיסטיקה</span>
+          <span class="help-role__desc">הזמנות חומרים, רשימת אריזה וטיפול במחלוקות. נוחת בלוח הלוגיסטיקה.</span>
+        </li>
+        <li class="help-role">
+          <span class="help-role__name">מדריך</span>
+          <span class="help-role__desc">המשמרות של היום, רישום נוכחות, חומרים של הכיתה ובקשות (שעות/חופשה). נוחת בלוח המדריך.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ─── ניהול משתמשים ─── -->
+    <section class="glass glass--tile people-panel help-section" style="--lg-tile-shadow: var(--lg-shadow);">
+      <h2 class="help-section__title">ניהול משתמשים</h2>
+      <ol class="help-steps">
+        <li class="help-step">
+          <span class="help-step__h">פתיחת חשבון</span>
+          <span class="help-step__b">משתמש חדש נרשם בעמוד <a class="data-link" href="/Account/Register">ההרשמה</a> עם אימייל וסיסמה. כשמופעלת כניסה עם Google — אפשר גם להיכנס דרכה.</span>
+        </li>
+        <li class="help-step">
+          <span class="help-step__h">שיוך תפקיד</span>
+          <span class="help-step__b">חשבון חדש מתחיל <strong>ללא תפקיד</strong> ולכן עדיין לא ניגש לאף לוח בקרה. מנהל משייך תפקיד במסך <a class="data-link" href="/Admin/Users">ניהול משתמשים</a> (זמין למנהלים בלבד) — שם אפשר גם להוסיף משתמש חדש ישירות, להשבית או לאפס סיסמה.</span>
+        </li>
+        <li class="help-step">
+          <span class="help-step__h">כניסה לעבודה</span>
+          <span class="help-step__b">לאחר שמנהל שייך תפקיד — הכניסה הבאה מובילה אוטומטית ללוח הבקרה המתאים לתפקיד.</span>
+        </li>
+      </ol>
+      <p class="help-note">
+        נכנסת ומופיע <strong>«אין הרשאה»</strong>? סימן שטרם שויך לך תפקיד — פנה למנהל המערכת כדי שישייך לך אחד.
+      </p>
+    </section>
+
+    <!-- ─── מדריך לפי אזור ─── -->
+    <section class="help-section">
+      <h2 class="help-section__title">מדריך לפי אזור</h2>
+      <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+        <div class="hub-grid">
+          @foreach (var a in areas)
+          {
+            if (!Allowed(a)) { continue; }
+            <a href="@a.Href" class="nav-card">
+              <span class="nav-card__icon">@a.Icon</span>
+              <span class="nav-card__title">@a.Title</span>
+              <span class="nav-card__desc">@a.Desc</span>
+            </a>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── שאלות נפוצות ─── -->
+    <section class="glass glass--tile people-panel help-section" style="--lg-tile-shadow: var(--lg-shadow);">
+      <h2 class="help-section__title">שאלות נפוצות</h2>
+      <div class="help-faq">
+        <details class="help-faq__item">
+          <summary class="help-faq__q">נרשמתי ואני מקבל «אין הרשאה» — מה עכשיו?</summary>
+          <div class="help-faq__a">החשבון נוצר אך עדיין אין לו תפקיד. פנה למנהל המערכת כדי שישייך לך תפקיד; בכניסה הבאה תגיע ישירות ללוח הבקרה שלך.</div>
+        </details>
+        <details class="help-faq__item">
+          <summary class="help-faq__q">איך מאפסים סיסמה?</summary>
+          <div class="help-faq__a">כרגע איפוס סיסמה עצמאי אינו זמין. פנה למנהל המערכת לאיפוס.</div>
+        </details>
+        <details class="help-faq__item">
+          <summary class="help-faq__q">למה הכניסה הראשונה אחרי הפסקה איטית?</summary>
+          <div class="help-faq__a">המערכת מתארחת בתוכנית שנכנסת ל«שינה» לאחר חוסר פעילות, ולכן ההעלאה הראשונה עשויה לקחת כ-30–60 שניות. אחרי זה הכול מהיר.</div>
+        </details>
+        <details class="help-faq__item">
+          <summary class="help-faq__q">איך מתנתקים?</summary>
+          <div class="help-faq__a">לחצו על «יציאה» בפינת סרגל העליון, בכל עמוד.</div>
+        </details>
+        <details class="help-faq__item">
+          <summary class="help-faq__q">מה זה «מרכז הפעולות»?</summary>
+          <div class="help-faq__a">מסך שמרכז התראות ומשימות שהמערכת מזהה כדורשות טיפול (פערים בשיעורים, מחלוקות באספקה, ועוד). הוא מותאם לתפקיד שלך, ומסומן כ«טופל» כשמסיימים.</div>
+        </details>
+      </div>
+      <p class="help-note">לא מצאת תשובה? פנה למנהל המערכת.</p>
+    </section>
+
+  </main>
+</div>

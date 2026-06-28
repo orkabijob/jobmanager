@@ -1,0 +1,37 @@
+@model string
+@using Orkabi.Web.Modules.Identity
+@*
+    Role-aware Operations subnav. Model = the active item key
+    ("overview" | "extrahours" | "incidents" | "vacations" | "actionitems").
+    Only links the current user can actually reach are rendered, so no role hits a 403 dead-end:
+      - Admin / Instructor: full Operations area (Admin sees approval-oriented labels).
+      - CustomerService: overview + incidents (read) + action items — no ExtraHours/Vacations.
+      - Logistics: only the all-roles Action Hub (it can't reach the hub or incidents).
+*@
+@{
+    var active = Model;
+    bool isAdmin = User.IsInRole(AppRoles.Admin);
+    bool isInstructor = User.IsInRole(AppRoles.Instructor);
+    bool isCs = User.IsInRole(AppRoles.CustomerService);
+    bool canOps = isAdmin || isInstructor || isCs;   // anyone allowed into the Operations hub / incidents
+    string Cls(string key) => key == active ? "subnav__item is-active" : "subnav__item";
+}
+<nav class="subnav" aria-label="ניווט תפעול">
+  @if (canOps)
+  {
+    <a class="@Cls("overview")" href="/Operations">סקירה</a>
+  }
+  @if (isAdmin || isInstructor)
+  {
+    <a class="@Cls("extrahours")" href="/Operations/ExtraHours">@(isAdmin ? "אישור שעות" : "שעות נוספות")</a>
+  }
+  @if (canOps)
+  {
+    <a class="@Cls("incidents")" href="/Operations/Incidents">דיווחי אירוע</a>
+  }
+  @if (isAdmin || isInstructor)
+  {
+    <a class="@Cls("vacations")" href="/Operations/Vacations">@(isAdmin ? "אישור חופשות" : "חופשות")</a>
+  }
+  <a class="@Cls("actionitems")" href="/Operations/ActionItems">משימות פתוחות</a>
+</nav>

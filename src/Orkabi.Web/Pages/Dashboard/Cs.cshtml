@@ -13,6 +13,8 @@
     <span class="dash-topbar__title">שירות לקוחות</span>
     <nav class="dash-topbar__user">
       <span>שלום, @Model.Greeting</span>
+      <a href="/Account/Profile" class="btn-ghost dash-topbar__help">פרופיל</a>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
       <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
     </nav>
   </header>
@@ -83,6 +85,9 @@
         </a>
         <a href="/People/Classes" class="nav-card">
           <span class="nav-card__title">כיתות</span>
+        </a>
+        <a href="/Attendance/History" class="nav-card">
+          <span class="nav-card__title">היסטוריית נוכחות</span>
         </a>
         <a href="/Operations/ActionItems" class="nav-card">
           <span class="nav-card__title">מרכז הפעולות</span>

@@ -67,7 +67,27 @@ public class RosterModel : PageModel
 
     public async Task<IActionResult> OnPostToggleAsync(int classId, int enrollmentId, string field)
     {
-        await _enrollments.ToggleAsync(enrollmentId, field);
+        try
+        {
+            await _enrollments.ToggleAsync(enrollmentId, field);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        return RedirectToPage(new { classId });
+    }
+
+    public async Task<IActionResult> OnPostCompleteAsync(int classId, int enrollmentId)
+    {
+        try
+        {
+            await _enrollments.CompleteAsync(enrollmentId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ErrorMessage = ex.Message;
+        }
         return RedirectToPage(new { classId });
     }
 }

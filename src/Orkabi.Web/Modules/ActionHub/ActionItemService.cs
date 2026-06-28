@@ -102,6 +102,53 @@ public class ActionItemService
             .ToListAsync();
 
     /// <summary>
+    /// Ensures exactly one Open action item for a severe (High) incident report. Dedup key
+    /// "severe_incident_{incidentReportId}" — one ticket per incident, assigned to Admin.
+    /// Idempotent: existing Open item with the key → no-op; concurrent insert races are absorbed
+    /// via DbUpdateException + ChangeTracker.Clear().
+    /// </summary>
+    public async Task EnsureSevereIncidentActionItemAsync(int incidentReportId)
+    {
+        var dedupKey = $"severe_incident_{incidentReportId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        // Load context for the Hebrew description (IgnoreQueryFilters: archived class/template chain).
+        var incident = await _db.IncidentReports.IgnoreQueryFilters()
+            .Include(r => r.Instructor)
+            .Include(r => r.ShiftInstance).ThenInclude(i => i.Template).ThenInclude(t => t.Class)
+            .FirstOrDefaultAsync(r => r.Id == incidentReportId);
+
+        var instructorName = incident?.Instructor?.FullName ?? incident?.Instructor?.Email ?? "";
+        var className = incident?.ShiftInstance?.Template?.Class?.Name ?? "";
+
+        var item = new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = incidentReportId,
+            DeduplicationKey = dedupKey,
+            Description = $"דיווח אירוע חמור: {instructorName} · כיתה {className} — נדרש טיפול."
+        };
+
+        _db.ActionItems.Add(item);
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
     /// Hub query: a user's open queue = role-assigned to their role OR user-assigned to them.
     /// </summary>
     public Task<List<ActionItem>> ListOpenForUserAndRoleAsync(int userId, string role) =>
@@ -245,7 +292,7 @@ public class ActionItemService
         {
             Type = ActionItemType.Dispute,
             Status = ActionItemStatus.Open,
-            AssignedToRole = AppRoles.Admin,
+            AssignedToRole = AppRoles.Logistics,   // F4: the dispute loop is Logistics' to resolve (re-pack)
             AssignedToUserId = null,
             RelatedEntityId = logisticsOrderId,
             DeduplicationKey = dedupKey,

@@ -18,22 +18,7 @@
   </header>
 
   <main class="dash-body">
-    <nav class="subnav" aria-label="ניווט תפעול">
-      <a class="subnav__item" href="/Operations">סקירה</a>
-      @if (isAdmin)
-      {
-        <a class="subnav__item is-active" href="/Operations/ExtraHours">אישור שעות</a>
-        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
-        <a class="subnav__item" href="/Operations/Vacations">אישור חופשות</a>
-        <a class="subnav__item" href="/Operations/ActionItems">משימות פתוחות</a>
-      }
-      else
-      {
-        <a class="subnav__item is-active" href="/Operations/ExtraHours">שעות נוספות</a>
-        <a class="subnav__item" href="/Operations/Incidents">דיווחי אירוע</a>
-        <a class="subnav__item" href="/Operations/Vacations">חופשות</a>
-      }
-    </nav>
+    @await Html.PartialAsync("_OperationsSubnav", "extrahours")
 
     @if (!isAdmin)
     {
@@ -114,9 +99,13 @@
                     {
                       <span class="status-chip status-chip--pending">ממתין</span>
                     }
-                    else
+                    else if (xh.Status == ExtraHoursStatus.Approved)
                     {
                       <span class="status-chip status-chip--approved">אושר</span>
+                    }
+                    else
+                    {
+                      <span class="status-chip status-chip--rejected">נדחה</span>
                     }
                   </td>
                 </tr>

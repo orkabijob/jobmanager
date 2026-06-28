@@ -61,7 +61,11 @@ public class DashboardMetricsService
             .ToListAsync();
         var byTypeDict = byTypeList.ToDictionary(x => x.Type, x => x.Count);
 
-        // Top-5 Open items for Admin role (focal tile)
+        // Top-5 Open items for Admin role (focal tile = the Admin's OWN assigned queue).
+        // Intentionally role-scoped: e.g. dispute tickets are Logistics-assigned (F4), so they are
+        // owned/resolved by Logistics and do NOT belong in the Admin's personal focal queue. The Admin
+        // still sees them via OpenActionItemsByType (role-agnostic count), the RecentOpenItems alerts
+        // feed below (all roles), the OpenDisputedOrders metric, and the full /Operations/ActionItems hub.
         var hubPreview = await _db.ActionItems
             .Where(a => a.Status == ActionItemStatus.Open && a.AssignedToRole == AppRoles.Admin)
             .OrderBy(a => a.CreatedAt)

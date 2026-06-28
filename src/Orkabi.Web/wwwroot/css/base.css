@@ -21,7 +21,9 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; line-height: var(--lh-normal); }
+/* Body weight bumped 400→500 ("small bold") for legibility on the photo; explicit
+   600/700 emphasis weights still override, so the hierarchy is preserved. */
+body { margin: 0; line-height: var(--lh-normal); font-weight: var(--fw-medium); }
 
 /* numerals: tabular + LTR isolation handled at markup level via <bdi> */
 .num {
@@ -290,6 +292,14 @@ body { margin: 0; line-height: var(--lh-normal); }
   align-items: center;
   gap: var(--sp-2);
   margin-block-end: var(--sp-8);
+  /* Soft dark veil so the WHITE wordmark always reads, even over the brightest
+     photo region (the white house wall). Radial fade to transparent → no hard
+     box; pure background, so it always paints behind the text. RTL-neutral. */
+  padding: var(--sp-3) var(--sp-10) var(--sp-4);
+  background: radial-gradient(ellipse 110% 130% at 50% 45%,
+    rgba(16, 26, 40, .42) 0%,
+    rgba(16, 26, 40, .20) 48%,
+    transparent 76%);
   text-decoration: none;
 }
 .auth-wordmark__he {
@@ -297,9 +307,9 @@ body { margin: 0; line-height: var(--lh-normal); }
   font-weight: var(--fw-extrabold);
   letter-spacing: var(--ls-tight);
   line-height: var(--lh-tight);
-  /* White on the photo backdrop — crisp contrast against the brand-tinted scrim */
+  /* White on the photo backdrop — dual shadow lifts white off the bright house */
   color: #fff;
-  text-shadow: 0 1px 12px rgba(var(--brand-rgb), .55);
+  text-shadow: 0 1px 2px rgba(16, 26, 40, .55), 0 0 16px rgba(16, 26, 40, .40);
   text-align: center;
 }
 .auth-wordmark__sub {
@@ -308,6 +318,7 @@ body { margin: 0; line-height: var(--lh-normal); }
   letter-spacing: var(--ls-widest);
   text-transform: uppercase;
   color: rgba(255,255,255,.70);
+  text-shadow: 0 1px 8px rgba(16, 26, 40, .45);
   text-align: center;
 }
 
@@ -514,7 +525,7 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 
 .dash-topbar__wordmark {
-  font-size: 22px;
+  font-size: calc(22px * var(--type-scale));
   font-weight: var(--fw-extrabold);
   letter-spacing: var(--ls-tight);
   color: var(--brand);
@@ -839,14 +850,20 @@ body { margin: 0; line-height: var(--lh-normal); }
    Perf: panels are the ONLY glass; rows/tables are opaque fills.
    ============================================================ */
 
-/* ---- Section sub-navigation (tinted rail, NOT glass — scrolls with body) ---- */
+/* ---- Section sub-navigation — frosted GLASS rail so EVERY item reads over the
+        photo (was an 8%-brand-tint rail that vanished on the backdrop). Inline blur
+        is the cheapest tier (§10, no brightness); one rail per page → within the
+        "2–3 realism" budget alongside the topbar + main panel. ---- */
 .subnav {
   display: flex; flex-wrap: wrap; gap: var(--sp-2);
   margin-block-end: var(--sp-6);
   padding: var(--sp-1);
-  background: var(--lg-fill-tint);
-  border: 1px solid rgba(var(--brand-rgb), .12);
+  background: var(--lg-fill-strong);
+  -webkit-backdrop-filter: var(--lg-blur-inline);
+          backdrop-filter: var(--lg-blur-inline);
+  border: var(--lg-hairline);
   border-radius: var(--radius-pill);
+  box-shadow: var(--lg-shadow);
   inline-size: fit-content;
   max-inline-size: 100%;
 }
@@ -854,10 +871,10 @@ body { margin: 0; line-height: var(--lh-normal); }
   padding-block: var(--sp-2); padding-inline: var(--sp-5);
   border-radius: var(--radius-pill);
   font-size: var(--t-admin-label); font-weight: var(--fw-medium);
-  color: var(--brand-ink-muted); text-decoration: none;
+  color: var(--brand-ink); text-decoration: none;   /* was --brand-ink-muted — full ink on the light rail */
   transition: background var(--dur-fast) var(--ease-glass), color var(--dur-fast) var(--ease-glass);
 }
-.subnav__item:hover { color: var(--brand); background: rgba(var(--brand-rgb), .08); }
+.subnav__item:hover { color: var(--brand); background: rgba(var(--brand-rgb), .10); }
 .subnav__item.is-active { color: #fff; background: var(--brand); font-weight: var(--fw-semibold); }
 
 /* ---- Page / list headers ---- */
@@ -1206,10 +1223,15 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 .filter-select {
   inline-size: auto; min-inline-size: 180px;
+  /* Lift the select off the photo — .form-select's 7%-tint well vanishes on the backdrop. */
+  background: var(--lg-fill-strong);
+  border: var(--lg-hairline);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 1px 2px rgba(var(--brand-rgb), .10);
 }
 .status-pill-rail {
   display: inline-flex; gap: var(--sp-1); padding: 3px;
-  background: rgba(var(--brand-rgb), .07);
+  background: var(--lg-fill-strong);             /* opaque-white well so the pills read on the photo */
+  border: var(--lg-hairline);
   border-radius: var(--radius-pill);
   box-shadow: inset 0 2px 6px rgba(var(--brand-rgb), .10);
 }
@@ -1315,7 +1337,8 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 .att-row > :not(.att-row__fill) { position: relative; z-index: 2; }
 .att-row__who { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; flex: 1; }
-.att-row__name { font-size: var(--t-body); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.att-row__name { font-size: var(--t-body); font-weight: var(--fw-semibold); color: var(--brand-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .att-row__phone { font-size: var(--t-meta); color: var(--brand-ink-muted); }
 .att-row__verdict { flex: 0 0 auto; font-size: var(--t-label); font-weight: var(--fw-bold);
   opacity: 0; transition: opacity var(--dur-fast) var(--ease-glass); }
@@ -1579,17 +1602,52 @@ body { margin: 0; line-height: var(--lh-normal); }
   font-size: var(--t-admin-meta); color: var(--brand-ink-muted);
 }
 
+/* ============================================================
+   On-photo legibility — text that sits DIRECTLY on the background photo
+   (not inside a glass card) gets a barely-visible dual edge: a hair of dark
+   for crispness on the brand wash + a hair of white to separate from any dark
+   patch. Card/topbar text is EXCLUDED — its fill already guarantees AA (§5)
+   and an edge there is GPU noise on data-dense surfaces (§10).
+   x-offset is 0, so the shadow is identical in RTL and LTR (§7).
+   ============================================================ */
+.page-head__title, .page-head__sub,
+.today-head__greeting, .today-head__date, .today-foot,
+.section-label, .date-group-head, .breadcrumb, .scope-note,
+.dash-stub__title, .dash-stub__text {
+  text-shadow: 0 1px 2px rgba(16, 26, 40, .30), 0 0 1px rgba(255, 255, 255, .25);
+}
+/* Promote muted-on-photo text to full ink — it sat at the AA line on the
+   lightened photo (muted text inside cards stays muted; that's a 5.8:1 fill). */
+.page-head__sub, .today-head__date, .today-foot,
+.section-label, .date-group-head {
+  color: var(--brand-ink);
+}
+/* …but INSIDE glass cards these dividers already have fill-based AA contrast: drop the
+   edge (GPU noise, §10) and keep their designed muted hierarchy. .section-label is
+   on-photo only on the instructor dashboard (a direct child of dash-body, not .glass),
+   so that legitimate on-photo case is unaffected by this reset. */
+.glass .section-label, .glass .date-group-head,
+.glass .breadcrumb, .glass .scope-note {
+  text-shadow: none;
+}
+.glass .section-label, .glass .date-group-head {
+  color: var(--brand-ink-muted);
+}
+
 /* ---- Responsive: instructor forms + action cards on mobile ---- */
 @media (max-width: 767px) {
   .form-field--suffix { flex-wrap: nowrap; }
   .action-card__due { margin-inline-start: 0; inline-size: 100%; }
+  /* Stay within the §10 mobile blur budget (topbar + panel only): the subnav's 80%
+     fill reads fine without its own backdrop-filter on small screens. */
+  .subnav { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 /* ============================================================
    Universal fallback — @supports not backdrop-filter
    ============================================================ */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass--clear, .glass--nav, .glass--tile { background: var(--lg-fill-solid); }
+  .glass, .glass--clear, .glass--nav, .glass--tile, .subnav { background: var(--lg-fill-solid); }
   .auth-field input, .auth-card input { background: var(--lg-fill-solid); }
   .form-field input, .form-field select, .form-field textarea, .form-select { background: var(--lg-fill-solid); }
   .data-table thead th { background: var(--lg-fill-solid); }
@@ -1748,7 +1806,7 @@ body { margin: 0; line-height: var(--lh-normal); }
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
   .glass::before, .glass__lens, .glass--lensed::after { display: none !important; }
-  .page-head__title { color: #000 !important; }
+  .page-head__title, .page-head__sub { color: #000 !important; text-shadow: none !important; }
   .pack-group { break-inside: avoid; page-break-inside: avoid; }
   .pack-group__head { border-block-end: 1px solid #000 !important; }
   .pack-group__title, .pack-group__total { color: #000 !important; }
@@ -1814,4 +1872,109 @@ body { margin: 0; line-height: var(--lh-normal); }
 }
 
 /* ---- §4 Data-table actions column width (packing list + future tables) ---- */
-.data-table__actions-col { inline-size: 100px; }
+.data-table__actions-col { inline-size: 120px; }   /* +20% type widened the action buttons */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Help / guide page (/Help). Additive only — new selectors, no overrides. Text
+   sits on .glass--tile (--lg-fill-strong) per the §5 legibility contract.
+   Reuses verbatim: .people-panel, .page-head, .hub-grid/.nav-card, .data-link.
+   ───────────────────────────────────────────────────────────────────────────── */
+.help-section { margin-block-end: var(--sp-6); }
+.help-section__title {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--t-admin-title); font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight); color: var(--brand-ink);
+}
+.help-prose {
+  margin: 0 0 var(--sp-4); max-inline-size: 62ch;
+  font-size: var(--t-admin-body); line-height: var(--lh-relaxed); color: var(--brand-ink);
+}
+
+/* Roles — label + description rows */
+.help-roles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.help-role {
+  display: grid; grid-template-columns: 132px 1fr; gap: var(--sp-4); align-items: baseline;
+  padding-block: var(--sp-3);
+}
+.help-role + .help-role { border-block-start: 1px solid rgba(var(--brand-rgb), .08); }
+.help-role__name { font-size: var(--t-admin-body); font-weight: var(--fw-bold); color: var(--brand); }
+.help-role__desc { font-size: var(--t-admin-body); line-height: var(--lh-normal); color: var(--brand-ink-muted); }
+
+/* User-management steps — numbered */
+.help-steps {
+  margin: 0 0 var(--sp-4); padding: 0; list-style: none;
+  counter-reset: help-step; display: flex; flex-direction: column; gap: var(--sp-4);
+}
+.help-step {
+  counter-increment: help-step;
+  display: grid; grid-template-columns: 28px 1fr; gap: var(--sp-3); align-items: start;
+}
+.help-step::before {
+  content: counter(help-step); grid-row: 1 / span 2;
+  inline-size: 28px; block-size: 28px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .18);
+  font-size: var(--t-admin-label); font-weight: var(--fw-bold); color: var(--brand);
+}
+.help-step__h { font-size: var(--t-admin-body); font-weight: var(--fw-semibold); color: var(--brand-ink); }
+.help-step__b { font-size: var(--t-admin-body); line-height: var(--lh-normal); color: var(--brand-ink-muted); }
+
+/* A soft callout for the "no role yet" guidance / contact line */
+.help-note {
+  margin: 0; padding: var(--sp-3) var(--sp-4);
+  background: var(--lg-fill-tint); border: 1px solid rgba(var(--brand-rgb), .14);
+  border-radius: var(--radius-chip);
+  font-size: var(--t-admin-body); line-height: var(--lh-normal); color: var(--brand-ink);
+}
+.help-section .help-note { margin-block-start: var(--sp-4); }
+
+/* FAQ — native <details>, no JS */
+.help-faq { display: flex; flex-direction: column; gap: var(--sp-2); }
+.help-faq__item {
+  border: 1px solid rgba(var(--brand-rgb), .10); border-radius: var(--radius-chip);
+  background: rgba(var(--brand-rgb), .03);
+  overflow: hidden;
+}
+.help-faq__q {
+  cursor: pointer; list-style: none;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--t-admin-body); font-weight: var(--fw-semibold); color: var(--brand-ink);
+  display: flex; align-items: center; gap: var(--sp-3);
+}
+.help-faq__q::-webkit-details-marker { display: none; }
+.help-faq__q::before {
+  content: "+"; flex: 0 0 auto;
+  font-size: var(--t-admin-title); font-weight: var(--fw-bold); color: var(--brand);
+  line-height: 1; transition: transform var(--dur-fast) var(--ease-glass);
+}
+.help-faq__item[open] .help-faq__q::before { content: "−"; }
+.help-faq__a {
+  padding: 0 var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--sp-3) + 1ch);
+  font-size: var(--t-admin-body); line-height: var(--lh-relaxed); color: var(--brand-ink-muted);
+}
+
+/* Help topbar link in the user-nav */
+.dash-topbar__help { font-size: var(--t-admin-meta); }
+
+@media (max-width: 640px) {
+  .help-role { grid-template-columns: 1fr; gap: var(--sp-1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Admin → Users (role chips, role picker, inline error banner). Additive only.
+   ───────────────────────────────────────────────────────────────────────────── */
+.role-chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); }
+.role-chip {
+  display: inline-flex; align-items: center;
+  font-size: var(--t-admin-meta); font-weight: var(--fw-semibold);
+  padding-block: 2px; padding-inline: var(--sp-3);
+  border-radius: var(--radius-pill);
+  background: var(--lg-fill-tint); color: var(--brand);
+  border: 1px solid rgba(var(--brand-rgb), .16);
+}
+.role-pick { display: flex; flex-wrap: wrap; gap: var(--sp-5); margin-block-end: var(--sp-5); }
+.form-banner {
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-chip);
+  font-size: var(--t-admin-body); line-height: var(--lh-normal); margin-block-end: var(--sp-4);
+}
+.form-banner--error { background: var(--absent-soft); border: 1px solid var(--absent); color: var(--absent); }

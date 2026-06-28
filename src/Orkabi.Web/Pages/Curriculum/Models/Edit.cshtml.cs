@@ -66,4 +66,27 @@ public class EditModel : PageModel
         await _curriculum.UpdateModelAsync(model);
         return RedirectToPage("Index");
     }
+
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        try
+        {
+            await _curriculum.DeleteModelAsync(id);
+            return RedirectToPage("Index");
+        }
+        catch (InvalidOperationException ex)
+        {
+            var model = await _curriculum.GetModelAsync(id);
+            if (model is null) return NotFound();
+            Input = new InputModel
+            {
+                Name = model.Name,
+                ExpectedLessonsToComplete = model.ExpectedLessonsToComplete,
+                MaterialLink = model.MaterialLink,
+                VideoLink = model.VideoLink
+            };
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return Page();
+        }
+    }
 }

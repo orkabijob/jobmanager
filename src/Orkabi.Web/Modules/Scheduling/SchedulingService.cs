@@ -1,10 +1,17 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Orkabi.Web.Data;
+using Orkabi.Web.Modules.ActionHub;
+using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
 using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Modules.Scheduling;
+
+/// <summary>F13 — one row of attendance history: a lesson + its present/absent counts.</summary>
+public record LessonHistoryRow(
+    int LessonLogId, DateOnly Date, string ClassName, string? SchoolName, string ModelName,
+    int Present, int Absent, int Total);
 
 public class SchedulingService
 {
@@ -20,11 +27,10 @@ public class SchedulingService
     }
 
     /// <summary>
-    /// Resolves the "current" lesson model for a shift's class via the class's syllabus
-    /// (first model by OrderIndex — the Slice-2 rule; precise "first incomplete" is a later
-    /// refinement), then GETS-OR-CREATES the LessonLog for this shift instance with that model.
-    /// Returns (null, null) when the class has no syllabus or the syllabus has no models —
-    /// the caller then shows the "טרם שובץ דגם" state and disables submit (no LessonLog created).
+    /// Resolves the "current" lesson model for a shift's class (the first not-yet-completed syllabus
+    /// model — see ResolveCurrentModelForClassAsync), then GETS-OR-CREATES the LessonLog for this
+    /// shift instance with that model. Returns (null, null) when the class has no syllabus or the
+    /// syllabus has no models — the caller then shows the "טרם שובץ דגם" state and disables submit.
     /// </summary>
     public async Task<(int? lessonLogId, int? modelId, string? modelName)>
         ResolveLessonLogForAttendanceAsync(int shiftInstanceId)
@@ -36,22 +42,62 @@ public class SchedulingService
         if (existing is not null)
             return (existing.Id, existing.ModelId, existing.Model?.Name);
 
-        // No log yet — resolve the first syllabus model of the shift's class.
-        var firstModel = await (
-            from i in _db.ShiftInstances
-            where i.Id == shiftInstanceId
-            join c in _db.Classes.IgnoreQueryFilters() on i.Template.ClassId equals c.Id
-            where c.SyllabusId != null
-            from sm in _db.SyllabusModels.Where(sm => sm.SyllabusId == c.SyllabusId)
-            orderby sm.OrderIndex
-            select new { sm.ModelId, sm.Model.Name }
-        ).FirstOrDefaultAsync();
+        // No log yet — resolve the class's CURRENT model (first not-yet-completed), then create it.
+        var classId = await _db.ShiftInstances.IgnoreQueryFilters()
+            .Where(i => i.Id == shiftInstanceId)
+            .Select(i => (int?)i.Template.ClassId)
+            .FirstOrDefaultAsync();
+        if (classId is null)
+            return (null, null, null);
 
-        if (firstModel is null)
+        var (modelId, modelName) = await ResolveCurrentModelForClassAsync(classId.Value);
+        if (modelId is null)
             return (null, null, null);   // no syllabus / no models → caller disables submit
 
-        var log = await SaveLessonLogAsync(shiftInstanceId, firstModel.ModelId, LessonLogStatus.InProgress, null);
-        return (log.Id, firstModel.ModelId, firstModel.Name);
+        var log = await SaveLessonLogAsync(shiftInstanceId, modelId.Value, LessonLogStatus.InProgress, null);
+        return (log.Id, modelId, modelName);
+    }
+
+    /// <summary>
+    /// The class's "current" syllabus model = the first (by OrderIndex) whose count of Completed
+    /// LessonLogs for this class is still below the model's ExpectedLessonsToComplete. If every model
+    /// is complete, returns the last model. Returns (null, null) when the class has no syllabus or
+    /// the syllabus has no models. (F20 — previously this was frozen at model #1.)
+    /// </summary>
+    public async Task<(int? modelId, string? modelName)> ResolveCurrentModelForClassAsync(int classId)
+    {
+        var syllabusId = await _db.Classes.IgnoreQueryFilters()
+            .Where(c => c.Id == classId)
+            .Select(c => c.SyllabusId)
+            .FirstOrDefaultAsync();
+        if (syllabusId is null)
+            return (null, null);
+
+        var models = await _db.SyllabusModels
+            .Where(sm => sm.SyllabusId == syllabusId)
+            .OrderBy(sm => sm.OrderIndex)
+            .Select(sm => new { sm.ModelId, sm.Model.Name, sm.Model.ExpectedLessonsToComplete })
+            .ToListAsync();
+        if (models.Count == 0)
+            return (null, null);
+
+        // Completed lesson counts per model for THIS class. IgnoreQueryFilters so a lesson taught
+        // under a since-archived template still counts as real progress (same reasoning as the
+        // OutboxDrainer's Real-Gap monitor). NOTE: ComputePacingAsync does NOT yet use it — a
+        // pre-existing inconsistency tracked as tech-debt, not changed here.
+        var completed = await _db.LessonLogs.IgnoreQueryFilters()
+            .Where(l => l.Status == LessonLogStatus.Completed
+                     && l.ShiftInstance.Template.ClassId == classId)
+            .GroupBy(l => l.ModelId)
+            .Select(g => new { ModelId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var completedByModel = completed.ToDictionary(x => x.ModelId, x => x.Count);
+
+        var current = models.FirstOrDefault(m =>
+            (completedByModel.TryGetValue(m.ModelId, out var c) ? c : 0) < m.ExpectedLessonsToComplete)
+            ?? models[^1];
+
+        return (current.ModelId, current.Name);
     }
 
     // ── Template management ──────────────────────────────────────────────────
@@ -100,6 +146,27 @@ public class SchedulingService
             .OrderBy(i => i.Date)
             .ToListAsync();
 
+    /// <summary>
+    /// F13 — recent lesson logs (optionally for one class), newest first, with per-lesson
+    /// present/absent attendance counts. IgnoreQueryFilters so archived classes still appear.
+    /// </summary>
+    public Task<List<LessonHistoryRow>> ListLessonHistoryAsync(int? classId, int take = 50) =>
+        _db.LessonLogs
+            .IgnoreQueryFilters()
+            .Where(l => classId == null || l.ShiftInstance.Template.ClassId == classId)
+            .OrderByDescending(l => l.ShiftInstance.Date)
+            .Take(take)
+            .Select(l => new LessonHistoryRow(
+                l.Id,
+                l.ShiftInstance.Date,
+                l.ShiftInstance.Template.Class.Name,
+                l.ShiftInstance.Template.Class.School.Name,
+                l.Model.Name,
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Present),
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Absent),
+                l.Attendances.Count()))
+            .ToListAsync();
+
     public Task<List<ShiftInstance>> ListTodayForInstructorAsync(int userId)
     {
         var today = DateOnly.FromDateTime(
@@ -109,6 +176,15 @@ public class SchedulingService
             .Include(i => i.Template).ThenInclude(t => t.Class)
             .ToListAsync();
     }
+
+    /// <summary>F17 — the instructor's shifts within [from, to], in date then start-time order
+    /// (Class + School loaded for display).</summary>
+    public Task<List<ShiftInstance>> ListUpcomingForInstructorAsync(int userId, DateOnly from, DateOnly to) =>
+        _db.ShiftInstances
+            .Where(i => i.ActualInstructorId == userId && i.Date >= from && i.Date <= to)
+            .Include(i => i.Template).ThenInclude(t => t.Class).ThenInclude(c => c.School)
+            .OrderBy(i => i.Date).ThenBy(i => i.Template.StartTime)
+            .ToListAsync();
 
     /// <summary>Returns the instructor's most recent ShiftInstances (up to 30) for use in operation submit forms.</summary>
     public Task<List<ShiftInstance>> ListRecentForInstructorAsync(int userId, int take = 30)
@@ -237,8 +313,11 @@ public class SchedulingService
     {
         await using var tx = await _db.Database.BeginTransactionAsync();
 
+        // IgnoreQueryFilters so the Template→Class chain loads even for an archived class/template
+        // (needed for the notification text below).
         var request = await _db.SubstitutionRequests
-            .Include(r => r.ShiftInstance)
+            .IgnoreQueryFilters()
+            .Include(r => r.ShiftInstance).ThenInclude(i => i.Template).ThenInclude(t => t.Class)
             .FirstOrDefaultAsync(r => r.Id == substitutionRequestId && r.Status == SubstitutionStatus.Pending)
             ?? throw new InvalidOperationException($"בקשת החלפה {substitutionRequestId} לא נמצאה או שאינה ממתינה");
 
@@ -246,6 +325,32 @@ public class SchedulingService
         request.ApprovedByUserId = approverUserId;
         request.ApprovedAt = DateTime.UtcNow;
         request.ShiftInstance.ActualInstructorId = request.SubstituteInstructorId;
+
+        // F14: notify the two affected instructors (user-assigned action items — they surface in the
+        // instructor dashboard "my tickets"). Approve runs once per request (Pending-guarded), so the
+        // dedup keys also guard against any double-fire.
+        var className = request.ShiftInstance.Template?.Class?.Name ?? "";
+        var dateStr = request.ShiftInstance.Date.ToString("dd/MM/yyyy");
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = request.SubstituteInstructorId,
+            AssignedToRole = null,
+            RelatedEntityId = request.ShiftInstanceId,
+            DeduplicationKey = $"sub_assigned_{substitutionRequestId}",
+            Description = $"שובצת כמחליף/ה למשמרת: כיתה {className} · {dateStr}."
+        });
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToUserId = request.RequestingInstructorId,
+            AssignedToRole = null,
+            RelatedEntityId = request.ShiftInstanceId,
+            DeduplicationKey = $"sub_reassigned_{substitutionRequestId}",
+            Description = $"המשמרת שלך הועברה למחליף/ה: כיתה {className} · {dateStr}."
+        });
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
@@ -273,6 +378,49 @@ public class SchedulingService
 
         request.Status = SubstitutionStatus.Cancelled;
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// F18 — an instructor proactively reports they can't make one of their own FUTURE shifts.
+    /// Creates a dedup-keyed Admin "needs coverage" action item. Idempotent per shift.
+    /// </summary>
+    public async Task ReportAbsenceAsync(int shiftInstanceId, int instructorId)
+    {
+        var today = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+
+        var shift = await _db.ShiftInstances.IgnoreQueryFilters()
+            .Include(i => i.Template).ThenInclude(t => t.Class)
+            .FirstOrDefaultAsync(i => i.Id == shiftInstanceId
+                                   && i.ActualInstructorId == instructorId
+                                   && i.Date >= today)
+            ?? throw new InvalidOperationException("ניתן לדווח היעדרות רק עבור משמרת עתידית שלך");
+
+        var dedupKey = $"absence_report_{shiftInstanceId}";
+        if (await _db.ActionItems.AnyAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open))
+            return;   // already reported
+
+        var className = shift.Template?.Class?.Name ?? "";
+        var dateStr = shift.Date.ToString("dd/MM/yyyy");
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = shiftInstanceId,
+            DeduplicationKey = dedupKey,
+            Description = $"דיווח היעדרות: מדריך/ה לא יוכל/תוכל להגיע למשמרת כיתה {className} · {dateStr} — נדרש כיסוי."
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();   // concurrent insert won the dedup race
+        }
     }
 
     public Task<List<SubstitutionRequest>> ListPendingSubstitutionsAsync() =>

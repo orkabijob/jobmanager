@@ -16,6 +16,9 @@ public class IncidentReport : BaseEntity
 
     public IncidentSeverity Severity { get; set; }
 
+    /// <summary>Lifecycle status (F2): Open → Closed / Escalated. Defaults to Open.</summary>
+    public IncidentStatus Status { get; set; } = IncidentStatus.Open;
+
     /// <summary>Description of the incident; max 2000 chars.</summary>
     public string Description { get; set; } = "";
 }
