@@ -55,6 +55,7 @@ builder.Services
         o.SignIn.RequireConfirmedAccount = false;
     })
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddErrorDescriber<Orkabi.Web.Modules.Identity.HebrewIdentityErrorDescriber>()
     .AddDefaultTokenProviders();
 
 // Admin user & role management (list / create / assign-roles / enable-disable / reset-password).
