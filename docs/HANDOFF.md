@@ -38,7 +38,16 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 - **F17 — instructor "my schedule"** — `/Scheduling/MySchedule` `[InstructorOrAdmin]`: the instructor's own shifts for the next 7/30 days (`ListUpcomingForInstructorAsync`); instructor-dashboard card. No migration.
 - **F18 — proactive absence report** — `SchedulingService.ReportAbsenceAsync`: instructor reports they can't make a future own shift → dedup-keyed Admin "needs coverage" action item (idempotent); "הודע על היעדרות" button per row on MySchedule. No migration.
 
-**Tests: 388/388 green** (`dotnet test`). Work is on feature branches; **nothing merged to `master`** (production deploy gate — requires explicit sign-off). **One pending migration awaits that deploy: `AddIncidentReportStatus`.** **Functional tier (F1–F20) is now complete except the F10 forgot/reset-password EMAIL half (needs an email sender).**
+**🚀 DEPLOYED to production (commit `903d0da`, master).** The Functional tier (B1–B3, F1–F20) merged to master + pushed → Render built + the `AddIncidentReportStatus` migration applied on Neon at boot. Verified live: `/health` 200, `/Attendance/History` 302. **No pending migrations remain.**
+
+**Post-deploy persona + QA review (5 agents) + fixes** — found that several shipped features had real holes; the critical ones are fixed on branch `feat/polish-and-techdebt`:
+- **TD1** — Hebrew Identity error messages (`bb44859`).
+- **Lesson-log loop was dead → F20 frozen** — added the orphaned `/Attendance/{id}/Log` link (`2977e88`).
+- **Disable-user didn't cut the session** — rotate the security stamp on disable (`2977e88`).
+- **Dispute-resolve stranded the kit** — hub-resolve of a dispute now re-packs the order (`e668254`).
+- Full prioritized residue (R4–R19 + QA1–QA10 + 3 product decisions) in **`docs/review-findings.md`** — NOT yet merged to master.
+
+**Tests: 392/392 green** (`dotnet test`). The Functional tier is complete except the F10 forgot/reset-password EMAIL half (needs an email sender). The post-deploy fix branch awaits the user's next deploy sign-off.
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.
