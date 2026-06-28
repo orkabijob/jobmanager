@@ -1,0 +1,65 @@
+@page
+@model Orkabi.Web.Pages.Attendance.HistoryModel
+@{
+    ViewData["Title"] = "היסטוריית נוכחות";
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">היסטוריית נוכחות</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/">לוח בקרה</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>היסטוריית נוכחות</span>
+    </nav>
+
+    <header class="list-head">
+      <h1 class="page-head__title">היסטוריית נוכחות</h1>
+    </header>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Lessons.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">אין רישומי שיעור</p>
+          <p class="empty-state__hint">שיעורים שתועדה בהם נוכחות יופיעו כאן.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">תאריך</th>
+              <th scope="col">כיתה</th>
+              <th scope="col">דגם</th>
+              <th scope="col">נוכחים</th>
+              <th scope="col">נעדרים</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var l in Model.Lessons)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary"><bdi class="num">@l.Date.ToString("dd/MM/yyyy")</bdi></td>
+                <td class="data-cell">@l.ClassName@(l.SchoolName is null ? "" : $" · {l.SchoolName}")</td>
+                <td class="data-cell">@l.ModelName</td>
+                <td class="data-cell"><bdi class="num">@l.Present</bdi> / <bdi class="num">@l.Total</bdi></td>
+                <td class="data-cell"><bdi class="num">@l.Absent</bdi></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>

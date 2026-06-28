@@ -7,6 +7,11 @@ using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Modules.Scheduling;
 
+/// <summary>F13 — one row of attendance history: a lesson + its present/absent counts.</summary>
+public record LessonHistoryRow(
+    int LessonLogId, DateOnly Date, string ClassName, string? SchoolName, string ModelName,
+    int Present, int Absent, int Total);
+
 public class SchedulingService
 {
     private readonly AppDbContext _db;
@@ -138,6 +143,27 @@ public class SchedulingService
             .Include(i => i.Template).ThenInclude(t => t.Class)
             .Include(i => i.ActualInstructor)
             .OrderBy(i => i.Date)
+            .ToListAsync();
+
+    /// <summary>
+    /// F13 — recent lesson logs (optionally for one class), newest first, with per-lesson
+    /// present/absent attendance counts. IgnoreQueryFilters so archived classes still appear.
+    /// </summary>
+    public Task<List<LessonHistoryRow>> ListLessonHistoryAsync(int? classId, int take = 50) =>
+        _db.LessonLogs
+            .IgnoreQueryFilters()
+            .Where(l => classId == null || l.ShiftInstance.Template.ClassId == classId)
+            .OrderByDescending(l => l.ShiftInstance.Date)
+            .Take(take)
+            .Select(l => new LessonHistoryRow(
+                l.Id,
+                l.ShiftInstance.Date,
+                l.ShiftInstance.Template.Class.Name,
+                l.ShiftInstance.Template.Class.School.Name,
+                l.Model.Name,
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Present),
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Absent),
+                l.Attendances.Count()))
             .ToListAsync();
 
     public Task<List<ShiftInstance>> ListTodayForInstructorAsync(int userId)
