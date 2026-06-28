@@ -101,6 +101,10 @@
               @(Model.HasModel ? "" : "disabled")>
         שמור נוכחות (<bdi class="num">@totalRoster</bdi>)
       </button>
+      <a href="/Attendance/@Model.ShiftInstanceId/Log" class="btn-ghost att-log-link"
+         style="display:block; text-align:center; margin-block-start:var(--sp-2); font-size:var(--t-label);">
+        יומן שיעור וסיום מודל ←
+      </a>
     </div>
   }
 </main>
