@@ -248,6 +248,27 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
         Assert.Equal(1, count);
     }
 
+    [Fact]
+    public async Task EnsureMassDropout_also_creates_a_cs_followup_item()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+
+        var (cls, _) = await SeedClassAndModelAsync(db);
+
+        await svc.EnsureMassDropoutActionItemAsync(cls.Id);
+
+        // R6 dual-surface: Admin keeps the oversight alert AND CS gets the follow-up item.
+        var adminItem = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"dropout_mass_{cls.Id}");
+        Assert.Equal(AppRoles.Admin, adminItem.AssignedToRole);
+        var csItem = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"dropout_mass_cs_{cls.Id}");
+        Assert.Equal(AppRoles.CustomerService, csItem.AssignedToRole);
+        Assert.Equal(ActionItemType.Absence, csItem.Type);
+        Assert.Equal(cls.Id, csItem.RelatedEntityId);
+    }
+
     // ─── EnsureDisputeActionItemAsync ─────────────────────────────────────────
 
     [Fact]
