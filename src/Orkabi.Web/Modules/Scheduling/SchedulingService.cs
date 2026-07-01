@@ -13,6 +13,9 @@ public record LessonHistoryRow(
     int LessonLogId, DateOnly Date, string ClassName, string? SchoolName, string ModelName,
     int Present, int Absent, int Total);
 
+/// <summary>R4 — one student's status within a single lesson (the per-lesson drill-down).</summary>
+public record LessonAttendanceRow(string ClientName, AttendanceStatus Status);
+
 public class SchedulingService
 {
     private readonly AppDbContext _db;
@@ -165,6 +168,31 @@ public class SchedulingService
                 l.Attendances.Count(a => a.Status == AttendanceStatus.Present),
                 l.Attendances.Count(a => a.Status == AttendanceStatus.Absent),
                 l.Attendances.Count()))
+            .ToListAsync();
+
+    /// <summary>R4 — one lesson's summary row (header for the per-student drill-down). Null if not found.</summary>
+    public Task<LessonHistoryRow?> GetLessonHistoryRowAsync(int lessonLogId) =>
+        _db.LessonLogs
+            .IgnoreQueryFilters()
+            .Where(l => l.Id == lessonLogId)
+            .Select(l => new LessonHistoryRow(
+                l.Id,
+                l.ShiftInstance.Date,
+                l.ShiftInstance.Template.Class.Name,
+                l.ShiftInstance.Template.Class.School.Name,
+                l.Model.Name,
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Present),
+                l.Attendances.Count(a => a.Status == AttendanceStatus.Absent),
+                l.Attendances.Count()))
+            .FirstOrDefaultAsync();
+
+    /// <summary>R4 — the per-student present/absent list for one lesson, by student name.</summary>
+    public Task<List<LessonAttendanceRow>> ListAttendanceForLessonAsync(int lessonLogId) =>
+        _db.Attendances
+            .Where(a => a.LessonLogId == lessonLogId)
+            .Include(a => a.Client)
+            .OrderBy(a => a.Client.Name)
+            .Select(a => new LessonAttendanceRow(a.Client.Name, a.Status))
             .ToListAsync();
 
     public Task<List<ShiftInstance>> ListTodayForInstructorAsync(int userId)

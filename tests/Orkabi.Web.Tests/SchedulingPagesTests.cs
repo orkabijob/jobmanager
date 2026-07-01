@@ -121,11 +121,14 @@ public class SchedulingPagesTests : IClassFixture<SqliteFixture>
             var um = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
             var school = new School { Name = "בית-ספר-תבנית", City = "תל אביב" };
+            // Span the year around "today" (Israel clock) so generated instances land in the
+            // Instances page's today-based window regardless of the calendar date the test runs on.
+            var todayIl = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Orkabi.Web.Shared.IsraelClock.IsraelTz));
             var year = new AcademicYear
             {
                 Label = "תשפ-תבנית",
-                StartDate = new DateOnly(2025, 9, 1),
-                EndDate = new DateOnly(2026, 6, 30),
+                StartDate = todayIl.AddMonths(-2),
+                EndDate = todayIl.AddMonths(2),
                 IsCurrent = false
             };
             db.Schools.Add(school);

@@ -24,6 +24,17 @@
 
     <header class="list-head">
       <h1 class="page-head__title">היסטוריית נוכחות</h1>
+      <form method="get" class="status-pill-rail">
+        <label for="ClassId" class="form-field__label" style="margin-inline-end:var(--sp-2);">כיתה</label>
+        <select id="ClassId" name="ClassId" onchange="this.form.submit()">
+          <option value="">כל הכיתות</option>
+          @foreach (var c in Model.Classes)
+          {
+            <option value="@c.Id" selected="@(Model.ClassId == c.Id ? "selected" : null)">@c.Name</option>
+          }
+        </select>
+        <noscript><button type="submit" class="btn-ghost btn-ghost--sm">סנן</button></noscript>
+      </form>
     </header>
 
     <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
@@ -44,6 +55,7 @@
               <th scope="col">דגם</th>
               <th scope="col">נוכחים</th>
               <th scope="col">נעדרים</th>
+              <th scope="col" class="data-table__actions-col">פירוט</th>
             </tr>
           </thead>
           <tbody>
@@ -55,6 +67,7 @@
                 <td class="data-cell">@l.ModelName</td>
                 <td class="data-cell"><bdi class="num">@l.Present</bdi> / <bdi class="num">@l.Total</bdi></td>
                 <td class="data-cell"><bdi class="num">@l.Absent</bdi></td>
+                <td class="data-cell data-cell--actions"><a class="btn-ghost btn-ghost--sm" href="/Attendance/Lesson/@l.LessonLogId">נוכחות לפי תלמיד</a></td>
               </tr>
             }
           </tbody>

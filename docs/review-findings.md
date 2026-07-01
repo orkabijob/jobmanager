@@ -13,12 +13,12 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 - [x] **R1 — Lesson-log loop was dead → curriculum progression frozen** _(Instructor #1 / P3)_. Nothing linked to `/Attendance/{id}/Log` (the only place a lesson is marked `Completed`); attendance-save redirects to the dashboard. F20's resolver counts only `Completed` logs → "current model" + pacing froze on model #1 forever. **Fixed:** added a "יומן שיעור וסיום מודל" link on the attendance sheet (`2977e88`). _Further: optionally redirect to the Log page after attendance save._
 - [x] **R2 — Resolving a dispute ticket stranded the kit** _(Logistics #1)_. Hub "סמן כטופל" did a generic resolve without re-packing → order stuck `Disputed` forever. **Fixed:** dispute-resolve now routes through `RepackDisputedAsync` (`e668254`).
 - [x] **R3 — Disabling a user didn't cut their session** _(Admin #1, security)_. `SetEnabledAsync` set `LockoutEnd` but not the security stamp → 7-day window. **Fixed:** rotates the security stamp on disable (`2977e88`).
-- [ ] **R4 — Attendance history can't answer "was my child present?"** _(CS #1, the CS persona's #1 daily question)_. F13 is aggregate-only: the `classId` filter exists in the service but the page hard-codes `null`, and there's no per-student view. Wire the filter + add a per-lesson per-student drill-down.
+- [x] **R4 — Attendance history can't answer "was my child present?"** _(CS #1)_. **Fixed:** `/Attendance/History` gains a class filter + each row drills into `/Attendance/Lesson/{id}` (per-student present/absent). `5708373`.
 
 ## 🟠 Discovery / routing holes (small, high-leverage)
 
 - [ ] **R5 — Pending substitution requests are invisible to the Admin** _(Admin #2)_. `RequestSubstitutionAsync` raises no signal (unlike F18 absence); the approvals tile lists only extra-hours + vacations. Add a dedup-keyed Admin action item on request (mirror F18), or a pending-subs count on the tile.
-- [ ] **R6 — Mass-dropout action item routes to Admin, not CS** _(CS #3, **DECISION**)_. CS owns the dropout lifecycle (double-absence + tryout-followup already go to CS); mass-dropout going to Admin is inconsistent. But it's a serious oversight signal an admin may want to own. _Route to CS (Admin keeps it via `ListAllOpenAsync`) vs keep on Admin — needs a call._
+- [x] **R6 — Mass-dropout routing** _(CS #3)_. **Decided: both.** Admin keeps its oversight item; a new CS item (`dropout_mass_cs_{classId}`) gives CS the follow-up. `79c88d2`.
 - [ ] **R7 — Client-related tickets don't deep-link to the F12 profile** _(CS #5)_. Tryout-followup / double-absence set `RelatedEntityId = clientId` but the card renders text only. Link the card to `/People/Clients/Details/{RelatedEntityId}`.
 - [ ] **R8 — Non-High incidents have no dashboard signal; "escalate" is a no-op** _(Admin #3)_. Only High emits an action item; a Medium incident produces zero proactive signal, and `EscalateIncidentAsync` only relabels. Add an open-incident bento count and make escalate raise/route an item.
 
@@ -48,7 +48,7 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 
 ---
 
-## Decisions needed from the product owner
-1. **R6 — mass-dropout routing:** CS-owned vs Admin-owned (or dual)?
-2. **R9 — academic-year rollover:** what should "set current" do — flag only (today), or regenerate classes/templates for the new year?
-3. **TD2 — self-registration:** keep `/Account/Register` open, or admin-only invite?
+## Decisions (resolved by the product owner)
+1. **R6 — mass-dropout routing:** ✅ **Both** (CS follow-up + Admin oversight) — built (`79c88d2`).
+2. **R9 — academic-year rollover:** ✅ **Full rollover** — "set current" should regenerate classes/shift-templates for the new year. _Not yet built — a larger feature; the rollover engine needs design (an architect pass) before implementation._
+3. **TD2 — self-registration:** ✅ **Keep open** — no change; `/Account/Register` stays anonymous. Resolved (won't-change).

@@ -232,28 +232,33 @@ public class ActionItemService
     /// </summary>
     public async Task EnsureMassDropoutActionItemAsync(int classId)
     {
-        var dedupKey = $"dropout_mass_{classId}";
+        var cls = await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
+        var className = cls?.Name ?? classId.ToString();
+        var description = $"נשירה חריגה: מספר תלמידים עזבו את כיתה {className} בתוך שבוע.";
 
+        // Dual-surface (R6): CS owns the "call the parents" follow-up, Admin keeps the oversight
+        // alert. Each is its own dedup-keyed Open item so it lands in both roles' focal queues.
+        await EnsureDropoutRoleItemAsync($"dropout_mass_{classId}", AppRoles.Admin, classId, description);
+        await EnsureDropoutRoleItemAsync($"dropout_mass_cs_{classId}", AppRoles.CustomerService, classId, description);
+    }
+
+    private async Task EnsureDropoutRoleItemAsync(string dedupKey, string role, int classId, string description)
+    {
         var existing = await _db.ActionItems
             .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
         if (existing is not null)
             return;
 
-        var cls = await _db.Classes.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == classId);
-        var className = cls?.Name ?? classId.ToString();
-
-        var item = new ActionItem
+        _db.ActionItems.Add(new ActionItem
         {
             Type = ActionItemType.Absence,
             Status = ActionItemStatus.Open,
-            AssignedToRole = AppRoles.Admin,
+            AssignedToRole = role,
             AssignedToUserId = null,
             RelatedEntityId = classId,
             DeduplicationKey = dedupKey,
-            Description = $"נשירה חריגה: מספר תלמידים עזבו את כיתה {className} בתוך שבוע."
-        };
-
-        _db.ActionItems.Add(item);
+            Description = description
+        });
 
         try
         {
