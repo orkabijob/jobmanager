@@ -49,15 +49,16 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 
 **Critical fixes + R6/R4 + R9 all DEPLOYED** (master at `5e21dbd`): the 4 fixes above (`221ac62`), R6 dual mass-dropout + R4 attendance per-student drill-down (`ea543e4`), and R9 academic-year rollover (`5e21dbd`). Product decisions resolved: R6=both, R9=full rollover (built), TD2=keep open registration.
 
-**Residue batch 2 — on branch `feat/residue-batch-2`, NOT yet deployed:**
-- **R5** — pending sub-requests raise a dedup-keyed Admin action item (resolved on approve/deny/cancel).
-- **R8** — incident escalate now raises an Admin action item (was a no-op); resolved on close.
-- **R7** — Birthday/TryoutFollowup tickets deep-link to the F12 client profile (CS/Admin-gated).
-- **QA2 / QA5** — test-debt: ReportAbsence past/today boundary; ResolveCurrentModel null case.
+**Residue batch 2 — DEPLOYED (master `8dcd2e6`):** R5 (pending sub-requests → Admin item), R8 (incident escalate raises an item, was a no-op), R7 (Birthday/TryoutFollowup tickets deep-link to the F12 profile), QA2/QA5 test-debt.
 
-**Still open** (review-findings.md): R8's Admin-bento open-incident count, R9's year-Edit + duplicate-label validation, R10–R19 (substitute kit, ±1-day shift access, mobile card-stack, greeting helper, focal-queue ordering, dispute notes/link, etc.), QA1/QA3/QA4/QA6–10, and the P/TD tiers.
+**Residue batch 3 — on branch `feat/residue-batch-3`, NOT yet deployed:**
+- **R11** — `CanAccessShiftAsync` backward grace window (yesterday+today) so late-night/next-morning lesson fixes aren't locked out; future shifts still forbidden.
+- **R15** — dispute ticket now includes the instructor's `DisputeNotes` (triageable from the hub).
+- **R16** — "Generate Orders" no longer forks a duplicate Pending order when a dispute is open. (With Logistics #1, the dispute loop is now coherent end-to-end.)
 
-**Tests: 409/409 green** (`dotnet test`). Functional tier complete except F10's email half. Residue batch 2 awaits deploy sign-off.
+**Still open** (review-findings.md): R8's Admin-bento incident count, R9's year-Edit + dup-label validation, R10 (substitute kit / P13), R12 (mobile card-stack / TD16), R13 (shared greeting helper), R14 (focal-queue ordering + birthday auto-close / P2), R17–R19, QA1/QA3/QA4/QA6–10, and the P/TD tiers.
+
+**Tests: 412/412 green** (`dotnet test`). Functional tier complete except F10's email half. Residue batch 3 awaits deploy sign-off.
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.

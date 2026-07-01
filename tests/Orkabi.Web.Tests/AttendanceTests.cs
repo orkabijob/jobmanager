@@ -187,6 +187,26 @@ public class AttendanceTests : IClassFixture<SqliteFixture>
         factory.Dispose();
     }
 
+    [Fact]
+    public async Task Instructor_can_open_own_yesterday_shift()   // R11 backward grace
+    {
+        var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        int shiftId; string email;
+        using (var s = factory.Services.CreateScope())
+        {
+            var sp = s.ServiceProvider;
+            var db = sp.GetRequiredService<AppDbContext>();
+            var me = await SeedInstructorAsync(sp);
+            email = me.Email!;
+            (shiftId, _, _, _) = await SeedShiftWithRosterAsync(db, me, Today.AddDays(-1));   // yesterday
+        }
+
+        var client = await TestLogin.SignInAsync(factory, email, "Passw0rd!");
+        var resp = await client.GetAsync($"/Attendance/{shiftId}");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);   // yesterday is now reachable (late-night / next-morning fix)
+        factory.Dispose();
+    }
+
     // ── (d) POST /api/attendance persists + idempotency ─────────────────────────
 
     private sealed record MarkDto(int clientId, string status);

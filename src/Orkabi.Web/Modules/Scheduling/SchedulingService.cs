@@ -233,13 +233,18 @@ public class SchedulingService
             .Include(i => i.Template).ThenInclude(t => t.Class).ThenInclude(c => c.School)
             .FirstOrDefaultAsync(i => i.Id == shiftInstanceId);
 
-    // Security-critical: DB query only, no caching, date-scoped to today Israel.
+    // Security-critical: DB query only, no caching, scoped to the instructor's own shift.
+    // R11: a backward grace window (yesterday + today, Israel time) — a lesson run past midnight,
+    // a next-morning correction, or a UTC/Israel boundary slip isn't locked out. Future shifts stay
+    // forbidden (no marking attendance before the class); Admin bypasses this entirely at the page.
     public Task<bool> CanAccessShiftAsync(int shiftInstanceId, int userId)
     {
         var todayIsrael = DateOnly.FromDateTime(
             TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var earliest = todayIsrael.AddDays(-1);
         return _db.ShiftInstances.AnyAsync(i =>
-            i.Id == shiftInstanceId && i.ActualInstructorId == userId && i.Date == todayIsrael);
+            i.Id == shiftInstanceId && i.ActualInstructorId == userId
+            && i.Date >= earliest && i.Date <= todayIsrael);
     }
 
     // ── Lesson log ───────────────────────────────────────────────────────────

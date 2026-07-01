@@ -183,6 +183,35 @@ public class LogisticsServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task SeedOrders_does_not_duplicate_a_disputed_order()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SupplyPacingService>();
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);
+        var model = await SeedModelAsync(db);
+        var syllabus = await SeedSyllabusWithModelAsync(db, model.Id);
+        cls.SyllabusId = syllabus.Id;
+        await db.SaveChangesAsync();
+
+        var instructor = await SeedInstructorAsync(sp);
+        await SeedLessonLogAsync(db, cls.Id, model.Id, instructor.Id);
+
+        var created = await svc.SeedOrdersForClassAsync(cls.Id);
+        created[0].Status = LogisticsOrderStatus.Disputed;   // dispute the order
+        await db.SaveChangesAsync();
+
+        var second = await svc.SeedOrdersForClassAsync(cls.Id);   // R16: must NOT fork a duplicate Pending order
+
+        Assert.Empty(second);
+        var total = await db.LogisticsOrders.CountAsync(o => o.ClassId == cls.Id && o.ModelId == model.Id);
+        Assert.Equal(1, total);   // still just the one (disputed) order — re-queue is via re-pack
+    }
+
+    [Fact]
     public async Task SeedOrders_model_without_lesson_log_is_not_seeded()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();

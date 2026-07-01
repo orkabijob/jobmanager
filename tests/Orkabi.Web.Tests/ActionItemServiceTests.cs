@@ -295,6 +295,25 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task EnsureDispute_includes_the_dispute_reason()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+
+        var (cls, _) = await SeedClassAndModelAsync(db);
+        var order = await SeedLogisticsOrderAsync(db, cls.Id, (await db.Models.FirstAsync()).Id);
+        order.DisputeNotes = "חסרו שלוש חבילות צבע";
+        await db.SaveChangesAsync();
+
+        await svc.EnsureDisputeActionItemAsync(order.Id, cls.Id);
+
+        var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"dispute_{order.Id}");
+        Assert.Contains("חסרו שלוש חבילות צבע", item.Description);   // R15: reason surfaced on the ticket
+    }
+
+    [Fact]
     public async Task EnsureDispute_idempotent_second_call_no_duplicate()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();

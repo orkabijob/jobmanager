@@ -54,11 +54,11 @@ public class SupplyPacingService
             if (!hasLessonLog)
                 continue;
 
-            // Check if a non-Disputed order already exists for (classId, modelId).
+            // R16: any existing order for (classId, modelId) blocks re-seeding — including a Disputed
+            // one. A live dispute is re-queued via RepackDisputedAsync (Disputed→Pending), NOT by
+            // "Generate" forking a second Pending order for the same class+model.
             var existingOrder = await _db.LogisticsOrders
-                .AnyAsync(o => o.ClassId == classId
-                             && o.ModelId == sm.ModelId
-                             && o.Status != LogisticsOrderStatus.Disputed, ct);
+                .AnyAsync(o => o.ClassId == classId && o.ModelId == sm.ModelId, ct);
 
             if (existingOrder)
                 continue;
