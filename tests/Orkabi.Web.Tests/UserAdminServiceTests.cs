@@ -64,6 +64,25 @@ public class UserAdminServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task SetEnabled_false_rotates_security_stamp_to_cut_active_sessions()
+    {
+        using var factory = Factory(_sqlite);
+        using var scope = factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetRequiredService<UserAdminService>();
+        var um = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+
+        var user = await SeedUserAsync(scope.ServiceProvider, $"disable.stamp{Guid.NewGuid():N}@test.test", AppRoles.Logistics);
+        var stampBefore = await um.GetSecurityStampAsync(user);
+
+        var result = await svc.SetEnabledAsync(user.Id, false);
+        Assert.True(result.Succeeded);
+
+        var fresh = await um.FindByIdAsync(user.Id.ToString());
+        var stampAfter = await um.GetSecurityStampAsync(fresh!);
+        Assert.NotEqual(stampBefore, stampAfter);   // rotated → existing cookie dies at next revalidation
+    }
+
+    [Fact]
     public async Task CreateAsync_rejects_an_unknown_role()
     {
         using var factory = Factory(_sqlite);

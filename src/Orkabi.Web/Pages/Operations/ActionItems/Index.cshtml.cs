@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Orkabi.Web.Modules.ActionHub;
 using Orkabi.Web.Modules.Identity;
+using Orkabi.Web.Modules.Logistics;
 using Orkabi.Web.Shared;
 
 namespace Orkabi.Web.Pages.Operations.ActionItems;
@@ -12,8 +13,13 @@ namespace Orkabi.Web.Pages.Operations.ActionItems;
 public class IndexModel : PageModel
 {
     private readonly ActionItemService _svc;
+    private readonly SupplyPacingService _pacing;
 
-    public IndexModel(ActionItemService svc) => _svc = svc;
+    public IndexModel(ActionItemService svc, SupplyPacingService pacing)
+    {
+        _svc = svc;
+        _pacing = pacing;
+    }
 
     public List<ActionItem> Items { get; private set; } = new();
 
@@ -64,6 +70,23 @@ public class IndexModel : PageModel
 
         if (!allowed)
             return Forbid();
+
+        // A dispute ticket is "handled" by RE-PACKING the order (Disputed → Pending), which also
+        // resolves this ticket. A plain resolve would mark the ticket done while stranding the order
+        // in Disputed forever — off every queue, kit never re-packed. Route it through the re-pack.
+        if (item.Type == ActionItemType.Dispute && item.RelatedEntityId.HasValue)
+        {
+            try
+            {
+                await _pacing.RepackDisputedAsync(item.RelatedEntityId.Value, userId);
+                Response.Headers["HX-Trigger"] = HxTrigger.ShowToast("ההזמנה הוחזרה לאריזה");
+                return Partial("_ResolvedCard", item);
+            }
+            catch (InvalidOperationException)
+            {
+                // Order no longer Disputed (e.g. already re-packed elsewhere) — fall through to a plain resolve.
+            }
+        }
 
         var resolved = await _svc.ResolveActionItemAsync(id, userId);
 

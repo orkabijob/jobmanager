@@ -138,6 +138,7 @@ public class AttendanceTests : IClassFixture<SqliteFixture>
         Assert.Contains("att-row", body);                           // the signature tap row
         Assert.Contains("שמור נוכחות", body);                       // the submit button
         Assert.Contains($"data-client-id=\"{clientA}\"", body);     // JS hook present
+        Assert.Contains($"/Attendance/{shiftId}/Log", body);        // the lesson-log link (was orphaned — froze F20 progression)
         factory.Dispose();
     }
 

@@ -105,7 +105,13 @@ public class UserAdminService
                 return Fail("חייב להישאר לפחות מנהל אחד פעיל במערכת");
 
             await _users.SetLockoutEnabledAsync(user, true);
-            return await _users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            var lockout = await _users.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            if (!lockout.Succeeded) return lockout;
+
+            // Lockout alone only blocks *new* sign-ins. Rotate the security stamp so an
+            // already-authenticated user is forced out at the next SecurityStampValidator
+            // revalidation, instead of keeping access for the 7-day cookie lifetime.
+            return await _users.UpdateSecurityStampAsync(user);
         }
 
         return await _users.SetLockoutEndDateAsync(user, null);
