@@ -45,9 +45,19 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 - **Lesson-log loop was dead → F20 frozen** — added the orphaned `/Attendance/{id}/Log` link (`2977e88`).
 - **Disable-user didn't cut the session** — rotate the security stamp on disable (`2977e88`).
 - **Dispute-resolve stranded the kit** — hub-resolve of a dispute now re-packs the order (`e668254`).
-- Full prioritized residue (R4–R19 + QA1–QA10 + 3 product decisions) in **`docs/review-findings.md`** — NOT yet merged to master.
+- Full prioritized residue (R4–R19 + QA1–QA10 + 3 product decisions) in **`docs/review-findings.md`**.
 
-**Tests: 392/392 green** (`dotnet test`). The Functional tier is complete except the F10 forgot/reset-password EMAIL half (needs an email sender). The post-deploy fix branch awaits the user's next deploy sign-off.
+**Critical fixes + R6/R4 + R9 all DEPLOYED** (master at `5e21dbd`): the 4 fixes above (`221ac62`), R6 dual mass-dropout + R4 attendance per-student drill-down (`ea543e4`), and R9 academic-year rollover (`5e21dbd`). Product decisions resolved: R6=both, R9=full rollover (built), TD2=keep open registration.
+
+**Residue batch 2 — on branch `feat/residue-batch-2`, NOT yet deployed:**
+- **R5** — pending sub-requests raise a dedup-keyed Admin action item (resolved on approve/deny/cancel).
+- **R8** — incident escalate now raises an Admin action item (was a no-op); resolved on close.
+- **R7** — Birthday/TryoutFollowup tickets deep-link to the F12 client profile (CS/Admin-gated).
+- **QA2 / QA5** — test-debt: ReportAbsence past/today boundary; ResolveCurrentModel null case.
+
+**Still open** (review-findings.md): R8's Admin-bento open-incident count, R9's year-Edit + duplicate-label validation, R10–R19 (substitute kit, ±1-day shift access, mobile card-stack, greeting helper, focal-queue ordering, dispute notes/link, etc.), QA1/QA3/QA4/QA6–10, and the P/TD tiers.
+
+**Tests: 409/409 green** (`dotnet test`). Functional tier complete except F10's email half. Residue batch 2 awaits deploy sign-off.
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.

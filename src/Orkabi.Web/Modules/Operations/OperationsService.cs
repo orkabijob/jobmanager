@@ -152,10 +152,21 @@ public class OperationsService
         if (ticket is not null)
             await _actionHub.ResolveActionItemAsync(ticket.Id, adminUserId);
 
+        // R8 — also clear the escalated-incident item, if any (closing ends the loop either way).
+        var escalatedTicket = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == $"escalated_incident_{incidentId}"
+                                   && a.Status == ActionItemStatus.Open);
+        if (escalatedTicket is not null)
+            await _actionHub.ResolveActionItemAsync(escalatedTicket.Id, adminUserId);
+
         await tx.CommitAsync();
     }
 
-    /// <summary>Admin escalates an Open incident (Open → Escalated). The severe ticket stays open.</summary>
+    /// <summary>
+    /// Admin escalates an Open incident (Open → Escalated) and raises a dedup-keyed Admin action item
+    /// so the escalation is an actionable signal (R8 — previously a silent status flip). One transaction.
+    /// Any pre-existing severe ticket stays open; the escalated item is resolved when the incident closes.
+    /// </summary>
     public async Task EscalateIncidentAsync(int incidentId, int adminUserId)
     {
         var incident = await _db.IncidentReports.FindAsync(incidentId)
@@ -163,8 +174,11 @@ public class OperationsService
         if (incident.Status != IncidentStatus.Open)
             throw new InvalidOperationException("ניתן להסלים רק דיווח פתוח");
 
+        await using var tx = await _db.Database.BeginTransactionAsync();
         incident.Status = IncidentStatus.Escalated;
         await _db.SaveChangesAsync();
+        await _actionHub.EnsureEscalatedIncidentActionItemAsync(incidentId);
+        await tx.CommitAsync();
     }
 
     // ── Vacation Request ─────────────────────────────────────────────────────

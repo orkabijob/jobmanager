@@ -134,6 +134,36 @@ public class ActionHubPageTests : IClassFixture<SqliteFixture>
         factory.Dispose();
     }
 
+    // R7 — a client-scoped ticket (tryout-followup carries a clientId) deep-links to the F12 profile.
+    [Fact]
+    public async Task Client_ticket_deep_links_to_the_profile()
+    {
+        var (factory, client, _) = await CreateAdminClientAsync(_sqlite, "_r7");
+        int clientId;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var c = new Client { Name = $"תלמיד-{Guid.NewGuid():N}"[..12], IsActive = true };
+            db.Clients.Add(c);
+            await db.SaveChangesAsync();
+            clientId = c.Id;
+            db.ActionItems.Add(new ActionItem
+            {
+                Type = ActionItemType.TryoutFollowup,
+                Status = ActionItemStatus.Open,
+                AssignedToRole = AppRoles.CustomerService,
+                RelatedEntityId = clientId,
+                DeduplicationKey = $"tryout_followup_{clientId}",
+                Description = "מעקב ניסיון"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var body = await (await client.GetAsync("/Operations/ActionItems")).Content.ReadAsStringAsync();
+        Assert.Contains($"/People/Clients/Details/{clientId}", body);   // admin sees the profile deep-link
+        factory.Dispose();
+    }
+
     private static ActionItem MakeAdminItem(string description = "חריגת קצב: כיתה טסט · דגם טסט — בוצעו 9 שיעורים מתוך 8 צפויים.") =>
         new ActionItem
         {

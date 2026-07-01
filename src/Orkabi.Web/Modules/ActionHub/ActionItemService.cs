@@ -149,6 +149,48 @@ public class ActionItemService
     }
 
     /// <summary>
+    /// R8 — an escalated incident raises a dedup-keyed Admin action item so escalation is a real,
+    /// actionable signal (not just a status flip). Idempotent per incident; resolved when closed.
+    /// </summary>
+    public async Task EnsureEscalatedIncidentActionItemAsync(int incidentReportId)
+    {
+        var dedupKey = $"escalated_incident_{incidentReportId}";
+
+        var existing = await _db.ActionItems
+            .FirstOrDefaultAsync(a => a.DeduplicationKey == dedupKey && a.Status == ActionItemStatus.Open);
+        if (existing is not null)
+            return;
+
+        var incident = await _db.IncidentReports.IgnoreQueryFilters()
+            .Include(r => r.Instructor)
+            .Include(r => r.ShiftInstance).ThenInclude(i => i.Template).ThenInclude(t => t.Class)
+            .FirstOrDefaultAsync(r => r.Id == incidentReportId);
+
+        var instructorName = incident?.Instructor?.FullName ?? incident?.Instructor?.Email ?? "";
+        var className = incident?.ShiftInstance?.Template?.Class?.Name ?? "";
+
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = incidentReportId,
+            DeduplicationKey = dedupKey,
+            Description = $"אירוע שהוסלם: {instructorName} · כיתה {className} — נדרש טיפול דחוף."
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    /// <summary>
     /// Hub query: a user's open queue = role-assigned to their role OR user-assigned to them.
     /// </summary>
     public Task<List<ActionItem>> ListOpenForUserAndRoleAsync(int userId, string role) =>
