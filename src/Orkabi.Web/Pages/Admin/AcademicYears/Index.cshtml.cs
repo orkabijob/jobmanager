@@ -30,4 +30,18 @@ public class IndexModel : PageModel
         }
         return RedirectToPage();
     }
+
+    public async Task<IActionResult> OnPostRollOverAsync(int fromYearId, int toYearId)
+    {
+        try
+        {
+            var result = await _years.RollOverAsync(fromYearId, toYearId);
+            TempData["SuccessMessage"] = $"הועתקו {result.ClassesCopied} כיתות ו-{result.TemplatesCopied} תבניות משמרת לשנת היעד.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        return RedirectToPage();
+    }
 }
