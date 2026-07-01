@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orkabi.Web.Data;
 using Orkabi.Web.Modules.Identity;
 using Orkabi.Web.Modules.People;
+using Orkabi.Web.Shared;
 using Orkabi.Web.Tests.Infrastructure;
 
 namespace Orkabi.Web.Tests;
@@ -65,6 +66,44 @@ public class AcademicYearAdminPageTests : IClassFixture<SqliteFixture>
     {
         var resp = await client.GetAsync(url);
         return AntiForgery.Extract(await resp.Content.ReadAsStringAsync());
+    }
+
+    // ── R9: rollover ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Admin_can_roll_over_structure_between_years()
+    {
+        using var factory = Factory(_sqlite);
+        var client = await AdminClientAsync(factory, "admin.rollover@test.test");
+        int fromId = await SeedYearAsync(factory, $"from-{Guid.NewGuid():N}"[..14]);
+        int toId = await SeedYearAsync(factory, $"to-{Guid.NewGuid():N}"[..14]);
+        string className;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var school = new School { Name = $"בס-{Guid.NewGuid():N}", City = "ת" };
+            db.Schools.Add(school);
+            await db.SaveChangesAsync();
+            className = $"כתה-{Guid.NewGuid():N}"[..14];
+            db.Classes.Add(new Class { Name = className, SchoolId = school.Id, AcademicYearId = fromId, Status = EntityStatus.Active });
+            await db.SaveChangesAsync();
+        }
+
+        var token = await TokenAsync(client, Url);
+        var resp = await client.PostAsync($"{Url}?handler=RollOver",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["fromYearId"] = fromId.ToString(),
+                ["toYearId"] = toId.ToString(),
+                ["__RequestVerificationToken"] = token
+            }));
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.True(await db.Classes.AnyAsync(c => c.AcademicYearId == toId && c.Name == className));
+        }
     }
 
     // ── Authorization ────────────────────────────────────────────────────────

@@ -92,5 +92,36 @@
         </table>
       }
     </div>
+
+    @if (Model.Years.Count >= 2)
+    {
+      <div class="glass glass--tile form-panel" style="--lg-tile-shadow: var(--lg-shadow); margin-block-start: var(--sp-5);">
+        <h2 class="form-panel__title" style="font-size:var(--t-admin-body);">העתקת מבנה בין שנים</h2>
+        <p class="form-field__hint">מעתיק את הכיתות ותבניות המשמרת של שנת המקור לשנת היעד (ללא תלמידים או מפגשים). ניתן להריץ שוב — כיתות שכבר הועתקו יידולגו.</p>
+        <form method="post" asp-page-handler="RollOver" class="form-grid">
+          <div class="form-field">
+            <label class="form-field__label" for="fromYearId">העתק משנה (מקור)</label>
+            <select id="fromYearId" name="fromYearId">
+              @foreach (var y in Model.Years)
+              {
+                <option value="@y.Id">@y.Label</option>
+              }
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-field__label" for="toYearId">אל שנה (יעד)</label>
+            <select id="toYearId" name="toYearId">
+              @foreach (var y in Model.Years)
+              {
+                <option value="@y.Id">@y.Label</option>
+              }
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">העתק מבנה</button>
+          </div>
+        </form>
+      </div>
+    }
   </main>
 </div>
