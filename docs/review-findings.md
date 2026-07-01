@@ -17,10 +17,10 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 
 ## 🟠 Discovery / routing holes (small, high-leverage)
 
-- [ ] **R5 — Pending substitution requests are invisible to the Admin** _(Admin #2)_. `RequestSubstitutionAsync` raises no signal (unlike F18 absence); the approvals tile lists only extra-hours + vacations. Add a dedup-keyed Admin action item on request (mirror F18), or a pending-subs count on the tile.
+- [x] **R5 — Pending substitution requests invisible to the Admin** _(Admin #2)_. **Fixed:** `RequestSubstitutionAsync` now raises a dedup-keyed Admin action item (`sub_request_{id}`), resolved on approve/deny/cancel — the pending queue is now discoverable in the Admin hub.
 - [x] **R6 — Mass-dropout routing** _(CS #3)_. **Decided: both.** Admin keeps its oversight item; a new CS item (`dropout_mass_cs_{classId}`) gives CS the follow-up. `79c88d2`.
 - [ ] **R7 — Client-related tickets don't deep-link to the F12 profile** _(CS #5)_. Tryout-followup / double-absence set `RelatedEntityId = clientId` but the card renders text only. Link the card to `/People/Clients/Details/{RelatedEntityId}`.
-- [ ] **R8 — Non-High incidents have no dashboard signal; "escalate" is a no-op** _(Admin #3)_. Only High emits an action item; a Medium incident produces zero proactive signal, and `EscalateIncidentAsync` only relabels. Add an open-incident bento count and make escalate raise/route an item.
+- [~] **R8 — "escalate" was a no-op** _(Admin #3)_. **Fixed:** `EscalateIncidentAsync` now raises a dedup-keyed Admin item (`escalated_incident_{id}`) in a transaction, resolved on close — escalation is an actionable signal, not just a status flip. **Still open:** an open-incident count on the Admin bento so a Medium incident has a passive signal too.
 
 ## 🟠 Capability gaps (bigger)
 

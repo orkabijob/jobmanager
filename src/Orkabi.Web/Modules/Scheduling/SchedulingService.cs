@@ -334,7 +334,48 @@ public class SchedulingService
         };
         _db.SubstitutionRequests.Add(request);
         await _db.SaveChangesAsync();
+
+        // R5: surface the pending request to the Admin approval queue (resolved on approve/deny/cancel).
+        // Without this the request sits silently — the /Scheduling/Substitutions queue is URL-only.
+        var shift = await _db.ShiftInstances.IgnoreQueryFilters()
+            .Include(i => i.Template).ThenInclude(t => t.Class)
+            .FirstOrDefaultAsync(i => i.Id == shiftInstanceId);
+        var className = shift?.Template?.Class?.Name ?? "";
+        var dateStr = shift?.Date.ToString("dd/MM/yyyy") ?? "";
+        _db.ActionItems.Add(new ActionItem
+        {
+            Type = ActionItemType.Task,
+            Status = ActionItemStatus.Open,
+            AssignedToRole = AppRoles.Admin,
+            AssignedToUserId = null,
+            RelatedEntityId = request.Id,
+            DeduplicationKey = $"sub_request_{request.Id}",
+            Description = $"בקשת החלפה ממתינה לאישור: כיתה {className} · {dateStr}."
+        });
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _db.ChangeTracker.Clear();
+        }
+
         return request;
+    }
+
+    // R5 — resolve the Admin "pending sub request" item when the request is approved/denied/cancelled.
+    private async Task ResolveSubRequestItemAsync(int requestId, int resolvedByUserId)
+    {
+        var item = await _db.ActionItems.FirstOrDefaultAsync(
+            a => a.DeduplicationKey == $"sub_request_{requestId}" && a.Status == ActionItemStatus.Open);
+        if (item is not null)
+        {
+            item.Status = ActionItemStatus.Resolved;
+            item.ResolvedByUserId = resolvedByUserId;
+            item.ResolvedAt = DateTime.UtcNow;
+            item.DeduplicationKey = null;
+        }
     }
 
     public async Task ApproveSubstitutionAsync(int substitutionRequestId, int approverUserId)
@@ -380,6 +421,8 @@ public class SchedulingService
             Description = $"המשמרת שלך הועברה למחליף/ה: כיתה {className} · {dateStr}."
         });
 
+        await ResolveSubRequestItemAsync(substitutionRequestId, approverUserId);
+
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
     }
@@ -393,6 +436,7 @@ public class SchedulingService
         request.Status = SubstitutionStatus.Denied;
         request.ApprovedByUserId = approverUserId;
         request.ApprovedAt = DateTime.UtcNow;
+        await ResolveSubRequestItemAsync(substitutionRequestId, approverUserId);
         await _db.SaveChangesAsync();
     }
 
@@ -405,6 +449,7 @@ public class SchedulingService
             ?? throw new InvalidOperationException($"בקשת החלפה {substitutionRequestId} לא נמצאה");
 
         request.Status = SubstitutionStatus.Cancelled;
+        await ResolveSubRequestItemAsync(substitutionRequestId, requestingInstructorId);
         await _db.SaveChangesAsync();
     }
 

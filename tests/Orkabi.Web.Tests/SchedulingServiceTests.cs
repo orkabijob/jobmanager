@@ -208,6 +208,59 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
         Assert.Equal(substitute.Id, updatedRequest.ShiftInstance.ActualInstructorId);
     }
 
+    // ── R5: pending substitution requests surface to the Admin queue ──
+
+    [Fact]
+    public async Task RequestSubstitution_creates_admin_pending_item()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var instance = await SeedInstanceAsync(db, template.Id, today, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+
+        db.ChangeTracker.Clear();
+        var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"sub_request_{request.Id}");
+        Assert.Equal(Modules.Identity.AppRoles.Admin, item.AssignedToRole);
+        Assert.Equal(Modules.ActionHub.ActionItemStatus.Open, item.Status);
+        Assert.Equal(request.Id, item.RelatedEntityId);
+    }
+
+    [Fact]
+    public async Task Approving_substitution_resolves_the_admin_pending_item()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, year, cls) = await SeedSchoolYearClassAsync(db);
+        var instructor = await SeedInstructorAsync(sp);
+        var substitute = await SeedInstructorAsync(sp);
+        var approver = await SeedInstructorAsync(sp);
+        var template = await SeedTemplateDirectAsync(db, cls, year, instructor);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var instance = await SeedInstanceAsync(db, template.Id, today, instructor.Id);
+
+        var request = await svc.RequestSubstitutionAsync(instance.Id, instructor.Id, substitute.Id);
+        await svc.ApproveSubstitutionAsync(request.Id, approver.Id);
+
+        db.ChangeTracker.Clear();
+        var item = await db.ActionItems.SingleAsync(
+            a => a.RelatedEntityId == request.Id && a.AssignedToRole == Modules.Identity.AppRoles.Admin);
+        Assert.Equal(Modules.ActionHub.ActionItemStatus.Resolved, item.Status);   // no longer clutters the queue
+    }
+
     [Fact]
     public async Task SubmitAttendance_idempotency_key_returns_existing_on_retry()
     {

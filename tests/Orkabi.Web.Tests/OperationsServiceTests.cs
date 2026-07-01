@@ -191,6 +191,34 @@ public class OperationsServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task EscalateIncident_raises_admin_action_item()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Medium, "אירוע");
+
+        await ops.EscalateIncidentAsync(report.Id, adminUserId: instructor.Id);
+
+        db.ChangeTracker.Clear();
+        var item = await db.ActionItems.SingleAsync(a => a.DeduplicationKey == $"escalated_incident_{report.Id}");
+        Assert.Equal(AppRoles.Admin, item.AssignedToRole);
+        Assert.Equal(ActionItemStatus.Open, item.Status);   // R8: escalation is now an actionable signal
+    }
+
+    [Fact]
+    public async Task CloseIncident_resolves_escalated_item()
+    {
+        var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
+        var report = await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, IncidentSeverity.Medium, "אירוע");
+        await ops.EscalateIncidentAsync(report.Id, instructor.Id);   // creates the escalated item
+
+        await ops.CloseIncidentAsync(report.Id, instructor.Id);
+
+        db.ChangeTracker.Clear();
+        var item = await db.ActionItems.SingleAsync(a => a.RelatedEntityId == report.Id && a.Type == ActionItemType.Task);
+        Assert.Equal(ActionItemStatus.Resolved, item.Status);
+    }
+
+    [Fact]
     public async Task CloseIncident_resolves_open_severe_ticket()
     {
         var (db, ops, instructor, shift) = await SetupAsync(_sqlite);
