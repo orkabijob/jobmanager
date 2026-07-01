@@ -179,6 +179,24 @@ public class MyScheduleTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task ReportAbsence_rejects_past_shift_but_allows_today()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var (_, _, myId) = await SignedInAsync(_sqlite, AppRoles.Instructor, "qa2");
+        var (pastId, _) = await SeedShiftAsync(factory, myId, daysFromToday: -3);
+        var (todayId, _) = await SeedShiftAsync(factory, myId, daysFromToday: 0);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.ReportAbsenceAsync(pastId, myId));   // past → rejected
+        await svc.ReportAbsenceAsync(todayId, myId);                                                       // today → allowed
+        Assert.True(await db.ActionItems.AnyAsync(a => a.DeduplicationKey == $"absence_report_{todayId}"));
+        factory.Dispose();
+    }
+
+    [Fact]
     public async Task ListUpcoming_returns_only_instructors_shifts_in_range()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();

@@ -441,6 +441,23 @@ public class SchedulingServiceTests : IClassFixture<SqliteFixture>
     }
 
     [Fact]
+    public async Task ResolveCurrentModel_returns_null_for_class_without_syllabus()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<SchedulingService>();
+
+        var (_, _, cls) = await SeedSchoolYearClassAsync(db);   // no syllabus assigned
+
+        var (modelId, modelName) = await svc.ResolveCurrentModelForClassAsync(cls.Id);
+
+        Assert.Null(modelId);      // drives the attendance "טרם שובץ דגם" state + submit-disable
+        Assert.Null(modelName);
+    }
+
+    [Fact]
     public async Task ResolveCurrentModel_advances_past_completed_models()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();

@@ -1,5 +1,6 @@
 @model IReadOnlyList<Orkabi.Web.Modules.ActionHub.ActionItem>
 @using Orkabi.Web.Modules.ActionHub
+@using Orkabi.Web.Modules.Identity
 
 @functions {
     static string TypeToHebrew(ActionItemType t) => t switch
@@ -57,6 +58,14 @@
           </div>
           <p class="action-card__desc">@item.Description</p>
           <div class="action-card__actions">
+            @* R7: client-scoped tickets (birthday, tryout-followup carry a clientId) deep-link to the
+               profile — gated to CS/Admin, who can actually open it, so no 403 dead-end for others. *@
+            @if ((item.Type == ActionItemType.Birthday || item.Type == ActionItemType.TryoutFollowup)
+                 && item.RelatedEntityId.HasValue
+                 && (User.IsInRole(AppRoles.CustomerService) || User.IsInRole(AppRoles.Admin)))
+            {
+              <a class="btn-ghost btn-ghost--sm" href="/People/Clients/Details/@item.RelatedEntityId">פרופיל תלמיד</a>
+            }
             <button class="btn-ghost btn-ghost--sm btn-ghost--accent"
                     hx-post="?handler=Resolve&id=@item.Id"
                     hx-target="#action-@item.Id"

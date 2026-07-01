@@ -19,7 +19,7 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 
 - [x] **R5 — Pending substitution requests invisible to the Admin** _(Admin #2)_. **Fixed:** `RequestSubstitutionAsync` now raises a dedup-keyed Admin action item (`sub_request_{id}`), resolved on approve/deny/cancel — the pending queue is now discoverable in the Admin hub.
 - [x] **R6 — Mass-dropout routing** _(CS #3)_. **Decided: both.** Admin keeps its oversight item; a new CS item (`dropout_mass_cs_{classId}`) gives CS the follow-up. `79c88d2`.
-- [ ] **R7 — Client-related tickets don't deep-link to the F12 profile** _(CS #5)_. Tryout-followup / double-absence set `RelatedEntityId = clientId` but the card renders text only. Link the card to `/People/Clients/Details/{RelatedEntityId}`.
+- [x] **R7 — Client tickets deep-link to the F12 profile** _(CS #5)_. **Fixed:** Birthday + TryoutFollowup cards (RelatedEntityId is a clientId) now show a "פרופיל תלמיד" link to `/People/Clients/Details/{id}`, gated to CS/Admin viewers (no 403 dead-end for others).
 - [~] **R8 — "escalate" was a no-op** _(Admin #3)_. **Fixed:** `EscalateIncidentAsync` now raises a dedup-keyed Admin item (`escalated_incident_{id}`) in a transaction, resolved on close — escalation is an actionable signal, not just a status flip. **Still open:** an open-incident count on the Admin bento so a Medium incident has a passive signal too.
 
 ## 🟠 Capability gaps (bigger)
@@ -40,10 +40,10 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 ## 🧪 Test-debt (QA agent — one-sided coverage that hides regressions)
 
 - [ ] **QA1 — `DeleteModelAsync` LessonLog-only + LogisticsOrder-only guards** (only SyllabusModel tested; incl. an archived-template LessonLog to lock `IgnoreQueryFilters`).
-- [ ] **QA2 — `ReportAbsenceAsync` own-past-shift (throws) + own-today-shift (succeeds)** boundary.
+- [x] **QA2 — `ReportAbsenceAsync` own-past-shift (throws) + own-today-shift (succeeds)** boundary. Added.
 - [ ] **QA3 — Re-dispute recurrence**: repack → pack → dispute again creates a fresh ticket.
 - [ ] **QA4 — Schools delete page handler** (success + in-use re-render) + archived-class block.
-- [ ] **QA5 — `ResolveCurrentModelForClassAsync` `(null,null)`** for no-syllabus + empty-syllabus.
+- [x] **QA5 — `ResolveCurrentModelForClassAsync` `(null,null)`** for no-syllabus. Added (empty-syllabus case still uncovered).
 - [ ] **QA6** — `RepackDisputed` page forbidden-role; **QA7** — `ListByClientAsync` archived-class; **QA8** — `ListLessonHistoryAsync` archived + null-classId; **QA9** — `CloseIncidentAsync` from Escalated; **QA10** — `ToggleAsync` tryout-on-Dropped.
 
 ---
