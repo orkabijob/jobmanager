@@ -335,6 +335,13 @@ public class ActionItemService
         var className = cls?.Name ?? classId.ToString();
         var modelName = order?.Model?.Name ?? "";
 
+        // R15: include the instructor's dispute reason (truncated) so Logistics can triage from the hub
+        // without opening the orders list to find the note.
+        var notes = order?.DisputeNotes?.Trim();
+        var reason = string.IsNullOrWhiteSpace(notes)
+            ? ""
+            : $" · סיבה: {(notes!.Length > 120 ? notes[..120] + "…" : notes)}";
+
         var item = new ActionItem
         {
             Type = ActionItemType.Dispute,
@@ -343,7 +350,7 @@ public class ActionItemService
             AssignedToUserId = null,
             RelatedEntityId = logisticsOrderId,
             DeduplicationKey = dedupKey,
-            Description = $"מחלוקת על הזמנה לוגיסטית: כיתה {className} · דגם {modelName}."
+            Description = $"מחלוקת על הזמנה לוגיסטית: כיתה {className} · דגם {modelName}.{reason}"
         };
 
         _db.ActionItems.Add(item);
