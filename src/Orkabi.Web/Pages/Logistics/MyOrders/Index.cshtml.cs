@@ -93,13 +93,26 @@ public class IndexModel : PageModel
         return Partial("_OrderCard", updatedOrder);
     }
 
-    private Task<List<int>> GetInstructorClassIdsAsync(int userId) =>
-        _db.ShiftTemplates
+    // The classes whose kit this user may see/accept/dispute: those they teach as the default template
+    // instructor, PLUS (R10) those where they are the ACTUAL instructor on a shift instance — an approved
+    // substitute is set as ActualInstructorId, never the template default, so without this they'd see no
+    // orders and Accept/Dispute would Forbid() for the person actually teaching.
+    private async Task<List<int>> GetInstructorClassIdsAsync(int userId)
+    {
+        var templateClassIds = await _db.ShiftTemplates
             .IgnoreQueryFilters()
             .Where(t => t.DefaultInstructorId == userId && t.Status == Orkabi.Web.Shared.EntityStatus.Active)
             .Select(t => t.ClassId)
-            .Distinct()
             .ToListAsync();
+
+        var actualInstructorClassIds = await _db.ShiftInstances
+            .IgnoreQueryFilters()
+            .Where(i => i.ActualInstructorId == userId)
+            .Select(i => i.Template.ClassId)
+            .ToListAsync();
+
+        return templateClassIds.Concat(actualInstructorClassIds).Distinct().ToList();
+    }
 
     private async Task LoadAsync()
     {
@@ -111,12 +124,8 @@ public class IndexModel : PageModel
         else
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            // Find classes the instructor teaches via ShiftTemplates
-            var classIds = await _db.ShiftTemplates
-                .Where(t => t.DefaultInstructorId == userId && t.Status == Orkabi.Web.Shared.EntityStatus.Active)
-                .Select(t => t.ClassId)
-                .Distinct()
-                .ToListAsync();
+            // Classes the user teaches — as template default OR actual (substitute) instructor (R10).
+            var classIds = await GetInstructorClassIdsAsync(userId);
 
             Orders = await _db.LogisticsOrders
                 .IgnoreQueryFilters()
