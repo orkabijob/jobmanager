@@ -35,7 +35,7 @@ public class AttendanceHistoryTests : IClassFixture<SqliteFixture>
     }
 
     // Seeds a class with one Completed lesson log carrying 1 Present + 1 Absent attendance.
-    private static async Task<(int classId, string className)> SeedLessonWithAttendanceAsync(OrkabiAppFactory f)
+    private static async Task<(int classId, string className, int lessonLogId, string presentName, string absentName)> SeedLessonWithAttendanceAsync(OrkabiAppFactory f)
     {
         using var s = f.Services.CreateScope();
         var sp = s.ServiceProvider;
@@ -77,7 +77,7 @@ public class AttendanceHistoryTests : IClassFixture<SqliteFixture>
             new[] { (c1.Id, AttendanceStatus.Present), (c2.Id, AttendanceStatus.Absent) },
             "hist-" + Guid.NewGuid().ToString("N"));
 
-        return (cls.Id, className);
+        return (cls.Id, className, log.Id, c1.Name, c2.Name);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class AttendanceHistoryTests : IClassFixture<SqliteFixture>
     public async Task Cs_sees_attendance_history()
     {
         var (factory, client) = await ClientAsync(_sqlite, AppRoles.CustomerService, "v");
-        var (_, className) = await SeedLessonWithAttendanceAsync(factory);
+        var (_, className, _, _, _) = await SeedLessonWithAttendanceAsync(factory);
         var resp = await client.GetAsync("/Attendance/History");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
@@ -112,11 +112,70 @@ public class AttendanceHistoryTests : IClassFixture<SqliteFixture>
         factory.Dispose();
     }
 
+    // ── R4: per-student drill-down + class filter ──────────────────────────────
+
+    [Fact]
+    public async Task ListAttendanceForLesson_returns_per_student_statuses()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        var (_, _, lessonLogId, presentName, absentName) = await SeedLessonWithAttendanceAsync(factory);
+        using var scope = factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
+
+        var rows = await svc.ListAttendanceForLessonAsync(lessonLogId);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, r => r.ClientName == presentName && r.Status == AttendanceStatus.Present);
+        Assert.Contains(rows, r => r.ClientName == absentName && r.Status == AttendanceStatus.Absent);
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Cs_sees_per_student_lesson_detail()
+    {
+        var (factory, client) = await ClientAsync(_sqlite, AppRoles.CustomerService, "detail");
+        var (_, _, lessonLogId, presentName, absentName) = await SeedLessonWithAttendanceAsync(factory);
+
+        var resp = await client.GetAsync($"/Attendance/Lesson/{lessonLogId}");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+        Assert.Contains(presentName, body);
+        Assert.Contains(absentName, body);
+        Assert.Contains("נוכח", body);   // present chip
+        Assert.Contains("נעדר", body);   // absent chip
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task Lesson_detail_instructor_forbidden()
+    {
+        var (factory, client) = await ClientAsync(_sqlite, AppRoles.Instructor, "detailf");
+        var (_, _, lessonLogId, _, _) = await SeedLessonWithAttendanceAsync(factory);
+        var resp = await client.GetAsync($"/Attendance/Lesson/{lessonLogId}");
+        Assert.Equal(HttpStatusCode.Redirect, resp.StatusCode);
+        Assert.Contains("AccessDenied", resp.Headers.Location?.ToString());
+        factory.Dispose();
+    }
+
+    [Fact]
+    public async Task History_class_filter_narrows_to_selected_class()
+    {
+        var (factory, client) = await ClientAsync(_sqlite, AppRoles.CustomerService, "filter");
+        var (classId, _, myLogId, _, _) = await SeedLessonWithAttendanceAsync(factory);
+        var (_, _, otherLogId, _, _) = await SeedLessonWithAttendanceAsync(factory);   // a different class
+
+        var body = WebUtility.HtmlDecode(await (await client.GetAsync($"/Attendance/History?ClassId={classId}")).Content.ReadAsStringAsync());
+
+        Assert.Contains($"/Attendance/Lesson/{myLogId}", body);          // selected class's lesson shown
+        Assert.DoesNotContain($"/Attendance/Lesson/{otherLogId}", body); // other class filtered out
+        factory.Dispose();
+    }
+
     [Fact]
     public async Task ListLessonHistory_returns_attendance_counts()
     {
         using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
-        var (classId, _) = await SeedLessonWithAttendanceAsync(factory);
+        var (classId, _, _, _, _) = await SeedLessonWithAttendanceAsync(factory);
         using var scope = factory.Services.CreateScope();
         var svc = scope.ServiceProvider.GetRequiredService<SchedulingService>();
 

@@ -1,0 +1,76 @@
+@page "/Attendance/Lesson/{lessonLogId:int}"
+@model Orkabi.Web.Pages.Attendance.LessonModel
+@using Orkabi.Web.Modules.Scheduling
+@{
+    ViewData["Title"] = "נוכחות בשיעור";
+    var h = Model.Header;
+}
+
+<div class="dash-shell">
+  <header class="glass glass--nav dash-topbar">
+    <a href="/" class="dash-topbar__wordmark">עורקבי</a>
+    <span class="dash-topbar__title">נוכחות בשיעור</span>
+    <nav class="dash-topbar__user">
+      <span>שלום</span>
+      <a href="/Help" class="btn-ghost dash-topbar__help">עזרה</a>
+      <a href="/Account/Logout" class="btn-ghost" style="font-size:var(--t-admin-meta);">יציאה</a>
+    </nav>
+  </header>
+
+  <main class="dash-body">
+    <nav class="breadcrumb" aria-label="ניווט">
+      <a href="/Attendance/History">היסטוריית נוכחות</a>
+      <span class="icon-directional" aria-hidden="true">‹</span>
+      <span>@h.ClassName · <bdi class="num">@h.Date.ToString("dd/MM/yyyy")</bdi></span>
+    </nav>
+
+    <header class="list-head">
+      <div>
+        <h1 class="page-head__title">@h.ClassName</h1>
+        <p class="page-head__sub">
+          <bdi class="num">@h.Date.ToString("dd/MM/yyyy")</bdi> · דגם @h.ModelName ·
+          נוכחים <bdi class="num">@h.Present</bdi>/<bdi class="num">@h.Total</bdi>
+        </p>
+      </div>
+    </header>
+
+    <div class="glass glass--tile people-panel" style="--lg-tile-shadow: var(--lg-shadow);">
+      @if (!Model.Students.Any())
+      {
+        <div class="empty-state">
+          <p class="empty-state__title">לא תועדה נוכחות</p>
+          <p class="empty-state__hint">לא נרשמו רשומות נוכחות לשיעור זה.</p>
+        </div>
+      }
+      else
+      {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">תלמיד</th>
+              <th scope="col">נוכחות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var st in Model.Students)
+            {
+              <tr class="data-row">
+                <td class="data-cell data-cell--primary">@st.ClientName</td>
+                <td class="data-cell">
+                  @if (st.Status == AttendanceStatus.Present)
+                  {
+                    <span class="status-chip status-chip--active">נוכח/ת</span>
+                  }
+                  else
+                  {
+                    <span class="status-chip status-chip--off">נעדר/ת</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </main>
+</div>
