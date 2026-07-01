@@ -32,7 +32,7 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 ## 🟢 Polish (persona-confirmed, mostly already P-tier)
 
 - [ ] **R13 — Greeting inconsistency** _(Admin #7 / Instructor #8)_: bento resolves `FullName`, every sub-page hard-codes the email prefix → name flickers between pages. Shared topbar/greeting helper.
-- [ ] **R14 — Admin focal queue is oldest-first + birthday items never auto-close** _(Admin #5 / P2)_: stale birthday tickets bury same-day urgent items. Order by urgency + auto-close past-due birthdays.
+- [x] **R14 — Birthday items auto-close** _(Admin #5 / P2)_. **Fixed:** the daily job now calls `AutoResolveStaleBirthdayItemsAsync` to resolve past-due (DueDate<today) Birthday items before creating today's, so stale ones stop accumulating at the front of the focal queue. (Focal-queue re-ordering by urgency left as a further tweak — with the clutter gone at source it's lower-value.)
 - [x] **R15 — Dispute ticket now shows the reason** _(Logistics #2)_: the instructor's `DisputeNotes` (truncated) is appended to the dispute ticket description, so Logistics can triage from the hub. (The separate order deep-link is moot now that hub-resolve re-packs directly — Logistics #1.)
 - [x] **R16 — Generate no longer duplicates a disputed order** _(Logistics #3)_: `SeedOrdersForClassAsync` now treats ANY existing order (incl. Disputed) as "exists"; a live dispute is re-queued via re-pack, not by forking a second Pending order.
 - [ ] **R17 — Attendance two-half tap has no legend** _(Instructor #5)_; **R18 — phone is plain text (no `tel:`/WhatsApp)** _(CS #7 / P10)_; **R19 — absence button always shows success + no per-row state** _(Instructor #6)_.

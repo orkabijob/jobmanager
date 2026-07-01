@@ -30,6 +30,10 @@ public class DailyJobService : IDailyJobRunner
     /// <inheritdoc/>
     public async Task RunBirthdayCheckAsync(DateOnly todayIsrael, CancellationToken ct = default)
     {
+        // R14: clear yesterday's-and-older birthday items before creating today's, so they don't
+        // accumulate at the front of the focal queue and bury same-day urgent items.
+        await _actionItems.AutoResolveStaleBirthdayItemsAsync(todayIsrael, ct);
+
         var tomorrow = todayIsrael.AddDays(1);
 
         // Current academic year — used for the instructor-resolution query.
