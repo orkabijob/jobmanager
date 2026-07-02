@@ -53,13 +53,15 @@ After the 5-slice roadmap shipped, work continues against `docs/orkabi-backlog.m
 
 **Residue batch 3 — DEPLOYED (master `f969505`):** R11 (shift-access backward grace), R15 (dispute reason on ticket), R16 (no duplicate order on generate). With Logistics #1 the dispute loop is coherent end-to-end.
 
-**Residue batch 4 — on branch `feat/residue-batch-4`, NOT yet deployed:**
-- **R10** — MyOrders now includes actual-instructor (substitute) classes, so an approved sub sees/accepts/disputes the kit.
-- **R14** — the daily job auto-resolves past-due Birthday items so they stop cluttering the focal queue.
+**Residue batch 4 — DEPLOYED (master `b9363db`):** R10 (substitute sees the kit), R14 (birthday auto-close in the daily job).
 
-**Still open** (review-findings.md): R8's Admin-bento incident count, R9's year-Edit + dup-label validation, R12 (mobile card-stack / TD16), R13 (shared greeting helper), R14's focal-queue re-ordering, R17–R19, QA1/QA3/QA4/QA6–10, and the P/TD tiers.
+**Residue batch 5 — on branch `feat/residue-batch-5`, NOT yet deployed:**
+- **R8 (complete)** — open-incident count on the Admin bento (`AdminMetrics.OpenIncidents`), so a Medium incident has a passive signal.
+- **R18** — parent phone numbers are `tel:` click-to-call links (client profile, clients list, roster).
 
-**Tests: 414/414 green** (`dotnet test`). Functional tier complete except F10's email half. Residue batch 4 awaits deploy sign-off. **~15 review-residue items closed** (R4–R11, R14–R16 + QA2/QA5).
+**Still open** (review-findings.md): R9's year-Edit + dup-label validation, R12 (mobile card-stack / TD16), R13 (shared greeting helper), R14's focal-queue re-ordering, R17 (attendance tap legend), R19 (absence button per-row state), QA1/QA3/QA4/QA6–10, and the P/TD tiers.
+
+**Tests: 415/415 green** (`dotnet test`). Functional tier complete except F10's email half. Residue batch 5 awaits deploy sign-off. **~17 review-residue items closed** (R4–R11, R14–R16, R18 + QA2/QA5).
 
 ### What Slice 0 delivers
 - **Auth:** ASP.NET Core Identity (int keys), email/password + Google OAuth plumbing (Google not yet configured → button auto-hides). Cookie auth (HttpOnly, env-branched Secure, `/api/*`→401). Password policy 8+ chars, no complexity. OAuth `email_verified` gate.
