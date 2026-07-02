@@ -38,7 +38,7 @@
           @(c.IsActive ? "פעיל" : "לא פעיל")
           @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
           {
-            <text> · </text><bdi class="num">@c.ParentPhone</bdi>
+            <text> · </text><a class="num" href="tel:@c.ParentPhone" dir="ltr">@c.ParentPhone</a>
           }
           @if (c.Age.HasValue)
           {
