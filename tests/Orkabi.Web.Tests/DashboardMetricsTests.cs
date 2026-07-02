@@ -276,6 +276,38 @@ public class DashboardMetricsTests : IClassFixture<SqliteFixture>
         Assert.Equal(before + 1, metrics.PendingExtraHours);
     }
 
+    // ─── OpenIncidents (R8) ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task OpenIncidents_counts_open_incident_reports()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var db = sp.GetRequiredService<AppDbContext>();
+        var svc = sp.GetRequiredService<DashboardMetricsService>();
+        var ops = sp.GetRequiredService<Orkabi.Web.Modules.Operations.OperationsService>();
+        var um = sp.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+
+        var instructor = new AppUser { UserName = $"inc_{Guid.NewGuid():N}@t.t", Email = $"inc_{Guid.NewGuid():N}@t.t" };
+        await um.CreateAsync(instructor, "Test1234!");
+        var (school, year) = await SeedSchoolAndYearAsync(db);
+        var cls = await SeedClassAsync(db, school, year);
+        var template = new ShiftTemplate { ClassId = cls.Id, DayOfWeek = DayOfWeek.Tuesday, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(10, 0), DefaultInstructorId = instructor.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+        db.ShiftTemplates.Add(template);
+        await db.SaveChangesAsync();
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IsraelClock.IsraelTz));
+        var shift = new ShiftInstance { TemplateId = template.Id, ActualInstructorId = instructor.Id, Date = today.AddDays(-2), Status = ShiftInstanceStatus.Scheduled };
+        db.ShiftInstances.Add(shift);
+        await db.SaveChangesAsync();
+
+        var before = (await svc.GetAdminMetricsAsync()).OpenIncidents;
+        await ops.SubmitIncidentReportAsync(shift.Id, instructor.Id, Orkabi.Web.Modules.Operations.IncidentSeverity.Medium, "בדיקה");
+        var after = (await svc.GetAdminMetricsAsync()).OpenIncidents;
+
+        Assert.Equal(before + 1, after);   // a new Open incident is reflected on the bento count
+    }
+
     // ─── OpenDisputedOrders ──────────────────────────────────────────────────
 
     [Fact]

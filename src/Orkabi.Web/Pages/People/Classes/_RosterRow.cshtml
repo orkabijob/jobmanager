@@ -18,7 +18,7 @@
     <span class="roster-row__name">@e.Client.Name</span>
     @if (!string.IsNullOrWhiteSpace(e.Client.ParentPhone))
     {
-      <bdi class="roster-row__phone num">@e.Client.ParentPhone</bdi>
+      <a class="roster-row__phone num" href="tel:@e.Client.ParentPhone" dir="ltr">@e.Client.ParentPhone</a>
     }
   </div>
   <div class="roster-row__toggles">

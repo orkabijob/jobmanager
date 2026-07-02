@@ -48,6 +48,9 @@ public class DashboardMetricsService
         var pendingVacations = await _db.VacationRequests.CountAsync(v => v.Status == VacationStatus.Pending);
         var pendingExtraHours = await _db.ExtraHours.CountAsync(e => e.Status == ExtraHoursStatus.Pending);
         var disputedOrders = await _db.LogisticsOrders.CountAsync(o => o.Status == LogisticsOrderStatus.Disputed);
+        // R8: open-incident count — a passive signal for Medium incidents (which raise no action item).
+        var openIncidents = await _db.IncidentReports.CountAsync(r =>
+            r.Status == IncidentStatus.Open || r.Status == IncidentStatus.Escalated);
         var openOrders = await _db.LogisticsOrders.CountAsync(o =>
             o.Status == LogisticsOrderStatus.Pending || o.Status == LogisticsOrderStatus.Disputed);
         // Class global query filter = Active only → direct CountAsync = active classes
@@ -96,6 +99,7 @@ public class DashboardMetricsService
             OpenActionItemsByType = byTypeDict,
             HubPreview = hubPreview,
             OpenCount = openCount,
+            OpenIncidents = openIncidents,
             RecentOpenItems = recentOpen,
         };
     }
@@ -184,6 +188,9 @@ public sealed record AdminMetrics
 
     /// <summary>Total Open Admin-role item count — drives "עוד N משימות" overflow link.</summary>
     public int OpenCount { get; init; }
+
+    /// <summary>Open + Escalated IncidentReports — a passive incident signal on the bento (R8).</summary>
+    public int OpenIncidents { get; init; }
 
     /// <summary>Top 5 Open items across all roles/users, newest first — for the alerts feed tile.</summary>
     public List<ActionItem> RecentOpenItems { get; init; } = new();

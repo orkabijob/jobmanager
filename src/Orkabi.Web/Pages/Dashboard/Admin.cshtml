@@ -151,6 +151,10 @@
             <span class="stat-row__label">במחלוקת</span>
             <a class="stat-row__value" href="/Logistics/Orders?status=Disputed"><bdi class="num">@Model.DisputedOrders</bdi></a>
           </li>
+          <li class="stat-row@(Model.OpenIncidents > 0 ? " stat-row--alert" : "")">
+            <span class="stat-row__label">אירועים פתוחים</span>
+            <a class="stat-row__value" href="/Operations/Incidents"><bdi class="num">@Model.OpenIncidents</bdi></a>
+          </li>
         </ul>
       </div>
 

@@ -91,7 +91,7 @@
                 <td class="data-cell">
                   @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
                   {
-                    <bdi class="num">@c.ParentPhone</bdi>
+                    <a class="num" href="tel:@c.ParentPhone" dir="ltr">@c.ParentPhone</a>
                   }
                   else
                   {

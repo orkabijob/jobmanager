@@ -43,7 +43,7 @@ public class ClientDetailTests : IClassFixture<SqliteFixture>
         await db.SaveChangesAsync();
         var clsA = new Class { Name = $"כתה-A-{Guid.NewGuid():N}"[..16], School = school, AcademicYear = year, Status = EntityStatus.Active };
         var clsB = new Class { Name = $"כתה-B-{Guid.NewGuid():N}"[..16], School = school, AcademicYear = year, Status = EntityStatus.Active };
-        var client = new Client { Name = $"תלמיד-{Guid.NewGuid():N}"[..14], IsActive = true };
+        var client = new Client { Name = $"תלמיד-{Guid.NewGuid():N}"[..14], IsActive = true, ParentPhone = "050-1112222" };
         db.Classes.AddRange(clsA, clsB); db.Clients.Add(client);
         await db.SaveChangesAsync();
         db.Enrollments.Add(new Enrollment { ClientId = client.Id, ClassId = clsA.Id, Status = EnrollmentStatus.Active, EnrolledAt = DateTime.UtcNow });
@@ -83,6 +83,7 @@ public class ClientDetailTests : IClassFixture<SqliteFixture>
         var body = WebUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
         Assert.Contains(classA, body);   // active enrollment shown
         Assert.Contains(classB, body);   // dropped enrollment shown too (full history)
+        Assert.Contains("tel:050-1112222", body);   // R18: click-to-call parent phone
         factory.Dispose();
     }
 

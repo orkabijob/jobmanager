@@ -129,7 +129,7 @@
                   <span class="roster-row__name">@c.Name</span>
                   @if (!string.IsNullOrWhiteSpace(c.ParentPhone))
                   {
-                    <bdi class="roster-row__phone num">@c.ParentPhone</bdi>
+                    <a class="roster-row__phone num" href="tel:@c.ParentPhone" dir="ltr">@c.ParentPhone</a>
                   }
                 </div>
                 <form method="post" asp-page-handler="Add" asp-route-classId="@classId">

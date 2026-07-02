@@ -49,6 +49,9 @@ public class AdminModel : PageModel
     /// <summary>Classes with Status == Active (global query filter).</summary>
     public int ActiveClasses { get; private set; }
 
+    /// <summary>Open + Escalated incident reports — passive incident signal (R8).</summary>
+    public int OpenIncidents { get; private set; }
+
     /// <summary>Top-5 Open Admin-role items (oldest first) — focal tile hub preview.</summary>
     public IReadOnlyList<ActionItem> HubPreview { get; private set; } = [];
 
@@ -74,6 +77,7 @@ public class AdminModel : PageModel
         OpenOrders = m.OpenLogisticsOrders;
         DisputedOrders = m.OpenDisputedOrders;
         ActiveClasses = m.ActiveClassesCount;
+        OpenIncidents = m.OpenIncidents;
         OpenAdminCount = m.OpenCount;
         HubPreview = m.HubPreview;
         RecentOpenItems = m.RecentOpenItems;
