@@ -20,7 +20,7 @@ Suite at capture: **392/392**. Legend: `[x]` fixed this session · `[ ]` open.
 - [x] **R5 — Pending substitution requests invisible to the Admin** _(Admin #2)_. **Fixed:** `RequestSubstitutionAsync` now raises a dedup-keyed Admin action item (`sub_request_{id}`), resolved on approve/deny/cancel — the pending queue is now discoverable in the Admin hub.
 - [x] **R6 — Mass-dropout routing** _(CS #3)_. **Decided: both.** Admin keeps its oversight item; a new CS item (`dropout_mass_cs_{classId}`) gives CS the follow-up. `79c88d2`.
 - [x] **R7 — Client tickets deep-link to the F12 profile** _(CS #5)_. **Fixed:** Birthday + TryoutFollowup cards (RelatedEntityId is a clientId) now show a "פרופיל תלמיד" link to `/People/Clients/Details/{id}`, gated to CS/Admin viewers (no 403 dead-end for others).
-- [~] **R8 — "escalate" was a no-op** _(Admin #3)_. **Fixed:** `EscalateIncidentAsync` now raises a dedup-keyed Admin item (`escalated_incident_{id}`) in a transaction, resolved on close — escalation is an actionable signal, not just a status flip. **Still open:** an open-incident count on the Admin bento so a Medium incident has a passive signal too.
+- [x] **R8 — incident signal** _(Admin #3)_. **Fixed (both halves):** `EscalateIncidentAsync` raises a dedup-keyed Admin item (resolved on close), AND the Admin bento now shows an **open-incident count** (`AdminMetrics.OpenIncidents`, Open+Escalated) linking to `/Operations/Incidents` — so a Medium incident (no action item) has a passive signal too.
 
 ## 🟠 Capability gaps (bigger)
 
