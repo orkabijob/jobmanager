@@ -67,6 +67,45 @@ public class LogisticsPagesTests : IClassFixture<SqliteFixture>
         Assert.Contains("/Account/Login", resp.Headers.Location?.ToString());
     }
 
+    // ── R10: an approved substitute (actual, not template, instructor) sees the class kit ──
+
+    [Fact]
+    public async Task Substitute_sees_the_class_kit_in_my_orders()
+    {
+        var (factory, subClient, subId) = await CreateUserClientAsync(_sqlite, AppRoles.Instructor, "_sub_kit");
+        string className;
+        using (var s = factory.Services.CreateScope())
+        {
+            var db = s.ServiceProvider.GetRequiredService<AppDbContext>();
+            var um = s.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+
+            var aEmail = $"a.instr.{Guid.NewGuid():N}"[..28] + "@t.t";
+            var a = new AppUser { UserName = aEmail, Email = aEmail };
+            await um.CreateAsync(a, "Passw0rd!");   // A owns the template; the sub does not
+
+            var school = new School { Name = $"Sch-{Guid.NewGuid():N}"[..18], City = "ת" };
+            var year = new AcademicYear { Label = $"Y-{Guid.NewGuid():N}"[..10], StartDate = new DateOnly(2025, 9, 1), EndDate = new DateOnly(2026, 6, 30) };
+            db.Schools.Add(school); db.AcademicYears.Add(year);
+            await db.SaveChangesAsync();
+            className = $"C-sub-{Guid.NewGuid():N}"[..15];
+            var cls = new Class { Name = className, SchoolId = school.Id, AcademicYearId = year.Id, Status = EntityStatus.Active };
+            var model = new Orkabi.Web.Modules.Curriculum.Model { Name = $"M-{Guid.NewGuid():N}"[..12] };
+            db.Classes.Add(cls); db.Models.Add(model);
+            await db.SaveChangesAsync();
+            var template = new ShiftTemplate { ClassId = cls.Id, DefaultInstructorId = a.Id, DayOfWeek = DayOfWeek.Monday, StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(10, 0), AcademicYearId = year.Id, Status = EntityStatus.Active };
+            db.ShiftTemplates.Add(template);
+            await db.SaveChangesAsync();
+            // the signed-in user is only the ACTUAL instructor on an instance (an approved substitution)
+            db.ShiftInstances.Add(new ShiftInstance { TemplateId = template.Id, ActualInstructorId = subId, Date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)), Status = ShiftInstanceStatus.Scheduled });
+            db.LogisticsOrders.Add(new LogisticsOrder { ClassId = cls.Id, ModelId = model.Id, Quantity = 1, Status = LogisticsOrderStatus.Packed });
+            await db.SaveChangesAsync();
+        }
+
+        var body = WebUtility.HtmlDecode(await (await subClient.GetAsync("/Logistics/MyOrders")).Content.ReadAsStringAsync());
+        Assert.Contains(className, body);   // R10: the substitute who actually teaches sees the class's kit
+        factory.Dispose();
+    }
+
     // ── Authz: Instructor cannot access Logistics orders list ─────────────────
 
     [Fact]

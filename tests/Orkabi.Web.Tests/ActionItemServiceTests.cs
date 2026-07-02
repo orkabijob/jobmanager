@@ -269,6 +269,30 @@ public class ActionItemServiceTests : IClassFixture<SqliteFixture>
         Assert.Equal(cls.Id, csItem.RelatedEntityId);
     }
 
+    // ─── AutoResolveStaleBirthdayItemsAsync (R14) ─────────────────────────────
+
+    [Fact]
+    public async Task AutoResolveStaleBirthday_resolves_past_due_only()
+    {
+        using var factory = new OrkabiAppFactory { ConnectionString = _sqlite.ConnectionString }.Prepared();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var svc = scope.ServiceProvider.GetRequiredService<ActionItemService>();
+
+        var today = new DateOnly(2026, 7, 2);
+        var stale = new ActionItem { Type = ActionItemType.Birthday, Status = ActionItemStatus.Open, AssignedToRole = AppRoles.Admin, DueDate = today.AddDays(-1), DeduplicationKey = $"bday_stale_{Guid.NewGuid():N}", Description = "yesterday" };
+        var current = new ActionItem { Type = ActionItemType.Birthday, Status = ActionItemStatus.Open, AssignedToRole = AppRoles.Admin, DueDate = today, DeduplicationKey = $"bday_today_{Guid.NewGuid():N}", Description = "today" };
+        db.ActionItems.AddRange(stale, current);
+        await db.SaveChangesAsync();
+
+        var cleared = await svc.AutoResolveStaleBirthdayItemsAsync(today);
+
+        Assert.True(cleared >= 1);   // count spans the shared fixture DB; assert per-item below
+        db.ChangeTracker.Clear();
+        Assert.Equal(ActionItemStatus.Resolved, (await db.ActionItems.FindAsync(stale.Id))!.Status);   // past-due cleared
+        Assert.Equal(ActionItemStatus.Open, (await db.ActionItems.FindAsync(current.Id))!.Status);     // today's kept
+    }
+
     // ─── EnsureDisputeActionItemAsync ─────────────────────────────────────────
 
     [Fact]

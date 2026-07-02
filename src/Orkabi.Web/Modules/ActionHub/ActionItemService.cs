@@ -93,6 +93,33 @@ public class ActionItemService
     }
 
     /// <summary>
+    /// R14 — auto-resolve Open Birthday items whose day has passed (DueDate &lt; today). Birthday items
+    /// set a DueDate but were never acted on, so stale ones accumulated at the front of the queue and
+    /// buried same-day urgent items. Nulling the dedup key frees the slot for next year. Returns the
+    /// count cleared. Called from the daily job.
+    /// </summary>
+    public async Task<int> AutoResolveStaleBirthdayItemsAsync(DateOnly today, CancellationToken ct = default)
+    {
+        var stale = await _db.ActionItems
+            .Where(a => a.Status == ActionItemStatus.Open
+                     && a.Type == ActionItemType.Birthday
+                     && a.DueDate != null && a.DueDate < today)
+            .ToListAsync(ct);
+
+        foreach (var item in stale)
+        {
+            item.Status = ActionItemStatus.Resolved;
+            item.ResolvedAt = DateTime.UtcNow;
+            item.DeduplicationKey = null;
+        }
+
+        if (stale.Count > 0)
+            await _db.SaveChangesAsync(ct);
+
+        return stale.Count;
+    }
+
+    /// <summary>
     /// Returns all Open action items assigned to the given role, ordered by CreatedAt ascending.
     /// </summary>
     public Task<List<ActionItem>> ListOpenForRoleAsync(string role) =>
